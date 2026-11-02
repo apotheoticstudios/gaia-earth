@@ -22,8 +22,9 @@ are never converted.
     python3 convert.py <sources.tsv> <pack id> <pack folder> <out folder> [--unapproved]
     python3 convert.py --self-test
 
-Output, in <out folder>/<pack id>/: each tree as <its path in the pack>.nbt (DataVersion 4786, Minecraft
-26.1), and trees.json listing per tree its size, the foot of its trunk in the template ("base"), how the
+Output, in <out folder>/<pack id>/: each tree as <its path in the pack>.nbt, keeping the data version of the
+Minecraft its schematic was saved in, so the game upgrades blocks renamed since when it loads the tree (short
+grass was "grass" before 1.20.3); and trees.json listing per tree its size, the foot of its trunk in the template ("base"), how the
 ground was found, height above and depth below the ground, reach from the trunk, main log and leaf blocks,
 and leaf counts; and every file skipped, with why.
 """
@@ -177,9 +178,11 @@ def parse_state(state):
 
 
 def load(path):
-    """A schematic's blocks, {(x, y, z): [name, properties, block entity or None]}, and its paste origin if saved."""
+    """A schematic's blocks, {(x, y, z): [name, properties, block entity or None]}, its paste origin if saved, and
+    the data version of the Minecraft it was saved in."""
     root = read_nbt(path)
     s = root["Schematic"] if isinstance(root.get("Schematic"), dict) else root
+    version = s.get("DataVersion", DATA_VERSION)
     if isinstance(s.get("Blocks"), dict):  # Sponge v3: the paster stands at -Offset from the minimum corner
         palette, data, entities = s["Blocks"]["Palette"], s["Blocks"]["Data"], s["Blocks"].get("BlockEntities", [])
         origin = tuple(-v for v in s["Offset"]) if "Offset" in s else None
@@ -189,7 +192,7 @@ def load(path):
         meta = s.get("Metadata", {})
         origin = tuple(-meta["WEOffset" + a] for a in "XYZ") if "WEOffsetX" in meta else None
     elif "palette" in s or "palettes" in s:
-        return load_structure(s), None
+        return load_structure(s), None, version
     elif "Materials" in s:
         raise ValueError("legacy MCEdit schematic with numeric block ids: not supported yet")
     else:
@@ -219,7 +222,7 @@ def load(path):
             nbt.pop("Id", None)
             nbt["id"] = e["Id"]
             blocks[pos][2] = nbt
-    return blocks, origin
+    return blocks, origin, version
 
 
 def load_structure(s):
@@ -311,7 +314,7 @@ def relink_leaves(blocks):
     return stuck
 
 
-def convert(blocks, origin, ground=""):
+def convert(blocks, origin, ground="", version=DATA_VERSION):
     """A tree as a vanilla structure template, and what trees.json says about it."""
     base, how = find_base(blocks, origin, ground)
     blocks = {p: b for p, b in blocks.items() if not (b[0] in SOIL and p[1] < base[1])}
@@ -332,7 +335,7 @@ def convert(blocks, origin, ground=""):
             entry["nbt"] = nbt
         entries.append(entry)
     size = [hi[i] - lo[i] + 1 for i in range(3)]
-    template = {"DataVersion": DATA_VERSION, "size": List(size, 3), "palette": List(palette, 10),
+    template = {"DataVersion": version, "size": List(size, 3), "palette": List(palette, 10),
                 "blocks": List(entries, 10), "entities": List([], 10)}
     names = Counter(b[0] for b in blocks.values())
     info = {
@@ -372,10 +375,10 @@ def main(sources, pack, folder, out, unapproved=False):
             try:
                 if name in written:
                     raise Skip("same name as another tree once converted")
-                blocks, origin = load(src)
+                blocks, origin, version = load(src)
                 if not blocks:
                     raise Skip("empty")
-                template, info = convert(blocks, origin, row.get("ground") or "")
+                template, info = convert(blocks, origin, row.get("ground") or "", version)
             except (Skip, ValueError, KeyError, IndexError, struct.error) as e:
                 skipped.append({"source": rel, "reason": "%s: %s" % (type(e).__name__, e)})
                 continue
@@ -429,14 +432,14 @@ def self_test():
             out.append(v)
         return bytes(out)
 
-    def sponge(blocks, size, version, offset=None):
+    def sponge(blocks, size, version, offset=None, data_version=DATA_VERSION):
         palette = {"minecraft:air": 0}
         for state in blocks.values():
             palette.setdefault(state, len(palette))
         w, h, length = size
         data = varints(palette[blocks.get((x, y, z), "minecraft:air")]
                        for y in range(h) for z in range(length) for x in range(w))
-        s = {"Version": version, "DataVersion": DATA_VERSION, "Width": Short(w), "Height": Short(h), "Length": Short(length)}
+        s = {"Version": version, "DataVersion": data_version, "Width": Short(w), "Height": Short(h), "Length": Short(length)}
         if version == 3:
             s["Blocks"] = {"Palette": palette, "Data": data, "BlockEntities": List([], 10)}
             if offset:
@@ -451,7 +454,7 @@ def self_test():
     with tempfile.TemporaryDirectory() as tmp:
         packs, out = os.path.join(tmp, "pack"), os.path.join(tmp, "out")
         os.makedirs(os.path.join(packs, "Oaks"))
-        write_nbt(os.path.join(packs, "Oaks", "Oak 1.schem"), sponge(tree, (9, 12, 9), 2, [-4, -2, -4]))
+        write_nbt(os.path.join(packs, "Oaks", "Oak 1.schem"), sponge(tree, (9, 12, 9), 2, [-4, -2, -4], 3465))
         write_nbt(os.path.join(packs, "Oaks", "oak_soil.schem"), sponge(with_soil, (9, 12, 9), 3))
         write_nbt(os.path.join(packs, "oak_plain.schem"), sponge(tree, (9, 12, 9), 3))
         write_nbt(os.path.join(packs, "wide.schem"), sponge(wide, (21, 2, 1), 3))
@@ -475,7 +478,8 @@ def self_test():
             assert (t["ground"], t["base"], t["height"], t["depth"]) == (how, [4, 2, 4], 10, 2), (file, t)
             assert (t["stuck_leaves"], t["log"], t["leaves"]) == (1, "minecraft:oak_log", "minecraft:oak_leaves"), t
             template = read_nbt(os.path.join(out, "test", file))
-            assert template["DataVersion"] == DATA_VERSION and template["size"] == [7, 12, 7], template["size"]
+            assert template["DataVersion"] == (3465 if file == "oaks/oak_1.nbt" else DATA_VERSION), template["DataVersion"]
+            assert template["size"] == [7, 12, 7], template["size"]
             states = {tuple(b["pos"]): template["palette"][b["state"]] for b in template["blocks"]}
             assert len(states) == len(tree), (file, len(states))
             assert states[(4, 9, 4)]["Properties"] == {"distance": "1", "persistent": "false", "waterlogged": "false"}
