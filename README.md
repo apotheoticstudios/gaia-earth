@@ -460,7 +460,8 @@ RealEarthEvents.TOWN_ENTERED.register((player, town, previous) ->
 
 ## Development
 
-Requires Java 25.
+Requires Java 25 installed. Gradle runs on it even when started from an older JVM, such as an IDE's
+(`gradle/gradle-daemon-jvm.properties`).
 
 ```bash
 ./gradlew build          # build/libs/realearth-<version>.jar
