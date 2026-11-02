@@ -13,6 +13,13 @@ loom {
 	}
 
 	runs {
+		// runClient with Xaero's Minimap and World Map from libs/ (each brings its own xaerolib), when they are there.
+		client {
+			def xaero = files("libs/xaerominimap-fabric-26.1.2-26.6.1.jar", "libs/xaeroworldmap-fabric-26.1.2-1.47.2.jar").filter { it.exists() }
+			if (!xaero.isEmpty()) {
+				vmArg "-Dfabric.addMods=${xaero.asPath}"
+			}
+		}
 		selftest {
 			server()
 			name "Self-test Server"

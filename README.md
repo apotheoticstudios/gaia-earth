@@ -476,8 +476,9 @@ Requires Java 25 installed. Gradle runs on it even when started from an older JV
 Distant Horizons, Jade and Xaero's Minimap and World Map are compile-only dependencies: download
 `DistantHorizons-3.3.3-26.1.2-fabric-neoforge.jar`, `Jade-mc26.1-Fabric-26.1.9.jar`,
 `xaerominimap-fabric-26.1.2-26.6.1.jar` and `xaeroworldmap-fabric-26.1.2-1.47.2.jar` into `libs/` before building,
-with `xaerolib-fabric-26.1.2-1.8.3.jar` taken out of the minimap's `META-INF/jars`. To try them in
-`./gradlew runClient`, put them in `run/mods/` too. `-PshotHud=true` keeps the HUD in screenshots, for what those
+with `xaerolib-fabric-26.1.2-1.8.3.jar` taken out of the minimap's `META-INF/jars`. `./gradlew runClient` loads
+Xaero's Minimap and World Map from `libs/` when they are there; for the other mods, or other runs, put them in
+that run's `mods/` folder. `-PshotHud=true` keeps the HUD in screenshots, for what those
 mods show. The elevation tile approach (global sample grid, pixel-centre sampling,
 the 404-over-ocean behaviour) carried over from the GeoWorld project.
 
