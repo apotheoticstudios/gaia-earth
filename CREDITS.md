@@ -72,6 +72,30 @@ Licensed under CC BY 4.0 (<https://creativecommons.org/licenses/by/4.0/>). **Cha
 1 km is bundled with the mod re-tiled and compressed into its own format (`koppen.kgz`); the climate classes are
 unchanged.
 
+## Snowline: Randolph Glacier Inventory and CHELSA
+
+Where snow lasts, which sets snowy biomes, snow cover and ice: glaciers' median heights where there are
+glaciers, and summer temperature and precipitation carried to height everywhere else.
+
+RGI 7.0 Consortium (2023). Randolph Glacier Inventory – A Dataset of Global Glacier Outlines, Version 7.0.
+NSIDC: National Snow and Ice Data Center, Boulder, Colorado USA. <https://doi.org/10.5067/f6jmovy5navz>
+(global attribute table as mirrored by OGGM).
+
+Licensed under CC BY 4.0 (<https://creativecommons.org/licenses/by/4.0/>).
+
+Karger, D. N., Conrad, O., Böhner, J., Kawohl, T., Kreft, H., Soria-Auza, R. W., Zimmermann, N. E., Linder,
+H. P., Kessler, M. (2017). Climatologies at high resolution for the earth's land surface areas. *Scientific
+Data* 4, 170122. <https://doi.org/10.1038/sdata.2017.122>. CHELSA V2.1, 1981–2010: mean temperature of the
+warmest quarter (bio10), annual precipitation (bio12) and the elevation they were made on.
+<https://doi.org/10.16904/envidat.228>
+
+Released under CC0 1.0 (<https://creativecommons.org/publicdomain/zero/1.0/>).
+
+**Changes:** neither dataset is bundled as published. `tools/snowline/build_snowline.py` combines them into one
+grid of snowline heights every 0.1 degrees (`snowline.bin`): the summer temperature at which glaciers survive,
+by precipitation, is read off the glaciers; the climate gives a snowline everywhere; glaciers correct it within
+about 200 km of them.
+
 ## Software
 
 - Distant Horizons (optional, by James Seibel and contributors) is used through its public API only; it is not

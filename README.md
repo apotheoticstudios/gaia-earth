@@ -11,7 +11,8 @@ A Minecraft **26.1** (Fabric) mod that adds an **Earth dimension**, generated fr
   sea level the vertical scale is linear; higher than that, mountains are eased smoothly so Everest still fits
   under the build limit (details below).
 - Water from **OpenStreetMap**, land cover from **ESA WorldCover** (10 m), climate from the **Köppen-Geiger** map
-  (1 km). Optional **Distant Horizons** support draws distant terrain straight from the data.
+  (1 km), and the snowline from the **Randolph Glacier Inventory**'s glaciers and **CHELSA** climate. Optional
+  **Distant Horizons** support draws distant terrain straight from the data.
 
 ## The map
 

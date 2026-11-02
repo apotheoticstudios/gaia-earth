@@ -5,6 +5,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.Biomes;
 import se.itssimple.realearth.climate.Koppen;
+import se.itssimple.realearth.climate.Snowline;
 import se.itssimple.realearth.landcover.WorldCover;
 
 /**
@@ -23,14 +24,23 @@ public final class BiomePicker {
 	private BiomePicker() {
 	}
 
-	/** Real-world snowline: ~5,000 m in the tropics, ~3,300 m in the Alps, ~1,400 m at Kebnekaise. */
-	public static double snowlineMeters(double latitude) {
+	/**
+	 * The real snowline at a place, from glaciers and climate (see {@link Snowline}): about 2,900 m in the
+	 * central Alps, 1,500 m on Norway's west coast, 5,000 m and more in the tropics.
+	 */
+	public static double snowlineMeters(double latitude, double longitude) {
+		Snowline grid = Snowline.get();
+		return grid != null ? grid.metersAt(latitude, longitude) : latitudeSnowlineMeters(latitude);
+	}
+
+	/** A snowline by latitude alone, for when the bundled grid can't be read. */
+	static double latitudeSnowlineMeters(double latitude) {
 		double t = Math.abs(latitude) / 80.0;
 		return Math.max(0, 5000.0 * (1.0 - t * t));
 	}
 
-	public static double treelineMeters(double latitude) {
-		return snowlineMeters(latitude) - 800.0;
+	public static double treelineMeters(double latitude, double longitude) {
+		return snowlineMeters(latitude, longitude) - 800.0;
 	}
 
 	/** Vanilla's line between rain and snow, and between water and ice. */
@@ -45,7 +55,7 @@ public final class BiomePicker {
 	 * that are colder already stay as they are.
 	 */
 	public static float heightTemperature(float base, double meters, double latitude, double longitude) {
-		double snowline = snowlineMeters(latitude) + 150.0 * GeoNoise.sample(latitude, longitude, 2.0, 23);
+		double snowline = snowlineMeters(latitude, longitude) + 150.0 * GeoNoise.sample(latitude, longitude, 2.0, 23);
 		return (float) Math.min(base, SNOW_TEMPERATURE + COOLING_PER_METER * (snowline - meters));
 	}
 
@@ -68,8 +78,8 @@ public final class BiomePicker {
 			return deep ? Biomes.DEEP_OCEAN : Biomes.OCEAN;
 		}
 
-		double snowline = Koppen.iceCap(climate) ? -1000 : snowlineMeters(latitude);
-		double treeline = treelineMeters(latitude);
+		double snowline = Koppen.iceCap(climate) ? -1000 : snowlineMeters(latitude, longitude);
+		double treeline = treelineMeters(latitude, longitude);
 		if (lake) {
 			return Koppen.polar(climate) || Koppen.veryCold(climate) || waterMeters > snowline ? Biomes.FROZEN_RIVER : Biomes.RIVER;
 		}

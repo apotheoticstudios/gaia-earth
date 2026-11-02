@@ -6,9 +6,9 @@ Proposed features and known issues, roughly in the order they'd be worth doing. 
 
 1. **Height cooling at map scale.** Done: snow and ice follow a block's real elevation (map scale and the
    eased heights above the knee undone), and rain turns to snow at the same snowline the snowy biomes follow,
-   on the client too (the server sends its map's shape on join). Next: a snowline from real data instead of a
-   curve by latitude: glacier median elevations from the Randolph Glacier Inventory, and WorldClim temperature
-   where there are no glaciers, so wet coasts get lower snowlines than dry interiors.
+   on the client too (the server sends its map's shape on join). The snowline itself comes from data: the
+   Randolph Glacier Inventory's glaciers, and CHELSA summer temperature and precipitation where there are none
+   (`tools/snowline/`), so wet coasts get lower snowlines than dry interiors.
 2. **High-resolution national elevation.** Lantmäteriet's 1 m terrain model for Sweden fixes Stockholm's flat
    26 m city patch (the AWS source is a surface model there). The car game (`D:/cloud/projects/car-game 5.8/`)
    already has `LidarSheetClient` and `HeightCog` for it. Same idea later for USGS 3DEP (1 m, USA), and

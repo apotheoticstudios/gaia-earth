@@ -14,7 +14,7 @@ import net.minecraft.network.chat.MutableComponent;
 public final class Credits {
 	/** One line, for places with little room: the F3 screen and the greeting on joining. */
 	public static final String SHORT = "Map data © OpenStreetMap contributors (ODbL) · Terrain Tiles (USGS and others) · "
-		+ "© ESA WorldCover 2021 (CC BY 4.0) · Köppen-Geiger, Beck et al. 2023 (CC BY 4.0)";
+		+ "© ESA WorldCover 2021 (CC BY 4.0) · Köppen-Geiger, Beck et al. 2023 (CC BY 4.0) · Glaciers: RGI 7.0 (CC BY 4.0)";
 
 	private record Source(String what, String credit, String url) {
 	}
@@ -35,7 +35,12 @@ public final class Credits {
 		new Source("Climate",
 			"Beck, H. E., et al. (2023), High-resolution (1 km) Köppen-Geiger maps for 1901–2099, Scientific Data 10, 724. CC BY 4.0; "
 				+ "bundled re-tiled, classes unchanged.",
-			"https://doi.org/10.1038/s41597-023-02549-6")
+			"https://doi.org/10.1038/s41597-023-02549-6"),
+		new Source("Snowline",
+			"RGI 7.0 Consortium (2023), Randolph Glacier Inventory 7.0, NSIDC, doi:10.5067/f6jmovy5navz. CC BY 4.0. "
+				+ "With CHELSA V2.1 climatologies (Karger et al. 2017, Scientific Data 4, 170122), CC0. "
+				+ "Combined into a bundled 0.1° snowline grid.",
+			"https://doi.org/10.5067/f6jmovy5navz")
 	);
 
 	private Credits() {

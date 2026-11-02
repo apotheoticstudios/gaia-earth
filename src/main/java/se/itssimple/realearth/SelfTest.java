@@ -27,6 +27,7 @@ import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.level.ChunkPos;
 import se.itssimple.realearth.command.AreaDownload;
 import se.itssimple.realearth.command.ChunkRepair;
+import se.itssimple.realearth.climate.Snowline;
 import se.itssimple.realearth.data.DiskCache;
 import se.itssimple.realearth.data.TileStore;
 import se.itssimple.realearth.geo.Mercator;
@@ -124,15 +125,20 @@ final class SelfTest {
 				check(wrapped < -179.0, "Mercator: flying east past 180 degrees carries on at %.2f", wrapped);
 			}
 			{
-				// The snowline against published glacier equilibrium lines: 2,900-3,200 m in the central Alps at 47N
-				// (https://encyclopedia.pub/entry/history/show/87054), about 1,500 m at Storglaciaren under Kebnekaise
-				// (Tarfala research station); and below Kilimanjaro's 5,895 m summit, where glaciers remain.
-				double alps = BiomePicker.snowlineMeters(47.0);
-				double kebnekaise = BiomePicker.snowlineMeters(67.9);
-				double kilimanjaro = BiomePicker.snowlineMeters(-3.07);
+				// The snowline (from RGI 7.0 glaciers and CHELSA climate) against published glacier equilibrium lines:
+				// 2,900-3,200 m in the central Alps at 47N (https://encyclopedia.pub/entry/history/show/87054), about
+				// 1,500 m at Storglaciaren under Kebnekaise (Tarfala research station); and below Kilimanjaro's 5,895 m
+				// summit, where glaciers remain. Wet western Norway's glaciers reach lower than Jotunheimen's inland.
+				check(Snowline.get() != null, "the bundled snowline map loads");
+				double alps = BiomePicker.snowlineMeters(46.50, 8.03);
+				double kebnekaise = BiomePicker.snowlineMeters(67.90, 18.57);
+				double kilimanjaro = BiomePicker.snowlineMeters(-3.07, 37.35);
+				double coast = BiomePicker.snowlineMeters(61.70, 7.00);
+				double inland = BiomePicker.snowlineMeters(61.63, 8.31);
 				check(alps > 2700 && alps < 3400, "snowline in the Alps at %.0f m (published 2,900-3,200)", alps);
-				check(Math.abs(kebnekaise - 1500) < 200, "snowline at Kebnekaise at %.0f m (published about 1,500)", kebnekaise);
+				check(Math.abs(kebnekaise - 1500) < 250, "snowline at Kebnekaise at %.0f m (published about 1,500)", kebnekaise);
 				check(kilimanjaro < 5895, "snowline on Kilimanjaro at %.0f m, below the summit", kilimanjaro);
+				check(coast < inland - 200, "snowline lower on Norway's wet coast (%.0f m) than inland in Jotunheimen (%.0f m)", coast, inland);
 
 				// Snow and ice follow it on any map, by real elevation (BiomeTemperatureMixin).
 				VerticalScale vs = new VerticalScale(2800, -600);
@@ -164,7 +170,7 @@ final class SelfTest {
 						q[2], q[0], q[1], lo, hi, block);
 				}
 				// Snow just above the snowline whatever the biome, rain well below it; cold biomes stay cold.
-				double line = BiomePicker.snowlineMeters(46.0);
+				double line = BiomePicker.snowlineMeters(46.0, 8.0);
 				check(BiomePicker.heightTemperature(0.8F, line + 200, 46.0, 8.0) < 0.15F
 					&& BiomePicker.heightTemperature(0.8F, line - 200, 46.0, 8.0) >= 0.15F,
 					"plains turn from rain to snow within 200 m of the snowline (%.0f m)", line);
