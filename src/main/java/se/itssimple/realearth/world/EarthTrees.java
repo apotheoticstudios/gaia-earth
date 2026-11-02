@@ -84,6 +84,10 @@ public final class EarthTrees {
 	private static final double CLEARANCE = 0.5;
 	/** Below this many metres under the treeline a place is "mid" (montane); within 200 m of it, "high". */
 	private static final double TREELINE_BAND = 200.0;
+	/** At the treeline trees grow stunted: this share of their usual height. */
+	private static final double TREELINE_HEIGHT = 0.6;
+	/** A tree grown taller keeps at least this share of its height as crown, as close-grown trees do. */
+	private static final double MAX_BOLE = 0.55;
 	private static final Map<String, List<ResourceKey<ConfiguredFeature<?, ?>>>> VANILLA = Map.of(
 		"spruce", List.of(TreeFeatures.SPRUCE, TreeFeatures.PINE),
 		"birch", List.of(TreeFeatures.BIRCH),
@@ -96,6 +100,8 @@ public final class EarthTrees {
 		"cherry", List.of(TreeFeatures.CHERRY));
 
 	private static final Map<String, LongAdder> PLACED = new ConcurrentHashMap<>();
+	private static final Map<String, LongAdder> HEIGHTS = new ConcurrentHashMap<>();
+	private static final Map<Identifier, Shape> SHAPES = new ConcurrentHashMap<>();
 	/** Set while Earth grows a vanilla tree itself, so it isn't turned away as one of vanilla's own. */
 	private static final ThreadLocal<Boolean> GROWING = new ThreadLocal<>();
 	private static volatile Index index;
@@ -107,9 +113,16 @@ public final class EarthTrees {
 	private record Tree(Identifier id, BlockPos base, int height, int reach) {
 	}
 
-	/** One line of species.tsv. */
+	/**
+	 * Where a tree's crown starts -- its lowest leaves above the ground, in the template -- and the trunk blocks just
+	 * under it, which a tree grown taller repeats to lift its crown.
+	 */
+	private record Shape(int crownBase, List<StructureTemplate.StructureBlockInfo> trunk) {
+	}
+
+	/** One line of species.tsv; heights in metres, the species' usual height when grown. */
 	private record Row(String species, Set<String> kinds, List<String> climates, Set<String> zones,
-		double lat0, double lat1, double lon0, double lon1, int weight) {
+		double lat0, double lat1, double lon0, double lon1, int weight, double height0, double height1) {
 
 		boolean matches(String kind, String climate, String zone, double lat, double lon) {
 			return kinds.contains(kind) && (zones.contains("*") || zones.contains(zone))
@@ -129,6 +142,13 @@ public final class EarthTrees {
 	public static Map<String, Long> placed() {
 		Map<String, Long> out = new HashMap<>();
 		PLACED.forEach((k, v) -> out.put(k, v.sum()));
+		return out;
+	}
+
+	/** Blocks of height grown so far, all trees of each species together. */
+	public static Map<String, Long> heights() {
+		Map<String, Long> out = new HashMap<>();
+		HEIGHTS.forEach((k, v) -> out.put(k, v.sum()));
 		return out;
 	}
 
@@ -168,7 +188,8 @@ public final class EarthTrees {
 				int x = (int) Math.floor((i + cell.nextDouble()) * spacing);
 				int z = (int) Math.floor((j + cell.nextDouble()) * spacing);
 				if (x >= x0 && x < x0 + 16 && z >= z0 && z < z0 + 16) {
-					growAt(region, generator, t, trees, x, z, spacing, RandomSource.create(cell.nextLong()));
+					growAt(region, generator, t, trees, x, z, spacing, field.projection().blocksPerMeter(t.latitude[centre]),
+						RandomSource.create(cell.nextLong()));
 				}
 			}
 		}
@@ -176,7 +197,7 @@ public final class EarthTrees {
 
 	/** A tree at a spot of the grid, if the land cover shows trees there and the ground takes one. */
 	private static void growAt(WorldGenRegion region, ChunkGenerator generator, ChunkTerrain t, Index trees, int x, int z, double spacing,
-		RandomSource random) {
+		double blocksPerMeter, RandomSource random) {
 		int lx = x & 15;
 		int lz = z & 15;
 		int k = ChunkTerrain.index(lx, lz);
@@ -216,10 +237,14 @@ public final class EarthTrees {
 		if (!rows.isEmpty()) {
 			long stand = region.getSeed() ^ ((long) (x >> STAND_SHIFT) * 341873128712L + (long) (z >> STAND_SHIFT) * 132897987541L + kind.hashCode());
 			Row row = pick(rows, random.nextDouble() < STAND ? new SplittableRandom(stand).nextDouble() : random.nextDouble());
-			Tree tree = variant(trees.trees.get(row.species), spacing, random);
+			double metres = row.height0 + random.nextDouble() * (row.height1 - row.height0);
+			int height = (int) Math.round(metres * blocksPerMeter * (zone.equals("high") ? TREELINE_HEIGHT : 1));
+			Tree tree = variant(trees.trees.get(row.species), spacing, height, random);
 			StructureTemplate template = region.getServer().getStructureManager().get(tree.id).orElse(null);
 			if (template != null) {
-				count(place(region, template, tree, pos, random) ? row.species : "no room");
+				int grown = place(region, template, tree, pos, height, random);
+				count(grown > 0 ? row.species : "no room");
+				HEIGHTS.computeIfAbsent(row.species, s -> new LongAdder()).add(grown);
 				return;
 			}
 		}
@@ -276,8 +301,11 @@ public final class EarthTrees {
 		return rows.get(rows.size() - 1);
 	}
 
-	/** One of a species' trees whose crown suits the spacing, or its slimmest if none does. */
-	private static Tree variant(List<Tree> variants, double spacing, RandomSource random) {
+	/**
+	 * One of a species' trees whose crown suits the spacing (or its slimmest, if none does): one of the two nearest
+	 * the height wanted.
+	 */
+	private static Tree variant(List<Tree> variants, double spacing, int height, RandomSource random) {
 		List<Tree> fit = new ArrayList<>();
 		Tree slimmest = variants.get(0);
 		for (Tree tree : variants) {
@@ -288,7 +316,11 @@ public final class EarthTrees {
 				slimmest = tree;
 			}
 		}
-		return fit.isEmpty() ? slimmest : fit.get(random.nextInt(fit.size()));
+		if (fit.isEmpty()) {
+			return slimmest;
+		}
+		fit.sort(java.util.Comparator.comparingInt(tree -> Math.abs(tree.height - height)));
+		return fit.get(random.nextInt(Math.min(2, fit.size())));
 	}
 
 	/** A vanilla tree of the kind, where no species fits or none is installed. */
@@ -307,36 +339,73 @@ public final class EarthTrees {
 	}
 
 	/**
-	 * Builds the tree with its trunk's foot at {@code pos}, turned and mirrored at random. Like a vanilla tree it
-	 * needs room for its trunk, and only fills air, plants, and leaves where it has wood; its roots only go into
-	 * natural ground.
+	 * Builds the tree with its trunk's foot at {@code pos}, turned and mirrored at random, and grown towards
+	 * {@code height} blocks: a tree shorter than that gets a longer trunk under its crown, keeping at least
+	 * {@link #MAX_BOLE}'s complement of its height as crown. Like a vanilla tree it needs room for its trunk, and
+	 * only fills air, plants, and leaves where it has wood; its roots only go into natural ground. Returns its
+	 * height, or 0 when it had no room.
 	 */
-	private static boolean place(WorldGenRegion region, StructureTemplate template, Tree tree, BlockPos pos, RandomSource random) {
-		for (int dy = 0; dy < Math.min(tree.height, 6); dy++) {
+	private static int place(WorldGenRegion region, StructureTemplate template, Tree tree, BlockPos pos, int height, RandomSource random) {
+		List<StructureTemplate.StructureBlockInfo> blocks = ((StructureTemplateAccessor) template).realearth$palettes().get(0).blocks();
+		Shape shape = SHAPES.computeIfAbsent(tree.id, id -> shape(blocks, tree.base.getY()));
+		int bole = shape.crownBase - tree.base.getY();
+		int extra = shape.trunk.isEmpty() ? 0 : (int) Math.clamp((MAX_BOLE * tree.height - bole) / (1 - MAX_BOLE), 0, Math.max(0, height - tree.height));
+		for (int dy = 0; dy < Math.min(tree.height + extra, 6); dy++) {
 			if (!TreeFeature.validTreePos(region, pos.above(dy))) {
-				return false;
+				return 0;
 			}
 		}
 		Rotation rotation = Rotation.getRandom(random);
 		Mirror mirror = random.nextBoolean() ? Mirror.NONE : Mirror.LEFT_RIGHT;
 		// The game mirrors about 0, not the pivot, so turn both and keep the trunk's foot where it was.
 		BlockPos foot = StructureTemplate.transform(tree.base, mirror, rotation, BlockPos.ZERO);
-		ChunkPos centre = region.getCenter();
-		for (StructureTemplate.StructureBlockInfo info : ((StructureTemplateAccessor) template).realearth$palettes().get(0).blocks()) {
+		for (StructureTemplate.StructureBlockInfo info : blocks) {
 			BlockPos at = pos.offset(StructureTemplate.transform(info.pos(), mirror, rotation, BlockPos.ZERO).subtract(foot));
-			if (Math.abs((at.getX() >> 4) - centre.x()) > 1 || Math.abs((at.getZ() >> 4) - centre.z()) > 1) {
-				count("clipped");
-				continue;
-			}
-			BlockState there = region.getBlockState(at);
-			boolean fits = info.pos().getY() < tree.base.getY() ? natural(there)
-				: there.isAir() || there.is(BlockTags.REPLACEABLE_BY_TREES) || there.is(BlockTags.LEAVES) && !info.state().is(BlockTags.LEAVES);
-			if (fits) {
-				// Known shape: leaves keep the distances tools/trees worked out, so they decay like a sapling's tree.
-				region.setBlock(at, info.state().mirror(mirror).rotate(rotation), 19);
+			set(region, at.above(info.pos().getY() >= shape.crownBase ? extra : 0), info, tree, mirror, rotation);
+		}
+		for (StructureTemplate.StructureBlockInfo info : shape.trunk) {
+			BlockPos at = pos.offset(StructureTemplate.transform(info.pos(), mirror, rotation, BlockPos.ZERO).subtract(foot));
+			for (int dy = 1; dy <= extra; dy++) {
+				set(region, at.above(dy), info, tree, mirror, rotation);
 			}
 		}
-		return true;
+		return tree.height + extra;
+	}
+
+	private static void set(WorldGenRegion region, BlockPos at, StructureTemplate.StructureBlockInfo info, Tree tree, Mirror mirror,
+		Rotation rotation) {
+		ChunkPos centre = region.getCenter();
+		if (Math.abs((at.getX() >> 4) - centre.x()) > 1 || Math.abs((at.getZ() >> 4) - centre.z()) > 1) {
+			count("clipped");
+			return;
+		}
+		BlockState there = region.getBlockState(at);
+		boolean fits = info.pos().getY() < tree.base.getY() ? natural(there)
+			: there.isAir() || there.is(BlockTags.REPLACEABLE_BY_TREES) || there.is(BlockTags.LEAVES) && !info.state().is(BlockTags.LEAVES);
+		if (fits) {
+			// Known shape: leaves keep the distances tools/trees worked out, so they decay like a sapling's tree.
+			region.setBlock(at, info.state().mirror(mirror).rotate(rotation), 19);
+		}
+	}
+
+	/** The crown's lowest leaves above the ground, and the trunk under them: blocks that carry more wood straight above. */
+	private static Shape shape(List<StructureTemplate.StructureBlockInfo> blocks, int ground) {
+		Map<BlockPos, BlockState> at = new HashMap<>();
+		int crown = Integer.MAX_VALUE;
+		for (StructureTemplate.StructureBlockInfo info : blocks) {
+			at.put(info.pos(), info.state());
+			if (info.state().is(BlockTags.LEAVES) && info.pos().getY() > ground) {
+				crown = Math.min(crown, info.pos().getY());
+			}
+		}
+		List<StructureTemplate.StructureBlockInfo> trunk = new ArrayList<>();
+		for (StructureTemplate.StructureBlockInfo info : blocks) {
+			BlockState above = at.get(info.pos().above());
+			if (info.pos().getY() == crown - 1 && !info.state().is(BlockTags.LEAVES) && above != null && !above.is(BlockTags.LEAVES)) {
+				trunk.add(info);
+			}
+		}
+		return new Shape(crown, trunk);
 	}
 
 	private static boolean natural(BlockState state) {
@@ -388,13 +457,13 @@ public final class EarthTrees {
 			in.readLine();
 			for (String line; (line = in.readLine()) != null; ) {
 				String[] f = line.split("\t");
-				if (f.length < 7 || !trees.containsKey(f[0])) {
+				if (f.length < 8 || !trees.containsKey(f[0])) {
 					continue;
 				}
 				String[] lat = f[4].split("\\.\\."), lon = f[5].split("\\.\\.");
 				rows.add(new Row(f[0], Set.of(f[1].split(",")), List.of(f[2].split(",")), Set.of(f[3].split(",")),
 					Double.parseDouble(lat[0]), Double.parseDouble(lat[1]), Double.parseDouble(lon[0]), Double.parseDouble(lon[1]),
-					Integer.parseInt(f[6])));
+					Integer.parseInt(f[6]), Double.parseDouble(f[7].split("\\.\\.")[0]), Double.parseDouble(f[7].split("\\.\\.")[1])));
 			}
 		} catch (IOException | RuntimeException e) {
 			RealEarth.LOGGER.warn("Could not read the tree species table: {}", e.toString());

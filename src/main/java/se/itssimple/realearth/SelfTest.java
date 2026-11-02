@@ -1255,14 +1255,18 @@ final class SelfTest {
 			// Real trees: Tyresta's pine and spruce forest south-east of Stockholm, and the cork oak hills of Monchique.
 			{
 				TerrainField field = RealEarth.terrain();
-				record Forest(String name, double lat, double lon, java.util.Set<String> expect, java.util.Set<String> foreign) {
+				record Forest(String name, double lat, double lon, java.util.Set<String> expect, java.util.Set<String> foreign,
+					Map<String, Integer> tall) {
 				}
 				for (Forest f : List.of(
 					new Forest("Tyresta", 59.18, 18.30, java.util.Set.of("picea_abies", "pinus_sylvestris"),
-						java.util.Set.of("olea_europaea", "quercus_suber", "pinus_pinea", "cupressus_sempervirens", "betula_celtiberica")),
+						java.util.Set.of("olea_europaea", "quercus_suber", "pinus_pinea", "cupressus_sempervirens", "betula_celtiberica"),
+						Map.of("picea_abies", 20, "pinus_sylvestris", 16)),
 					new Forest("Monchique", 37.32, -8.55, java.util.Set.of("quercus_suber", "olea_europaea", "quercus_coccifera", "pinus_pinea"),
-						java.util.Set.of("picea_abies", "betula_pendula", "betula_pubescens", "pinus_cembra", "larix_decidua")))) {
+						java.util.Set.of("picea_abies", "betula_pendula", "betula_pubescens", "pinus_cembra", "larix_decidua"),
+						Map.of("quercus_suber", 8)))) {
 					Map<String, Long> before = se.itssimple.realearth.world.EarthTrees.placed();
+					Map<String, Long> heightsBefore = se.itssimple.realearth.world.EarthTrees.heights();
 					Map<String, long[]> perfBefore = Perf.snapshot();
 					// Somewhere new in the forest each run: trees only grow in chunks not generated before.
 					double lat = f.lat() + (Math.random() - 0.5) * 0.04;
@@ -1334,6 +1338,18 @@ final class SelfTest {
 					double[] decoration = spent.apply("features");
 					log("%s: trees took %.1f ms a chunk, all decoration with them %.1f ms (%d chunks)", f.name(), treeTime[0] / treeTime[1],
 						decoration[0] / decoration[1], (long) decoration[1]);
+					// As tall as the species grows: average blocks of height of each species grown here.
+					Map<String, Long> heightsAfter = se.itssimple.realearth.world.EarthTrees.heights();
+					java.util.Map<String, Long> meanHeight = new java.util.TreeMap<>();
+					grown.forEach((species, n) -> {
+						long h = heightsAfter.getOrDefault(species, 0L) - heightsBefore.getOrDefault(species, 0L);
+						if (h > 0) {
+							meanHeight.put(species, h / n);
+						}
+					});
+					log("%s: average height in blocks: %s (%.2f blocks a metre)", f.name(), meanHeight, field.projection().blocksPerMeter(lat));
+					f.tall().forEach((species, least) -> check(meanHeight.getOrDefault(species, 0L) >= least,
+						"%s's %s grow as tall as real ones (%d blocks on average, at least %d)", f.name(), species, meanHeight.getOrDefault(species, 0L), least));
 				}
 			}
 		}));
