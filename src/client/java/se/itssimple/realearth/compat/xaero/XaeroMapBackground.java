@@ -57,12 +57,16 @@ public final class XaeroMapBackground {
 	private static final int COARSE_STEPS = 3;
 	/** Pictures kept on the GPU, a quarter of a megabyte each; a screen at most zoom levels needs under a hundred. */
 	private static final int MAX_TEXTURES = 256;
+	/**
+	 * Tiles fetched and painted at once, each on its own worker so none waits in a queue while the view moves on.
+	 * Mostly waiting on the network: 8 filled a new view about a third sooner than 4, painting being a few ms.
+	 */
 	private static final int MAX_LOADING = 8;
 	private static final int UPLOADS_PER_FRAME = 4;
 	private static final long RETRY_MS = 30_000;
 	private static final String CREDIT = "OpenFreeMap © OpenMapTiles · Data © OpenStreetMap contributors";
 
-	private static final ExecutorService WORKERS = Executors.newFixedThreadPool(4, r -> {
+	private static final ExecutorService WORKERS = Executors.newFixedThreadPool(MAX_LOADING, r -> {
 		Thread t = new Thread(r, "RealEarth-MapBackground");
 		t.setDaemon(true);
 		t.setPriority(Thread.MIN_PRIORITY);
