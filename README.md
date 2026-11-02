@@ -375,6 +375,7 @@ At one block per metre this is what makes mountains on the horizon visible at al
 | `buildingDetailUrl`, `buildingDetailRelease`, `buildingDetailCatalog` | Overture's S3, `latest`, Overture's STAC | Where those tiles are, and which monthly release |
 | `placeTitles` | true | Show a town's name on walking into it, and the district's above the hotbar |
 | `mapWaypoints` | true | Towns and stations round you as waypoints in Xaero's Minimap and World Map (read on the client) |
+| `mapBackground` | true | The real map under the unexplored parts of Xaero's World Map, downloaded by the client from `mapTileJson` (read on the client) |
 | `perfLogSeconds` | 0 | Every this many seconds, `[perf]` lines in `logs/realearth-perf.log` on how chunk loading keeps up (0 is off); see "The running performance log" above |
 | `storeyMeters`, `maxFloors` | 4.5, 10 | Height of a storey (at least 5 blocks) and most storeys per building |
 | `villagerChance` | 0.2 | Chance that a chunk with beds gets a villager (one); about one chunk of town in twenty |
@@ -436,6 +437,13 @@ Planned features and known issues: see [ROADMAP.md](ROADMAP.md).
   own teleport has to guess a height there, which in a world 4,000 blocks deep often means inside a mountain or
   high above the sea, while this one asks the server, which finds the ground the way `/earth tp` does. Shown to
   players allowed `/earth tp` (`teleportPermissionLevel`). Works on servers with Real Earth.
+  And the real map wherever you haven't been, instead of black: seas, lakes and rivers, woods, fields, glaciers
+  and towns, and, as you zoom in, roads, railways and buildings, with what you have explored drawn over it as
+  usual. Your game downloads the map's tiles itself as you look at them (OpenStreetMap data from OpenFreeMap,
+  credited in the map's corner), into the same cache and under the same size limit as the terrain's, so it works
+  on any server with Real Earth. For worlds in the Mercator projection (every new world); `mapBackground: false`
+  in the config turns it off. Zoomed out, squares the map saved before this version may keep a black edge round
+  what you explored until the map redraws them.
 - **Lootr** and **Distant Horizons**: see above.
 
 **For mod authors.** `se.itssimple.realearth.api` (compile against the Real Earth jar, `modCompileOnly`):
@@ -497,8 +505,8 @@ players see it when they join or arrive on Earth.
 
 - Elevation: Terrain Tiles on AWS (Mapzen): USGS 3DEP, SRTM and GMTED2010, NOAA ETOPO1, Copernicus EU-DEM and
   national data from Australia, Austria, Canada, Mexico, New Zealand, Norway and the UK, and ArcticDEM.
-- Water, roads, railways and bridges: © OpenStreetMap contributors (ODbL), served as vector tiles by OpenFreeMap
-  in the OpenMapTiles schema (© OpenMapTiles).
+- Water, roads, railways and bridges, and the map under Xaero's World Map: © OpenStreetMap contributors (ODbL),
+  served as vector tiles by OpenFreeMap in the OpenMapTiles schema (© OpenMapTiles).
 - Roof shapes, roof and facade colours, and building parts: Overture Maps Foundation, buildings theme (from
   OpenStreetMap and others), ODbL 1.0, © OpenStreetMap contributors.
 - Land cover: ESA WorldCover 10 m 2021 v200, © ESA WorldCover project / contains modified Copernicus Sentinel

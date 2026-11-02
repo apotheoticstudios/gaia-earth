@@ -57,7 +57,8 @@ them when it is present and nothing breaks when it isn't.
    the server once a second (`realearth:here`), so it works in multiplayer; waypoints for the towns and stations
    round the player come the same way (`realearth:waypoints`), as the minimap's third-party waypoints, which the
    world map shows too (or draws itself when it is alone). The world map's right-click menu teleports onto the
-   ground through `/earth tp block`.
+   ground through `/earth tp block`, and draws the real map (OpenFreeMap's tiles, fetched by the client) under
+   the parts nobody has explored.
 3. Palette tags and the landmark structure hook.
 4. `BuildingGenerated` for interior decorators.
 

@@ -15,7 +15,8 @@ Served as vector tiles by **OpenFreeMap** (<https://openfreemap.org>), in the **
 (© OpenMapTiles, <https://openmaptiles.org>).
 
 Real Earth turns the map data into terrain while generating a world; worlds made with it contain a derived
-work of OpenStreetMap data.
+work of OpenStreetMap data. With Xaero's World Map, it also draws the map data as a map under the places not
+yet explored, with this credit in the map's corner.
 
 ## Building detail: Overture Maps
 

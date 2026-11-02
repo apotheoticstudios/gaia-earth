@@ -356,6 +356,17 @@ final class SelfTest {
 			log("terrain around the start: %.1f%% of columns have a neighbour more than 2 blocks away", 100.0 * bigSteps / steps);
 			log("tiles: %s", field.store().stats());
 
+			if (field.map() != null) {
+				// The picture under Xaero's World Map: Stockholm's zoom-10 tile is land and water both; a part of one
+				// in the open Atlantic, painted bigger, all water.
+				int water = se.itssimple.realearth.osm.MapPainter.water();
+				int[] city = se.itssimple.realearth.osm.MapPainter.paint(field.map().raw(10, 563, 301), 10, 10, 563, 301);
+				long wet = java.util.Arrays.stream(city).filter(c -> c == water).count();
+				int[] sea = se.itssimple.realearth.osm.MapPainter.paint(field.map().raw(10, 300, 400), 10, 12, 1201, 1602);
+				check(wet > city.length / 20 && wet < city.length * 19 / 20 && java.util.Arrays.stream(sea).allMatch(c -> c == water),
+					"map picture: Stockholm %d%% water, the open Atlantic all water", 100 * wet / city.length);
+			}
+
 			offlineAndCache(server, field);
 
 			// The checks in the world, a server task each, the server running on between them.

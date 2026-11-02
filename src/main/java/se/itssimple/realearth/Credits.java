@@ -21,7 +21,7 @@ public final class Credits {
 	}
 
 	private static final List<Source> SOURCES = List.of(
-		new Source("Water, roads, railways, bridges",
+		new Source("Water, roads, railways, bridges; the map under Xaero's World Map",
 			"© OpenStreetMap contributors, ODbL 1.0. Tiles by OpenFreeMap, © OpenMapTiles.", "https://www.openstreetmap.org/copyright"),
 		new Source("Roof shapes, colours and building parts",
 			"Overture Maps Foundation, buildings theme (from OpenStreetMap and others), ODbL 1.0. © OpenStreetMap contributors.",

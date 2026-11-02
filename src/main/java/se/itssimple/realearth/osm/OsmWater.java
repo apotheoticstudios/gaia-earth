@@ -186,21 +186,39 @@ public final class OsmWater {
 		return t;
 	}
 
-	private Shapes load(int x, int y) {
-		Path file = root.resolve(Integer.toString(ZOOM)).resolve(Integer.toString(x)).resolve(y + ".pbf");
+	private Path file(int zoom, int x, int y) {
+		return root.resolve(Integer.toString(zoom)).resolve(Integer.toString(x)).resolve(y + ".pbf");
+	}
+
+	private String url(int zoom, int x, int y) throws IOException {
+		return template().replace("{z}", Integer.toString(zoom)).replace("{x}", Integer.toString(x)).replace("{y}", Integer.toString(y));
+	}
+
+	/**
+	 * A vector tile at any zoom up to 14, undecoded: from the cache, else downloaded into it. Throws
+	 * {@link Http.Missing} when the map has no such tile. Blocking.
+	 */
+	public byte[] raw(int zoom, int x, int y) throws IOException {
+		Path file = file(zoom, x, y);
 		byte[] data = Http.readCache(file);
 		if (data == null) {
-			try {
-				String url = template().replace("{z}", Integer.toString(ZOOM)).replace("{x}", Integer.toString(x)).replace("{y}", Integer.toString(y));
-				data = Http.get(url, 0, 0);
-				Http.writeCache(file, data);
-			} catch (Http.Missing e) {
-				return Shapes.UNKNOWN;
-			} catch (IOException e) {
-				RealEarth.LOGGER.warn("Map data for tile {}/{}/{} unavailable ({}); water there comes from elevation alone", ZOOM, x, y, e.getMessage());
-				forget(x, y);
-				return Shapes.FAILED;
-			}
+			data = Http.get(url(zoom, x, y), 0, 0);
+			Http.writeCache(file, data);
+		}
+		return data;
+	}
+
+	private Shapes load(int x, int y) {
+		Path file = file(ZOOM, x, y);
+		byte[] data;
+		try {
+			data = raw(ZOOM, x, y);
+		} catch (Http.Missing e) {
+			return Shapes.UNKNOWN;
+		} catch (IOException e) {
+			RealEarth.LOGGER.warn("Map data for tile {}/{}/{} unavailable ({}); water there comes from elevation alone", ZOOM, x, y, e.getMessage());
+			forget(x, y);
+			return Shapes.FAILED;
 		}
 		try {
 			return convert(VectorTile.decode(data, LAYERS), x, y);
@@ -226,13 +244,12 @@ public final class OsmWater {
 		int n = 1 << ZOOM;
 		int wx = Math.floorMod(x, n);
 		int wy = Math.max(0, Math.min(n - 1, y));
-		Path file = root.resolve(Integer.toString(ZOOM)).resolve(Integer.toString(wx)).resolve(wy + ".pbf");
+		Path file = file(ZOOM, wx, wy);
 		if (Files.exists(file)) {
 			return TileStore.Prefetch.CACHED;
 		}
 		try {
-			String url = template().replace("{z}", Integer.toString(ZOOM)).replace("{x}", Integer.toString(wx)).replace("{y}", Integer.toString(wy));
-			Http.writeCache(file, Http.get(url, 0, 0));
+			Http.writeCache(file, Http.get(url(ZOOM, wx, wy), 0, 0));
 			return TileStore.Prefetch.DOWNLOADED;
 		} catch (Http.Missing e) {
 			return TileStore.Prefetch.CACHED;
@@ -459,14 +476,8 @@ public final class OsmWater {
 	}
 
 	private List<Place> loadPlaces(int zoom, int x, int y) {
-		Path file = root.resolve(Integer.toString(zoom)).resolve(Integer.toString(x)).resolve(y + ".pbf");
 		try {
-			byte[] data = Http.readCache(file);
-			if (data == null) {
-				String url = template().replace("{z}", Integer.toString(zoom)).replace("{x}", Integer.toString(x)).replace("{y}", Integer.toString(y));
-				data = Http.get(url, 0, 0);
-				Http.writeCache(file, data);
-			}
+			byte[] data = raw(zoom, x, y);
 			double samplesPerTile = (double) Mercator.TILE_SIZE * (1 << (Mercator.ZOOM - zoom));
 			List<Place> places = new ArrayList<>();
 			for (VectorTile.Feature f : VectorTile.decode(data, PLACE_LAYER)) {

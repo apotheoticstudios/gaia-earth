@@ -110,6 +110,11 @@ public final class EarthConfig {
 	/** Towns and railway stations near you as waypoints in Xaero's Minimap, when it is installed (read on the client). */
 	public boolean mapWaypoints = true;
 	/**
+	 * In Xaero's World Map on the Earth, the real map (from mapTileJson) where you haven't been yet, downloaded by
+	 * the client as the map is looked at (read on the client).
+	 */
+	public boolean mapBackground = true;
+	/**
 	 * Every this many seconds, a few lines in logs/realearth-perf.log on how chunk generation is keeping up: where
 	 * each player is and how fast they move, chunks still missing round them, generation and arrival
 	 * times, downloads and waits. 0 is off. Also /earth perf log &lt;seconds&gt;.
