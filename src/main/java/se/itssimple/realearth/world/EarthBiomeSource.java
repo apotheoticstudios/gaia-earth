@@ -23,10 +23,9 @@ import se.itssimple.realearth.terrain.TerrainField;
  * Biomes from real geography (see {@link BiomePicker}), plus vanilla's cave biomes underground.
  *
  * During world generation the chunk's terrain is always known before biomes are filled in, because
- * {@link EarthChunkGenerator#createBiomes} waits for it; structure placement gets exact answers too
- * (see {@link GenContext}). Anything else -- /locate, explorer maps, the stronghold search, which
- * probe thousands of far-away points -- is answered from coarse elevation instead of downloading
- * full-resolution tiles for every probe.
+ * {@link EarthChunkGenerator#createBiomes} waits for it. Anything else -- far-away probes from other
+ * mods or commands -- is answered from coarse elevation instead of downloading full-resolution tiles
+ * for every probe.
  */
 public final class EarthBiomeSource extends BiomeSource {
 	public static final MapCodec<EarthBiomeSource> CODEC = RecordCodecBuilder.mapCodec(
@@ -35,7 +34,7 @@ public final class EarthBiomeSource extends BiomeSource {
 
 	/** Cave biomes begin this far below the ground. */
 	private static final int CAVE_BIOME_DEPTH = 24;
-	/** The deep dark, and with it ancient cities, lies this far down or more (vanilla: about Y 0). */
+	/** The deep dark lies this far down or more (vanilla: about Y 0). */
 	private static final int DEEP_DARK_DEPTH = 64;
 
 	private final Map<ResourceKey<Biome>, Holder<Biome>> holders = new HashMap<>();
@@ -117,13 +116,6 @@ public final class EarthBiomeSource extends BiomeSource {
 		int blockY = QuartPos.toBlock(quartY) + 2;
 		int blockZ = QuartPos.toBlock(quartZ) + 2;
 		ChunkTerrain terrain = field.chunkIfReady(blockX >> 4, blockZ >> 4);
-		if (terrain == null && GenContext.exact()) {
-			try {
-				terrain = field.chunkBlocking(blockX >> 4, blockZ >> 4, 60);
-			} catch (Exception ignored) {
-				// Fall through to the coarse answer.
-			}
-		}
 		if (terrain != null) {
 			ChunkBiomes b = biomesOf(terrain);
 			int q = ((blockZ & 15) >> 2) * 4 + ((blockX & 15) >> 2);

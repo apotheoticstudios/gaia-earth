@@ -19,7 +19,7 @@ import se.itssimple.realearth.world.EarthChunkGenerator;
 /**
  * Vanilla features at their vanilla depths, on Earth.
  *
- * Ores, glow lichen, geodes, dungeons, springs, fossils, sculk and the rest are placed at absolute
+ * Ores, glow lichen, geodes, springs, sculk and the rest are placed at absolute
  * heights: diamonds around Y -59 under ground at about Y 64. On Earth the ground can be anywhere from
  * Y -1200 to 2000, so absolute heights would put every diamond inside mountains and none under the
  * lowlands. Here the height is drawn exactly as vanilla draws it -- in a vanilla-sized world, -64 to

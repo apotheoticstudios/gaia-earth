@@ -5,11 +5,6 @@
   "mixins": [
     "BiomeTemperatureMixin",
     "HeightRangePlacementMixin",
-    "BeardifierAccessor",
-    "OceanMonumentStructureMixin",
-    "MonumentBuildingMixin",
-    "JigsawStructureMixin",
-    "StructurePiecesBuilderMixin",
     "ChunkMapAccessor",
     "ServerLevelAccessor",
     "PersistentEntitySectionManagerAccessor",

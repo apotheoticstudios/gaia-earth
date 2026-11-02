@@ -37,10 +37,6 @@ final class ShotTour {
 		static Shot atBlock(String name, int x, int z, double above, float yaw, float pitch) {
 			return new Shot(name, Double.NaN, Double.NaN, above, yaw, pitch, x, z, 0, 0);
 		}
-
-		static Shot cave(String name, int x, int z, int minDepth, int maxDepth, float yaw) {
-			return new Shot(name, Double.NaN, Double.NaN, 0, yaw, 5, x, z, minDepth, maxDepth);
-		}
 	}
 
 	// Yaw: 0 looks south, 90 west, 180 north, -90 east.
@@ -99,16 +95,7 @@ final class ShotTour {
 		new Shot("rio-sky", -22.9068, -43.1729, 200, 0, 45)
 	);
 
-	/** Structures found by the self-test in the Earth world type test world (its seed), relative to the start point. */
-	private static final List<Shot> STRUCTURES = List.of(
-		Shot.atBlock("village", -760, -520, 28, -30, 38),
-		Shot.atBlock("outpost", 104, 104, 30, 150, 35),
-		Shot.cave("cave", 0, 0, 15, 60, 90),
-		Shot.cave("ancient-city", 72, 232, 60, 100, 0)
-	);
-
 	private static final List<Shot> SHOTS = (switch (System.getProperty("realearth.shotList", "")) {
-		case "structures" -> STRUCTURES;
 		case "tour" -> TOUR;
 		case "towns" -> TOWNS;
 		default -> PLACES;

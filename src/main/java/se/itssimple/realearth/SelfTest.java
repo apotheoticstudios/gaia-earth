@@ -1281,22 +1281,30 @@ final class SelfTest {
 		}));
 
 		phases.add(Map.entry("Structures", () -> {
-			// Structures: none start on Earth, around the origin or out in the Atlantic.
+			// Structures: none can start anywhere on Earth, vanilla's or other mods', and eyes of ender and
+			// explorer maps find nothing to point at.
 			{
-				var structures = earth.registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.STRUCTURE);
+				var sets = earth.getChunkSource().getGeneratorState().possibleStructureSets();
+				check(sets.isEmpty(), "no structure can start on Earth (%d structure sets)", sets.size());
 				TerrainField field = RealEarth.terrain();
-				int atlanticX = (int) field.projection().blockX(45.0, -30.0) >> 4;
-				int atlanticZ = (int) field.projection().blockZ(45.0) >> 4;
-				for (int[] region : new int[][] {{startCx, startCz}, {atlanticX, atlanticZ}}) {
-					java.util.Set<String> found = new java.util.TreeSet<>();
-					for (int cx = region[0] - 32; cx < region[0] + 32; cx++) {
-						for (int cz = region[1] - 32; cz < region[1] + 32; cz++) {
-							var c = earth.getChunk(cx, cz, net.minecraft.world.level.chunk.status.ChunkStatus.STRUCTURE_STARTS, true);
-							c.getAllStarts().keySet().forEach(s -> found.add(structures.getKey(s).getPath()));
-						}
-					}
-					check(found.isEmpty(), "no structures in 64 x 64 chunks at %d,%d: %s", region[0], region[1], found);
+				BlockPos origin = new BlockPos(field.startX(), 0, field.startZ());
+				for (var tag : List.of(net.minecraft.tags.StructureTags.EYE_OF_ENDER_LOCATED, net.minecraft.tags.StructureTags.VILLAGE,
+					net.minecraft.tags.StructureTags.ON_TREASURE_MAPS)) {
+					BlockPos found = earth.findNearestMapStructure(tag, origin, 100, false);
+					check(found == null, "a search for %s on Earth finds nothing: %s", tag.location(), found);
 				}
+				// Nor what Minecraft files under structures among biome decoration: dungeons, fossils, desert wells.
+				var generator = earth.getChunkSource().getGenerator();
+				java.util.Set<String> placed = new java.util.TreeSet<>();
+				for (var biome : generator.getBiomeSource().possibleBiomes()) {
+					for (var step : generator.getBiomeGenerationSettings(biome).features()) {
+						step.forEach(f -> f.unwrapKey().ifPresent(k -> placed.add(k.identifier().toString())));
+					}
+				}
+				java.util.List<String> structural = List.of("minecraft:monster_room", "minecraft:monster_room_deep", "minecraft:fossil_upper",
+					"minecraft:fossil_lower", "minecraft:desert_well");
+				check(structural.stream().noneMatch(placed::contains) && placed.contains("minecraft:blue_ice") && placed.contains("minecraft:ore_diamond"),
+					"Earth's biomes decorate without dungeons, fossils or desert wells, and keep their blue ice and ores (%d features)", placed.size());
 			}
 		}));
 

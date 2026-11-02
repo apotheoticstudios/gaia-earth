@@ -5,6 +5,12 @@
 - **Renamed**: Real Earth, by itssimple, continues as its own mod, **Project Gaia: Earth** (mod id `gaia-earth`).
   Its blocks, dimension, world type, loot tables and advancements are now under `gaia-earth:`, so worlds made with
   Real Earth do not carry over.
+- **No Minecraft structures on Earth**: no villages, outposts, temples, monuments, mineshafts, strongholds,
+  ancient cities or any other structure, vanilla's or another mod's, nor the decoration Minecraft files under
+  structures (dungeons, fossils, desert wells). `/locate`, eyes of ender and explorer maps find nothing there.
+  The mod's own buildings, bridges, tunnels, railways and trees are unchanged, and the Nether and the End keep
+  their structures. Generation is lighter too: chunks at the edge of the generated area no longer wait for their
+  terrain just to place structures; its download only starts there.
 
 ### Terrain
 

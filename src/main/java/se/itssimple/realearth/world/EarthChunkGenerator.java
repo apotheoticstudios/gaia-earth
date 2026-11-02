@@ -9,20 +9,19 @@ import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import net.minecraft.core.BlockPos;
 import se.itssimple.realearth.landcover.WorldCover;
 import se.itssimple.realearth.climate.Koppen;
 import org.jspecify.annotations.Nullable;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import se.itssimple.realearth.mixin.BeardifierAccessor;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
-import net.minecraft.world.level.levelgen.structure.BoundingBox;
-import net.minecraft.world.level.levelgen.DensityFunction;
-import net.minecraft.world.level.levelgen.Beardifier;
 import net.minecraft.world.level.Level;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.Holder;
+import net.minecraft.core.HolderSet;
+import net.minecraft.util.Util;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.ChunkPos;
@@ -31,6 +30,7 @@ import net.minecraft.world.level.NaturalSpawner;
 import net.minecraft.world.level.NoiseColumn;
 import net.minecraft.world.level.StructureManager;
 import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.biome.BiomeGenerationSettings;
 import net.minecraft.world.level.biome.BiomeManager;
 import net.minecraft.world.level.biome.BiomeSource;
 import net.minecraft.world.level.biome.Biomes;
@@ -43,12 +43,14 @@ import net.minecraft.world.level.chunk.ChunkGeneratorStructureState;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.PalettedContainer;
 import net.minecraft.world.level.chunk.Strategy;
+import net.minecraft.world.level.levelgen.GenerationStep;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.LegacyRandomSource;
 import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.RandomSupport;
 import net.minecraft.world.level.levelgen.WorldgenRandom;
 import net.minecraft.world.level.levelgen.blending.Blender;
+import net.minecraft.world.level.levelgen.placement.PlacedFeature;
 import se.itssimple.realearth.RealEarth;
 import se.itssimple.realearth.terrain.ChunkTerrain;
 import se.itssimple.realearth.terrain.TerrainField;
@@ -82,17 +84,33 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 	/** Depth below the local surface where stone gives way to deepslate (plus up to 8 of dither). */
 	private static final int DEEPSLATE_DEPTH = 64;
 
-	/**
-	 * How fast the ground's own density grows with depth, when blending structures into it. Vanilla's
-	 * blending shifts the ground a couple of blocks around buildings; a weaker gradient here lets the
-	 * same blending carve whole villages several blocks down, leaving cliffs at the edges.
-	 */
-	private static final double BEARD_DENSITY_PER_BLOCK = 0.16;
-	/** Never let structure blending move the ground further than this. */
-	private static final int BEARD_MAX_SHIFT = 6;
+	/** Vanilla's natural formations in the structure decoration steps: frozen oceans' blue ice, ice spikes. */
+	private static final Set<String> NATURAL_IN_STRUCTURE_STEPS = Set.of("minecraft:blue_ice", "minecraft:ice_spike", "minecraft:ice_patch");
 
 	public EarthChunkGenerator(BiomeSource biomeSource) {
-		super(biomeSource);
+		super(biomeSource, Util.memoize(EarthChunkGenerator::withoutStructures));
+	}
+
+	/**
+	 * A biome's decoration without what Minecraft, and mods, file under structures: dungeons, fossils,
+	 * desert wells (the underground and surface structure steps, and the strongholds step), keeping the
+	 * natural formations vanilla puts there. Decided once per biome, so nothing is checked per chunk.
+	 */
+	private static BiomeGenerationSettings withoutStructures(Holder<Biome> biome) {
+		BiomeGenerationSettings settings = biome.value().getGenerationSettings();
+		BiomeGenerationSettings.PlainBuilder kept = new BiomeGenerationSettings.PlainBuilder();
+		settings.getCarvers().forEach(kept::addCarver);
+		List<HolderSet<PlacedFeature>> steps = settings.features();
+		for (int step = 0; step < steps.size(); step++) {
+			boolean structures = step == GenerationStep.Decoration.UNDERGROUND_STRUCTURES.ordinal()
+				|| step == GenerationStep.Decoration.SURFACE_STRUCTURES.ordinal() || step == GenerationStep.Decoration.STRONGHOLDS.ordinal();
+			for (Holder<PlacedFeature> feature : steps.get(step)) {
+				if (!structures || feature.unwrapKey().map(k -> NATURAL_IN_STRUCTURE_STEPS.contains(k.identifier().toString())).orElse(false)) {
+					kept.addFeature(step, feature);
+				}
+			}
+		}
+		return kept.build();
 	}
 
 	@Override
@@ -111,8 +129,9 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 	}
 
 	/**
-	 * Structures need the real ground under them, so the chunk's terrain is fetched first, and while
-	 * they are placed, biome and height questions get exact answers (see {@link GenContext}).
+	 * With no structures, the structure step only starts fetching the chunk's terrain, without waiting:
+	 * Minecraft takes this step about 8 chunks beyond the ones it builds, so the data is on its way well
+	 * before the chunk needs it.
 	 */
 	@Override
 	public void createStructures(RegistryAccess registryAccess, ChunkGeneratorStructureState state, StructureManager structureManager,
@@ -120,52 +139,13 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 		ChunkTimes.started(chunk.getPos().x(), chunk.getPos().z());
 		TerrainField field = RealEarth.terrain();
 		if (field != null) {
-			try {
-				field.chunkBlocking(chunk.getPos().x(), chunk.getPos().z(), 120);
-			} catch (Exception e) {
-				RealEarth.LOGGER.warn("Terrain for structures at {} unavailable: {}", chunk.getPos(), e.toString());
-			}
-		}
-		GenContext.EXACT.set(Boolean.TRUE);
-		long started = se.itssimple.realearth.Perf.start();
-		try {
-			super.createStructures(registryAccess, state, structureManager, chunk, templates, level);
-			removeOutpostsFromTowns(registryAccess, chunk);
-		} finally {
-			GenContext.EXACT.remove();
-			se.itssimple.realearth.Perf.stop("structures", started);
+			field.chunk(chunk.getPos().x(), chunk.getPos().z());
 		}
 	}
 
-	/**
-	 * Pillager outposts belong in the wild, not in the middle of a town full of villagers; and where the
-	 * town's real buildings are mapped, they are built instead of vanilla's villages.
-	 */
-	private static void removeOutpostsFromTowns(RegistryAccess registryAccess, ChunkAccess chunk) {
-		var starts = chunk.getAllStarts();
-		if (starts.isEmpty()) {
-			return;
-		}
-		var structures = registryAccess.lookupOrThrow(net.minecraft.core.registries.Registries.STRUCTURE);
-		var outpost = structures.getValue(net.minecraft.world.level.levelgen.structure.BuiltinStructures.PILLAGER_OUTPOST);
-		ChunkPos pos = chunk.getPos();
-		var kept = new java.util.HashMap<>(starts);
-		boolean changed = false;
-		// Built-up land cover, or mapped buildings: on a waterfront the land cover's centre is water.
-		if (outpost != null && starts.containsKey(outpost)
-			&& (BuiltUpPlacement.builtShare(pos.getMinBlockX() + 8, pos.getMinBlockZ() + 8, 96) > 0.15
-				|| BuiltUpPlacement.mappedBuildings(pos.getMinBlockX() + 8, pos.getMinBlockZ() + 8, 96) >= BuiltUpPlacement.BUILDINGS_REPLACE_VILLAGE)) {
-			kept.remove(outpost);
-			changed = true;
-		}
-		boolean village = starts.keySet().stream().anyMatch(s -> structures.getKey(s) != null && structures.getKey(s).getPath().startsWith("village_"));
-		if (village && BuiltUpPlacement.mappedBuildings(pos.getMinBlockX() + 8, pos.getMinBlockZ() + 8, 64) >= BuiltUpPlacement.BUILDINGS_REPLACE_VILLAGE) {
-			kept.keySet().removeIf(s -> structures.getKey(s) != null && structures.getKey(s).getPath().startsWith("village_"));
-			changed = true;
-		}
-		if (changed) {
-			chunk.setAllStarts(kept);
-		}
+	/** No structures to refer to. */
+	@Override
+	public void createReferences(net.minecraft.world.level.WorldGenLevel level, StructureManager structureManager, ChunkAccess chunk) {
 	}
 
 	@Override
@@ -196,7 +176,7 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 				return chunk;
 			}
 			long started = se.itssimple.realearth.Perf.start();
-			fill(chunk, terrain, randomState, structureManager);
+			fill(chunk, terrain, randomState);
 			se.itssimple.realearth.Perf.stop("fill", started);
 			if (terrain.degraded) {
 				recordDegraded(pos);
@@ -240,7 +220,7 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 		}
 	}
 
-	private void fill(ChunkAccess chunk, ChunkTerrain t, RandomState randomState, StructureManager structureManager) {
+	private void fill(ChunkAccess chunk, ChunkTerrain t, RandomState randomState) {
 		int minY = chunk.getMinY();
 		ChunkPos pos = chunk.getPos();
 		int baseX = pos.getMinBlockX();
@@ -262,21 +242,11 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 			}
 		}
 
-		// Structures that want the ground shaped around them (villages, ancient cities, trial chambers).
-		Beardifier beard = Beardifier.forStructuresInChunk(structureManager, pos);
-		BoundingBox beardBox = ((BeardifierAccessor) beard).realearth$affectedBox();
-		if (beardBox != null) {
-			maxSurface = Math.max(maxSurface, Math.min(beardBox.maxY(), VerticalScale.MAX_Y));
-		}
-
 		// Caves and ravines, in a band from just above the highest ground to the deepest caves.
 		CaveMask caves = CaveMask.compute(t, pos, minTop, maxTop, randomState, RealEarth.server().registryAccess());
 
 		int bedrockTop = minY + 4;
 		int uniformDeepTop = Math.min(minTop - DEEPSLATE_DEPTH - 9, caves.lowestY() - 1);
-		if (beardBox != null) {
-			uniformDeepTop = Math.min(uniformDeepTop, beardBox.minY() - 1);
-		}
 
 		LevelChunkSection[] sections = chunk.getSections();
 		for (int s = 0; s < sections.length; s++) {
@@ -290,7 +260,7 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 				sections[s] = new LevelChunkSection(new PalettedContainer<>(DEEPSLATE, BLOCK_STRATEGY), sections[s].getBiomes());
 				continue;
 			}
-			if (bottom > maxTop && topOfSection <= minWaterTop && beardBox == null) {
+			if (bottom > maxTop && topOfSection <= minWaterTop) {
 				sections[s] = new LevelChunkSection(new PalettedContainer<>(WATER, BLOCK_STRATEGY), sections[s].getBiomes());
 				continue;
 			}
@@ -301,22 +271,11 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 					Column c = columns[z * 16 + x];
 					int worldX = baseX + x;
 					int worldZ = baseZ + z;
-					boolean shaped = beardBox != null && worldX >= beardBox.minX() && worldX <= beardBox.maxX()
-						&& worldZ >= beardBox.minZ() && worldZ <= beardBox.maxZ();
-					int highest = Math.min(topOfSection, shaped ? Math.max(maxSurface, c.top) : Math.max(c.top, c.waterTop));
+					int highest = Math.min(topOfSection, Math.max(c.top, c.waterTop));
 					for (int y = bottom; y <= highest; y++) {
-						boolean solid = y <= c.top;
-						double structure = 0;
-						if (shaped && y >= beardBox.minY() && y <= beardBox.maxY()) {
-							structure = beard.compute(new DensityFunction.SinglePointContext(worldX, y, worldZ));
-							if (Math.abs(y - c.top) <= BEARD_MAX_SHIFT) {
-								solid = (c.top + 0.5 - y) * BEARD_DENSITY_PER_BLOCK + structure > 0;
-							}
-						}
-
 						BlockState state;
-						if (solid) {
-							if (structure <= 0.05 && !(c.sealed && c.top - y < 8) && caves.isCave(x, y, z)) {
+						if (y <= c.top) {
+							if (!(c.sealed && c.top - y < 8) && caves.isCave(x, y, z)) {
 								int depth = c.top - y;
 								state = Caves.VANILLA_SURFACE - depth < Caves.LAVA_BELOW_VIRTUAL_Y ? LAVA : AIR;
 							} else {
@@ -345,22 +304,6 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 				BlockPos above = new BlockPos(x, c.top + 1, z);
 				if (chunk.getBlockState(above).isAir() && chunk.getBlockState(above.below()).equals(c.surface)) {
 					chunk.setBlockState(above, c.topper, 0);
-				}
-			}
-		}
-
-		// Ground raised under a structure gets a proper top: grass on dirt, not bare dirt.
-		if (beardBox != null) {
-			for (int z = 0; z < 16; z++) {
-				for (int x = 0; x < 16; x++) {
-					Column c = columns[z * 16 + x];
-					for (int y = Math.min(maxSurface, VerticalScale.MAX_Y); y > c.top; y--) {
-						BlockState here = chunk.getBlockState(new BlockPos(x, y, z));
-						if (!here.isAir() && here.getFluidState().isEmpty()) {
-							chunk.setBlockState(new BlockPos(x, y, z), c.surface, 0);
-							break;
-						}
-					}
 				}
 			}
 		}
@@ -496,8 +439,7 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 		for (int z = 0; z < 16; z++) {
 			for (int x = 0; x < 16; x++) {
 				Column c = columns[z * 16 + x];
-				int from = beardBox != null ? Math.max(maxSurface, Math.max(c.top, c.waterTop)) : Math.max(c.top, c.waterTop);
-				from = Math.max(from, Math.max(deckTop[z * 16 + x], buildingTop[z * 16 + x]));
+				int from = Math.max(Math.max(c.top, c.waterTop), Math.max(deckTop[z * 16 + x], buildingTop[z * 16 + x]));
 				for (int y = from; y >= c.top - 64 && y > minY; y--) {
 					BlockState state = chunk.getBlockState(probe.set(x, y, z));
 					if (!state.isAir()) {
@@ -1095,24 +1037,11 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 	}
 
 	/**
-	 * The exact terrain of a column if it is known or we are generating structures; null otherwise,
-	 * meaning "answer from coarse elevation".
+	 * The exact terrain of a column if it is known; null otherwise, meaning "answer from coarse elevation".
 	 */
 	private ChunkTerrain terrainAt(int x, int z) {
 		TerrainField field = RealEarth.terrain();
-		if (field == null) {
-			return null;
-		}
-		ChunkTerrain ready = field.chunkIfReady(x >> 4, z >> 4);
-		if (ready != null || !GenContext.exact()) {
-			return ready;
-		}
-		try {
-			return field.chunkBlocking(x >> 4, z >> 4, 60);
-		} catch (Exception e) {
-			RealEarth.LOGGER.warn("Terrain at {}, {} unavailable: {}", x, z, e.toString());
-			return null;
-		}
+		return field == null ? null : field.chunkIfReady(x >> 4, z >> 4);
 	}
 
 	/** Top solid Y and water top Y of a column, exact when possible, otherwise from coarse elevation. */

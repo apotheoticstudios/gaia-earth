@@ -28,8 +28,8 @@ Start in your own street, fly to the nearest town centre, or teleport anywhere o
   minecarts at the stations, where the map has them; parks with fountains, cemeteries, allotments, pitches.
 - **Advancements for real places**: towns, capitals, the equator, the polar circles, the prime meridian, the date
   line, thin air, below the sea.
-- **Vanilla underneath**: caves, ores at their usual depths, and all structures: villages where no buildings are
-  mapped, mineshafts, ancient cities, ocean monuments and more.
+- **Vanilla underneath**: caves and ores at their usual depths. No Minecraft structures: the Earth is the real
+  one, with its own buildings, bridges, tunnels and railways.
 - **Distant Horizons support**: distant terrain is drawn straight from the data, so you can see mountains tens of
   kilometres away.
 - **Jade and Xaero's Minimap support**: the building, room, street, town, latitude and longitude of the block you

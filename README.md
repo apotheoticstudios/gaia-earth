@@ -106,9 +106,6 @@ north-south lines lean far from its centre). Set `"projection": "sinusoidal"` to
     function a datapack can use too).
   - Each building stands level, on the ground under its whole footprint: a foundation on the low side, dug in on
     the high side.
-- **Villages where buildings aren't mapped.** Built-up land without mapped buildings (ESA WorldCover) gets vanilla
-  villages about 160 blocks apart instead, in the style of the climate. Pillager outposts stay out of towns, and
-  villages keep clear of railways and motorways.
 - **Roads, tracks and paths** come from OpenStreetMap: asphalt (grey concrete) for streets and highways, sized by
   class, coarse dirt and gravel for tracks, dirt paths for footways and cycleways. Roads are levelled across
   their width where the ground allows.
@@ -221,7 +218,7 @@ Terrarium z15 PNG ─┐                          OpenStreetMap water (OpenFreeM
                    │     despike ► water (map, or flat-lake detection) ► water levels ► depth ► smoothing
                    └─► per chunk: cubic B-spline to 1 m blocks ► vertical scale
                          + ESA WorldCover (10 m) + Köppen climate (1 km)
-                         ► biomes, surface, caves, structures, vanilla features
+                         ► biomes, surface, caves, vanilla features (no structures)
 ```
 
 **Smoothing, against glitches.** Raw elevation tiles have three kinds of artefact that look wrong at 1 m per block:
@@ -286,23 +283,17 @@ the local ground down to 128 m below it, with lava at the bottom as in vanilla. 
 keep 8 blocks away from the sea floor, lake beds and shorelines, so they never drain a lake. Lush caves, dripstone
 caves and the deep dark appear underground in patches, the deep dark 64 m down or more.
 
-**Features at vanilla depths.** Every vanilla decoration runs: ores, glow lichen, geodes, dungeons, springs,
-fossils, sculk, lakes and vegetation. Vanilla places the underground ones at absolute heights (diamonds near
+**Features at vanilla depths.** Vanilla's decoration runs, except what it files under structures (see
+below): ores, glow lichen, geodes, springs, sculk, lakes, icebergs, blue ice and vegetation. Vanilla places the underground ones at absolute heights (diamonds near
 Y −59, under ground at about Y 64). On Earth the ground is anywhere from Y −1200 to 2000, so a small hook reads
 those heights as depth below the local ground. Measured in the self-test: coal averages 27 m down, iron 57 m,
 gold 92 m, diamonds 106 m, redstone 113 m.
 
-**Structures.** All of vanilla's: villages, pillager outposts, temples, igloos, witch huts, mansions, ruined
-portals, shipwrecks, ocean ruins, monuments, mineshafts, strongholds, trail ruins, trial chambers and ancient
-cities.
-- **Ground blending.** Ground is shaped around villages and other jigsaw structures the way vanilla does it.
-- **Fixed-height structures.** Ancient cities and trial chambers start that far below the *local* ground.
-  Otherwise they would hang 1,200 m up over the lowlands.
-- **Monuments.** They sit 24 blocks under Earth's sea, with water filled only to sea level. Over deep ocean
-  they stand on prismarine pillars down to the floor, the way vanilla monuments do over deep spots.
-- **Mineshafts and strongholds** keep vanilla's range below sea level.
-- **Pillager outposts** stay out of towns (built-up land or mapped buildings round them); patrols, raids and
-  other mobs spawn as in vanilla.
+**No Minecraft structures.** The Earth is the real one: no villages, outposts, temples, mansions, monuments,
+mineshafts, strongholds, ancient cities or any other structure, vanilla's or another mod's, and none of the
+decoration Minecraft files under structures (dungeons, fossils, desert wells). `/locate`, eyes of ender and
+explorer maps find nothing there. Project Gaia: Earth's own buildings, bridges, tunnels, railways and trees
+are all still built. The Nether and the End keep theirs.
 
 **Mobs.** Fish, squid and dolphins spawn near the sea level; in a lake or river above the sea (Siljan is 161 m
 up), its own surface counts instead, so inland waters have fish. Vanilla's other spawn rules measure from the
@@ -310,9 +301,9 @@ sea level, so they work at Earth's, with one exception:
 slimes used fixed heights (slime chunks below Y 40, swamps between Y 50 and 70), which put them on the surface
 of every slime chunk. They are measured from Earth's sea level instead: slime chunks 23 blocks under the sea,
 as in vanilla.
-- **Biome checks** during generation use exact terrain. `/locate`, explorer maps and the stronghold search use
-  a coarse ~1 km elevation grid instead, so they stay fast. Near coastlines their answer can occasionally
-  disagree with what generates.
+- **Biome checks** during generation use exact terrain. Far-away probes (other mods, commands) use a coarse
+  ~1 km elevation grid instead, so they stay fast. Near coastlines their answer can occasionally disagree with
+  what generates.
 
 **What grows where.** Two real datasets:
 
@@ -370,7 +361,7 @@ At one block per metre this is what makes mountains on the horizon visible at al
 | `useMapWater`, `mapTileJson` | true, OpenFreeMap | Water from OpenStreetMap |
 | `useLandCover`, `landCoverUrl` | true, ESA S3 | Land cover from ESA WorldCover |
 | `useRoads`, `useRailways` | true, true | Roads, tracks and paths; railways and trams (need `useMapWater`'s map tiles) |
-| `useBuildings` | true | Build the map's buildings (and no villages where they are) |
+| `useBuildings` | true | Build the map's buildings |
 | `useBuildingDetail` | true | Roof shapes, colours and building parts from the Overture Maps buildings tiles |
 | `buildingDetailUrl`, `buildingDetailRelease`, `buildingDetailCatalog` | Overture's S3, `latest`, Overture's STAC | Where those tiles are, and which monthly release |
 | `placeTitles` | true | Show a town's name on walking into it, and the district's above the hotbar |
@@ -414,8 +405,6 @@ world; only the start point and scale differ.)
   but each loaded chunk still costs several times a vanilla one.
 - Some shallow caves stop just under the surface, leaving a thin roof of dirt.
 - Needs internet the first time an area is visited, unless it was downloaded in advance (see Playing offline).
-- A village or other structure that crosses into a repaired chunk may not line up with its parts in
-  neighbouring chunks, since its layout follows the corrected terrain.
 - Each game folder has its own cache: a dedicated server and your own client download separately.
 
 Planned features and known issues: see [ROADMAP.md](ROADMAP.md).
@@ -468,10 +457,9 @@ Requires Java 25 installed. Gradle runs on it even when started from an older JV
 ```bash
 ./gradlew build          # build/libs/gaia-earth-<version>.jar
 ./gradlew runSelftest            # headless server, normal world + Earth dimension: terrain, caves, ores,
-                                 # structures, portals; ends with [selftest] PASS/FAIL
+                                 # no structures, portals; ends with [selftest] PASS/FAIL
 ./gradlew runSelftestEarthType   # the same on a Project Gaia: Earth world-type world (portal must refuse)
 ./gradlew runShots               # client: flies to real places and saves screenshots, then quits
-./gradlew runShots -PshotList=structures   # village, outpost, cave, ancient city in run-shots/saves/earthtest
 ./gradlew runShots -PshotOnly=geiranger    # one place; put Distant Horizons in run-shots/mods/ to test LODs
 ```
 
