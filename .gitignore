@@ -11,3 +11,4 @@ libs/
 run-clean/
 tools/trees/packs/
 tools/trees/out/
+.DS_Store
