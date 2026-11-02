@@ -2,6 +2,8 @@
 
 Proposed features and known issues, roughly in the order they'd be worth doing. Done parts are noted where a feature is under way.
 
+Accuracy and detail work, with new public data sources, is planned in `docs/ACCURACY-PLAN.md`.
+
 ## Features
 
 1. **Height cooling at map scale.** Biome temperature cools with height in *blocks* (`BiomeTemperatureMixin`).
