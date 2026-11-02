@@ -35,12 +35,11 @@ ones easier to check. Items that are already in `ROADMAP.md` say so. Built items
 
 ## Phase 2: better ground
 
-0. **A snowline from real data** (next after phase 1.1). Today it is a curve by latitude
-   (`BiomePicker.snowlineMeters`), within ~300 m of published values but blind to wet coasts and dry
-   interiors. Replace it with a grid: glacier median elevations from the Randolph Glacier Inventory where
-   there are glaciers, and WorldClim temperature carried to the real height where there are none, calibrated
-   against the glaciers. Phase 1.1's checks then compare against the data, not the curve.
-
+0. **A snowline from real data.** Built in apotheoticstudios/realearth#3: a 0.1 degree grid from the
+   Randolph Glacier Inventory's glacier median heights (CC BY 4.0) and CHELSA V2.1 summer temperature and
+   precipitation (CC0), with the summer temperature at which glaciers survive read off the glaciers by
+   precipitation. Within ~13 m of glaciers over 10 km2; wet coasts low, dry interiors high.
+   (`tools/snowline/` rebuilds it.)
 1. **Copernicus GLO-30** as a global 30 m elevation source, blended under the Terrarium tiles where it is better
    (cleaner terrain, mostly free of buildings).
 2. **National 1 m LiDAR**, bare earth (roadmap #2): Lantmäteriet (Sweden) first, then USGS 3DEP (USA), then
@@ -61,8 +60,8 @@ ones easier to check. Items that are already in `ROADMAP.md` say so. Built items
    rock, heath, wetland) choose mud, sand, podzol, gravel and stone.
 3. **Rock from geology maps** (OneGeology, national surveys): granite, limestone or sandstone in cliffs,
    quarries and caves.
-4. **Climate from WorldClim or CHELSA** (1 km monthly): real temperature and rainfall for biomes and grass
-   colour on top of Köppen, reusing the grid built for the snowline (phase 2.0).
+4. **Climate from CHELSA** (CC0, 1 km): real temperature and rainfall for biomes and grass colour on top of
+   Köppen, from the same files as the snowline (phase 2.0).
 
 ## Phase 4: towns everywhere
 
@@ -82,11 +81,13 @@ ones easier to check. Items that are already in `ROADMAP.md` say so. Built items
 - **Google Earth, Google Maps and Google's photorealistic 3D tiles.** Their terms, as far as known, forbid
   keeping the data and turning it into something else, and every player would need a paid API key. Re-read
   the terms before ever reconsidering.
+- **WorldClim 2.1**: free for academic and non-commercial use only, with no redistribution, so nothing
+  derived from it can ship in the mod. CHELSA covers the same ground under CC0.
 - **Google Earth Engine** is fine for processing public datasets once, offline, but the same datasets can
   usually be fetched from their own sources, which is simpler.
 
 ## Suggested order
 
-Phase 1.1 (cooling) is built. Next the snowline from data (2.0), which builds on it; then Lantmäteriet (2.2),
+Phase 1.1 (cooling) and the snowline from data (2.0) are built. Next Lantmäteriet (2.2),
 which fixes the start area's two worst known issues, then Copernicus (2.1) for everywhere else. After that,
 `/earth go` (1.4) for players and Open Buildings (4.1) for the empty half of the world.
