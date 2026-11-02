@@ -9,3 +9,5 @@ run-shots/
 run-selftest-earthtype/
 libs/
 run-clean/
+tools/trees/packs/
+tools/trees/out/
