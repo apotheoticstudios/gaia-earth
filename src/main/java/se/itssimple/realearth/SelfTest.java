@@ -1313,7 +1313,19 @@ final class SelfTest {
 						Map.of("picea_abies", 20, "pinus_sylvestris", 16)),
 					new Forest("Monchique", 37.32, -8.55, java.util.Set.of("quercus_suber", "olea_europaea", "quercus_coccifera", "pinus_pinea"),
 						java.util.Set.of("picea_abies", "betula_pendula", "betula_pubescens", "pinus_cembra", "larix_decidua"),
-						Map.of("quercus_suber", 8)))) {
+						Map.of("quercus_suber", 8)),
+					new Forest("the Great Smoky Mountains", 35.6, -83.5,
+						java.util.Set.of("quercus_rubra", "quercus_alba", "acer_rubrum", "liriodendron_tulipifera", "acer_saccharum", "tsuga_canadensis"),
+						java.util.Set.of("picea_abies", "quercus_robur", "fagus_sylvatica", "pseudotsuga_menziesii", "sequoia_sempervirens", "picea_mariana"),
+						Map.of("acer_rubrum", 9)),
+					new Forest("the Oregon Coast Range", 44.5, -123.6,
+						java.util.Set.of("pseudotsuga_menziesii", "picea_sitchensis", "thuja_plicata", "alnus_rubra"),
+						java.util.Set.of("quercus_robur", "picea_abies", "pinus_taeda", "quercus_rubra", "acer_saccharum"),
+						Map.of("pseudotsuga_menziesii", 23)),
+					new Forest("Quebec's boreal forest", 49.5, -76.0,
+						java.util.Set.of("picea_mariana", "picea_glauca", "abies_balsamea", "betula_papyrifera"),
+						java.util.Set.of("pinus_sylvestris", "picea_abies", "pinus_taeda", "quercus_virginiana", "pseudotsuga_menziesii"),
+						Map.of("picea_mariana", 4)))) {
 					Map<String, Long> before = se.itssimple.realearth.world.EarthTrees.placed();
 					Map<String, Long> heightsBefore = se.itssimple.realearth.world.EarthTrees.heights();
 					Map<String, long[]> perfBefore = Perf.snapshot();
