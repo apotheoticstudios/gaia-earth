@@ -34,9 +34,10 @@
   real ground instead of at a guessed height. For players allowed `/earth tp`.
 - **The whole real Earth in Xaero's World Map**: where you haven't been, the map shows the real one instead of
   black: seas, lakes and rivers, woods, fields, glaciers and towns, deserts and tundra by their climate, and
-  roads, railways and buildings as you zoom in, with your explored map drawn over it. The client downloads OpenStreetMap tiles from OpenFreeMap as you look
-  (cached with the terrain's tiles, under the same limit), so it works in multiplayer too. Mercator worlds only;
-  `mapBackground: false` turns it off.
+  roads, railways and buildings as you zoom in, with your explored map drawn over it. It zooms out to the whole
+  globe. The client downloads OpenStreetMap tiles from OpenFreeMap as you look (cached with the terrain's tiles,
+  under the same limit), so it works in multiplayer too. Mercator worlds only; `mapBackground: false` turns it
+  off.
 - `/earth tp block <x> <z>`: `/earth tp` by block column.
 
 ## 0.2.0 (2026-10-23)

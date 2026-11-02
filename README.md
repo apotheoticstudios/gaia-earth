@@ -439,11 +439,13 @@ Planned features and known issues: see [ROADMAP.md](ROADMAP.md).
   players allowed `/earth tp` (`teleportPermissionLevel`). Works on servers with Real Earth.
   And the real map wherever you haven't been, instead of black: seas, lakes and rivers, woods, fields, glaciers
   and towns, deserts and tundra by their climate, and, as you zoom in, roads, railways and buildings, with what
-  you have explored drawn over it as usual. Your game downloads the map's tiles itself as you look at them (OpenStreetMap data from OpenFreeMap,
-  credited in the map's corner), into the same cache and under the same size limit as the terrain's, so it works
-  on any server with Real Earth. For worlds in the Mercator projection (every new world); `mapBackground: false`
-  in the config turns it off. Zoomed out, squares the map saved before this version may keep a black edge round
-  what you explored until the map redraws them.
+  you have explored drawn over it as usual. On the Earth the map zooms out to the whole globe, past its own
+  limit; beyond that limit only the real map is drawn (what you explored is under a pixel there). Your game
+  downloads the map's tiles itself as you look at them (OpenStreetMap data from OpenFreeMap, credited in the
+  map's corner), into the same cache and under the same size limit as the terrain's, so it works on any server
+  with Real Earth. For worlds in the Mercator projection (every new world); `mapBackground: false` in the config
+  turns it off. Zoomed out, squares the map saved before this version may keep a black edge round what you
+  explored until the map redraws them.
 - **Lootr** and **Distant Horizons**: see above.
 
 **For mod authors.** `se.itssimple.realearth.api` (compile against the Real Earth jar, `modCompileOnly`):

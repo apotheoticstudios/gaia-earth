@@ -122,11 +122,8 @@ public final class XaeroMapBackground {
 		shown = false;
 		retired.forEach(DynamicTexture::close);
 		retired.clear();
-		Minecraft mc = Minecraft.getInstance();
-		ClimateLink.Shape shape = ClimateLink.current();
-		// shortcut: nothing under the sinusoidal projection of old worlds, whose tiles are not squares of blocks; it would need resampling.
-		if (!RealEarth.config().mapBackground || caves || mc.level == null || shape == null || !(shape.projection() instanceof Projection.WebMercator mercator)
-			|| !(dimension == RealEarth.EARTH || dimension == mc.level.dimension() && RealEarth.isEarth(mc.level))) {
+		Projection.WebMercator mercator = earth(dimension);
+		if (mercator == null || caves) {
 			return;
 		}
 		upload();
@@ -186,6 +183,35 @@ public final class XaeroMapBackground {
 				request(m[0]);
 			}
 		}
+	}
+
+	/** The Earth's projection when the map shows the Earth and its picture is on, else null. */
+	private static Projection.WebMercator earth(ResourceKey<Level> dimension) {
+		Minecraft mc = Minecraft.getInstance();
+		ClimateLink.Shape shape = ClimateLink.current();
+		// shortcut: nothing under the sinusoidal projection of old worlds, whose tiles are not squares of blocks; it would need resampling.
+		if (!RealEarth.config().mapBackground || mc.level == null || shape == null || !(shape.projection() instanceof Projection.WebMercator mercator)
+			|| !(dimension == RealEarth.EARTH || dimension == mc.level.dimension() && RealEarth.isEarth(mc.level))) {
+			return null;
+		}
+		return mercator;
+	}
+
+	/**
+	 * The map's furthest zoom out, given its own ({@code limit}, in its zoom units): on the Earth, the whole
+	 * globe, which the picture covers; elsewhere its own.
+	 */
+	public static double minZoom(double limit, ResourceKey<Level> dimension) {
+		Projection.WebMercator mercator = earth(dimension);
+		if (mercator == null) {
+			return limit;
+		}
+		var window = Minecraft.getInstance().getWindow();
+		int side = Math.min(window.getWidth(), window.getHeight());
+		// The map's zoom times this is screen pixels per block (as in GuiMap.getScaleMultiplier).
+		double multiplier = side <= 1100 ? 1.0 : side / 1080.0;
+		// The Mercator world is a square: all of it within the window's short side, with a margin.
+		return Math.min(limit, 0.9 * side / (multiplier * mercator.periodX()));
 	}
 
 	/** The map data's credit, at the bottom right above the map's zoom, while the map shows a picture. */
