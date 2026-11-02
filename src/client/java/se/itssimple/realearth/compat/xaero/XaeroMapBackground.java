@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -41,8 +42,9 @@ import xaero.map.gui.GuiMap;
  * ({@link MapPainter}) on a worker thread, and draws the pictures as the first quads of the map's own
  * batch, so the explored map, drawn after them, covers them; the map's shader skips its empty pixels,
  * which leaves the picture showing there. A tile still on its way shows the nearest bigger tile's
- * part, stretched. Downloads go to the same cache as the server's map data (in single player they
- * are shared), under the same size limit, and only for tiles on the screen, a few at a time.
+ * part, stretched; where there is none, a tile a few zooms out is fetched first. Downloads go to the
+ * same cache as the server's map data (in single player they are shared), under the same size limit,
+ * and only for tiles on the screen, a few at a time. Leaving the world frees the textures.
  *
  * <p>Only for the Mercator projection, where web-map tiles are squares of blocks; called from
  * {@code GuiMapMixin}. The map data's credit is shown in the corner while a picture is.
@@ -51,6 +53,8 @@ public final class XaeroMapBackground {
 	/** The map data's last zoom; beyond it its tiles are painted bigger, down to about a block a pixel. */
 	private static final int DATA_ZOOM = 14;
 	private static final int MAX_ZOOM = 16;
+	/** How many zooms out the stand-in fetched first for a view with nothing in it is. */
+	private static final int COARSE_STEPS = 3;
 	/** Pictures kept on the GPU, a quarter of a megabyte each; a screen at most zoom levels needs under a hundred. */
 	private static final int MAX_TEXTURES = 256;
 	private static final int MAX_LOADING = 8;
@@ -86,7 +90,26 @@ public final class XaeroMapBackground {
 	/** Whether the last frame drew a picture, for the credit. */
 	private static boolean shown;
 
+	static {
+		// Leaving the world gives the GPU memory back: the next world may be elsewhere, or have no Earth.
+		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(XaeroMapBackground::clear));
+	}
+
 	private XaeroMapBackground() {
+	}
+
+	private static void clear() {
+		textures.values().forEach(t -> {
+			if (t != null) {
+				t.close();
+			}
+		});
+		textures.clear();
+		retired.forEach(DynamicTexture::close);
+		retired.clear();
+		// Pictures still being painted finish on their own and are dropped.
+		loading.clear();
+		failedUntil.clear();
 	}
 
 	/**
@@ -120,28 +143,35 @@ public final class XaeroMapBackground {
 		double middleY = (y0 + y1) / 2.0;
 		List<long[]> missing = new ArrayList<>();
 		for (int ty = y0; ty <= y1; ty++) {
+			// Each edge from its own tile number, so neighbours meet exactly.
+			float pz = (float) (ty * side - world / 2 - cameraZ);
+			float pz1 = (float) ((ty + 1) * side - world / 2 - cameraZ);
 			for (int tx = x0; tx <= x1; tx++) {
 				int wx = Math.floorMod(tx, n);
 				float px = (float) (tx * side - world / 2 - cameraX);
-				float pz = (float) (ty * side - world / 2 - cameraZ);
+				float px1 = (float) ((tx + 1) * side - world / 2 - cameraX);
 				// The tile's own picture, else the nearest bigger tile's part of one.
-				for (int up = 0; up <= zoom; up++) {
-					long key = key(zoom - up, wx >> up, ty >> up);
-					if (textures.containsKey(key)) {
-						DynamicTexture texture = textures.get(key);
-						if (texture != null) {
-							int parts = 1 << up;
-							float u = (float) (wx & parts - 1) / parts;
-							float v = (float) (ty & parts - 1) / parts;
-							GuiMap.buildTexturedModalSubRectWithLighting(matrix, renderer.begin(texture.getTextureView()), px, pz, u, v, u + 1.0F / parts,
-								v + 1.0F / parts, (float) side, (float) side);
-							shown = true;
-						}
-						break;
+				int up = 0;
+				while (up <= zoom && !textures.containsKey(key(zoom - up, wx >> up, ty >> up))) {
+					up++;
+				}
+				if (up > 0) {
+					missing.add(new long[] {key(zoom, wx, ty), (long) ((tx - middleX) * (tx - middleX) + (ty - middleY) * (ty - middleY))});
+					if (up > zoom) {
+						// Nothing here at all yet: first a tile a few zooms out, which covers many and comes quickly.
+						int coarse = Math.min(zoom, COARSE_STEPS);
+						missing.add(new long[] {key(zoom - coarse, wx >> coarse, ty >> coarse), -1});
+						continue;
 					}
-					if (up == 0) {
-						missing.add(new long[] {key, (long) ((tx - middleX) * (tx - middleX) + (ty - middleY) * (ty - middleY))});
-					}
+				}
+				DynamicTexture texture = textures.get(key(zoom - up, wx >> up, ty >> up));
+				if (texture != null) {
+					int parts = 1 << up;
+					float u = (float) (wx & parts - 1) / parts;
+					float v = (float) (ty & parts - 1) / parts;
+					GuiMap.buildTexturedModalSubRectWithLighting(matrix, renderer.begin(texture.getTextureView()), px, pz, u, v, u + 1.0F / parts,
+						v + 1.0F / parts, px1 - px, pz1 - pz);
+					shown = true;
 				}
 			}
 		}
@@ -164,6 +194,8 @@ public final class XaeroMapBackground {
 			var font = Minecraft.getInstance().font;
 			graphics.text(font, CREDIT, width - 26 - font.width(CREDIT), height - 22, 0xFFC0C0C0);
 		}
+		// Until the map draws again: not on its loading screen.
+		shown = false;
 	}
 
 	private static long key(int zoom, int x, int y) {
@@ -213,7 +245,8 @@ public final class XaeroMapBackground {
 				NativeImage image = new NativeImage(MapPainter.SIZE, MapPainter.SIZE, false);
 				for (int y = 0; y < MapPainter.SIZE; y++) {
 					for (int x = 0; x < MapPainter.SIZE; x++) {
-						image.setPixel(x, y, argb[y * MapPainter.SIZE + x]);
+						// The map's shader reads alpha as block light: none, so the picture dims at night with the map.
+						image.setPixel(x, y, argb[y * MapPainter.SIZE + x] & 0xFFFFFF);
 					}
 				}
 				long key = e.getKey();

@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import se.itssimple.realearth.climate.Koppen;
 import se.itssimple.realearth.geo.Mercator;
 
 /**
@@ -14,7 +15,8 @@ import se.itssimple.realearth.geo.Mercator;
  * a part of a zoom-14 tile is painted bigger.
  *
  * Each pixel gets the kind of the highest thing drawn over it ({@link Rasterizer}'s rule), then that
- * kind's colour; roads are at least a pixel wide, else they would vanish when zoomed out.
+ * kind's colour, or for bare land its climate's ({@link #land}); roads are at least a pixel wide, else
+ * they would vanish when zoomed out. Intermittent water is left out, as the terrain leaves it out.
  */
 public final class MapPainter {
 	/** Pixels on a side. */
@@ -66,6 +68,9 @@ public final class MapPainter {
 		double metersPerPixel = Mercator.sampleSpacingMeters(lat) * Math.scalb((double) Mercator.TILE_SIZE / SIZE, Mercator.ZOOM - zoom);
 		byte[] kinds = new byte[SIZE * SIZE];
 		for (VectorTile.Feature f : VectorTile.decode(data, LAYERS)) {
+			if (f.flag("intermittent")) {
+				continue; // dry much of the year, and dry in the terrain too
+			}
 			// Tile units of the data tile; this picture is the part (x, y) mod parts of it.
 			double side = (double) f.extent() / parts;
 			double originX = (x & (parts - 1)) * side;
@@ -123,11 +128,53 @@ public final class MapPainter {
 				}
 			}
 		}
+		Koppen climate = Koppen.get();
 		int[] argb = new int[SIZE * SIZE];
-		for (int i = 0; i < argb.length; i++) {
-			argb[i] = COLOURS[kinds[i]];
+		for (int row = 0; row < SIZE; row++) {
+			double rowLat = Mercator.latitudeOfSampleY(Math.scalb((y * SIZE + row + 0.5) * Mercator.TILE_SIZE / SIZE, Mercator.ZOOM - zoom) - 0.5);
+			int lastLand = COLOURS[LAND];
+			for (int col = 0; col < SIZE; col++) {
+				int i = row * SIZE + col;
+				if (kinds[i] == LAND && climate != null) {
+					int c = climate.classAt(rowLat, (x * SIZE + col + 0.5) / ((double) SIZE * (1 << zoom)) * 360.0 - 180.0);
+					// Land the 1 km climate map calls sea (a spit, an islet, the shore) takes its neighbour's.
+					lastLand = c == Koppen.SEA ? lastLand : land(c);
+					argb[i] = lastLand;
+				} else {
+					argb[i] = COLOURS[kinds[i]];
+				}
+			}
 		}
 		return argb;
+	}
+
+	/**
+	 * The colour of land with nothing mapped on it, by its Köppen class: the map's land cover is patchy,
+	 * and without this deserts and tundra would be green. Follows the same climate as the biomes.
+	 */
+	public static int land(int climate) {
+		if (Koppen.desert(climate)) {
+			return 0xFFDCCB98;
+		}
+		if (Koppen.arid(climate)) {
+			return 0xFFBDB57A;
+		}
+		if (Koppen.iceCap(climate)) {
+			return COLOURS[ICE];
+		}
+		if (Koppen.polar(climate)) {
+			return 0xFFA9B49A;
+		}
+		if (climate == 3) { // Aw: savanna
+			return 0xFFA3B55C;
+		}
+		if (Koppen.tropical(climate)) {
+			return 0xFF5E9A3C;
+		}
+		if (Koppen.subarctic(climate)) {
+			return 0xFF7FA466;
+		}
+		return COLOURS[LAND];
 	}
 
 	private static byte area(String layer, String cls) {

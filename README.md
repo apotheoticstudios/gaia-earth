@@ -438,8 +438,8 @@ Planned features and known issues: see [ROADMAP.md](ROADMAP.md).
   high above the sea, while this one asks the server, which finds the ground the way `/earth tp` does. Shown to
   players allowed `/earth tp` (`teleportPermissionLevel`). Works on servers with Real Earth.
   And the real map wherever you haven't been, instead of black: seas, lakes and rivers, woods, fields, glaciers
-  and towns, and, as you zoom in, roads, railways and buildings, with what you have explored drawn over it as
-  usual. Your game downloads the map's tiles itself as you look at them (OpenStreetMap data from OpenFreeMap,
+  and towns, deserts and tundra by their climate, and, as you zoom in, roads, railways and buildings, with what
+  you have explored drawn over it as usual. Your game downloads the map's tiles itself as you look at them (OpenStreetMap data from OpenFreeMap,
   credited in the map's corner), into the same cache and under the same size limit as the terrain's, so it works
   on any server with Real Earth. For worlds in the Mercator projection (every new world); `mapBackground: false`
   in the config turns it off. Zoomed out, squares the map saved before this version may keep a black edge round
