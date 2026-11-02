@@ -1251,6 +1251,63 @@ final class SelfTest {
 			}
 		}));
 
+		phases.add(Map.entry("Real trees", () -> {
+			// Real trees: Tyresta's pine and spruce forest south-east of Stockholm, and the cork oak hills of Monchique.
+			{
+				TerrainField field = RealEarth.terrain();
+				record Forest(String name, double lat, double lon, java.util.Set<String> expect, java.util.Set<String> foreign) {
+				}
+				for (Forest f : List.of(
+					new Forest("Tyresta", 59.18, 18.30, java.util.Set.of("picea_abies", "pinus_sylvestris"),
+						java.util.Set.of("olea_europaea", "quercus_suber", "pinus_pinea", "cupressus_sempervirens", "betula_celtiberica")),
+					new Forest("Monchique", 37.32, -8.55, java.util.Set.of("quercus_suber", "olea_europaea", "quercus_coccifera", "pinus_pinea"),
+						java.util.Set.of("picea_abies", "betula_pendula", "betula_pubescens", "pinus_cembra", "larix_decidua")))) {
+					Map<String, Long> before = se.itssimple.realearth.world.EarthTrees.placed();
+					// Somewhere new in the forest each run: trees only grow in chunks not generated before.
+					double lat = f.lat() + (Math.random() - 0.5) * 0.04;
+					double lon = f.lon() + (Math.random() - 0.5) * 0.08;
+					int cx0 = (int) field.projection().blockX(lat, lon) >> 4;
+					int cz0 = (int) field.projection().blockZ(lat) >> 4;
+					int leaves = 0;
+					int decaying = 0;
+					for (int cx = cx0 - 3; cx <= cx0 + 3; cx++) {
+						for (int cz = cz0 - 3; cz <= cz0 + 3; cz++) {
+							for (var section : earth.getChunk(cx, cz).getSections()) {
+								if (!section.maybeHas(s -> s.is(net.minecraft.tags.BlockTags.LEAVES))) {
+									continue;
+								}
+								for (int i = 0; i < 4096; i++) {
+									BlockState s = section.getBlockState(i & 15, i >> 8, (i >> 4) & 15);
+									if (s.hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.DISTANCE)) {
+										leaves++;
+										decaying += !s.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.PERSISTENT)
+											&& s.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.DISTANCE) == 7 ? 1 : 0;
+									}
+								}
+							}
+						}
+					}
+					java.util.Map<String, Long> grown = new java.util.TreeMap<>();
+					se.itssimple.realearth.world.EarthTrees.placed().forEach((k, v) -> {
+						long n = v - before.getOrDefault(k, 0L);
+						if (n > 0) {
+							grown.put(k, n);
+						}
+					});
+					long real = grown.entrySet().stream().filter(e -> !java.util.Set.of("vanilla", "no room", "clipped").contains(e.getKey()))
+						.mapToLong(Map.Entry::getValue).sum();
+					check(!grown.containsKey("clipped"), "%s's trees stay within world generation's reach", f.name());
+					log("trees at %s %.4f, %.4f (%s): %s; leaves %d, %d set to decay", f.name(), lat, lon,
+						se.itssimple.realearth.climate.Koppen.code(se.itssimple.realearth.climate.Koppen.get().classAt(lat, lon)), grown, leaves, decaying);
+					check(f.expect().stream().anyMatch(grown::containsKey), "%s grows its own trees: %s", f.name(), f.expect());
+					check(f.foreign().stream().noneMatch(grown::containsKey), "%s grows no trees from elsewhere", f.name());
+					check(real > 4 * grown.getOrDefault("vanilla", 0L), "%s's trees are mostly real species (%d of %d)", f.name(), real,
+						real + grown.getOrDefault("vanilla", 0L));
+					check(decaying <= leaves / 100, "%s's leaves stay on the trees (%d of %d would decay)", f.name(), decaying, leaves);
+				}
+			}
+		}));
+
 		phases.add(Map.entry("Roads and railways", () -> {
 			// Roads and railways: central Stockholm, about 600 m square around the start.
 			{
