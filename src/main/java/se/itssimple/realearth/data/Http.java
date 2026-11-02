@@ -56,7 +56,7 @@ public final class Http {
 	private static byte[] fetch(String url, long offset, long length, String source) throws IOException {
 		HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(url))
 			.timeout(Duration.ofSeconds(30))
-			.header("User-Agent", "RealEarth-Minecraft-Mod/" + RealEarth.VERSION)
+			.header("User-Agent", "gaia-earth-Minecraft-Mod/" + RealEarth.VERSION)
 			.header("Accept-Encoding", "gzip");
 		if (length > 0) {
 			builder.header("Range", "bytes=" + offset + "-" + (offset + length - 1));

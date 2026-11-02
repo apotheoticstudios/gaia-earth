@@ -13,7 +13,7 @@ import se.itssimple.realearth.world.EarthChunkGenerator;
 /**
  * Minecraft calls every dimension it doesn't recognise as vanilla "experimental", and warns about the
  * whole world each time it is opened. Dimensions built by the Earth generator -- the Earth dimension,
- * and the Overworld of a Real Earth world -- are a supported part of this mod, so they count as stable.
+ * and the Overworld of a Project Gaia: Earth world -- are a supported part of this mod, so they count as stable.
  */
 @Mixin(WorldDimensions.class)
 public abstract class DimensionStabilityMixin {

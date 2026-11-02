@@ -47,7 +47,7 @@ public final class XaeroMinimapCompat {
 				here.town().isEmpty() ? null : here.district().isEmpty() ? here.town() : here.district() + ", " + here.town()));
 			// The minimap orders its lines once, from its settings; again now, so ours are among them.
 			manager.applyLocalConfig();
-			RealEarth.LOGGER.info("Added Real Earth's lines to Xaero's Minimap");
+			RealEarth.LOGGER.info("Added Project Gaia: Earth's lines to Xaero's Minimap");
 		});
 	}
 

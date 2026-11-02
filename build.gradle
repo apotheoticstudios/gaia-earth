@@ -6,7 +6,7 @@ loom {
 	splitEnvironmentSourceSets()
 
 	mods {
-		"realearth" {
+		"gaia-earth" {
 			sourceSet sourceSets.main
 			sourceSet sourceSets.client
 		}

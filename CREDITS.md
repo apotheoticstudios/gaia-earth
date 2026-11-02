@@ -1,6 +1,6 @@
-# Real Earth: data sources and credits
+# Project Gaia: Earth: data sources and credits
 
-Real Earth builds its world from open data. The mod downloads the data while you play (or with
+Project Gaia: Earth builds its world from open data. The mod downloads the data while you play (or with
 `/earth download`); only the climate map is bundled. These are the sources, with the attribution their licences
 ask for. In game, `/earth credits` shows the same list with links.
 
@@ -14,7 +14,7 @@ Water, waterways, roads, paths, railways and bridges.
 Served as vector tiles by **OpenFreeMap** (<https://openfreemap.org>), in the **OpenMapTiles** schema
 (© OpenMapTiles, <https://openmaptiles.org>).
 
-Real Earth turns the map data into terrain while generating a world; worlds made with it contain a derived
+Project Gaia: Earth turns the map data into terrain while generating a world; worlds made with it contain a derived
 work of OpenStreetMap data. With Xaero's World Map, it also draws the map data as a map under the places not
 yet explored, with this credit in the map's corner.
 
@@ -144,7 +144,7 @@ Zanaga, D., Van De Kerchove, R., Daems, D., De Keersmaecker, W., Brockmann, C., 
 O., Santoro, M., Fritz, S., Lesiv, M., Herold, M., Tsendbazar, N.E., Xu, P., Ramoino, F., Arino, O. (2022).
 ESA WorldCover 10 m 2021 v200. <https://doi.org/10.5281/zenodo.7254221>
 
-Real Earth reads it as published and turns its classes into blocks and biomes.
+Project Gaia: Earth reads it as published and turns its classes into blocks and biomes.
 
 ## Climate: Köppen-Geiger
 

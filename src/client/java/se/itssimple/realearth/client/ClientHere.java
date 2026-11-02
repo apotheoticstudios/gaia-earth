@@ -28,7 +28,7 @@ public final class ClientHere {
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> ClimateLink.receive(null));
 	}
 
-	/** Where the player is; latitude NaN when they are not on the Earth (or the server has no Real Earth). */
+	/** Where the player is; latitude NaN when they are not on the Earth (or the server has no Project Gaia: Earth). */
 	public static HereLink.Payload now() {
 		return now;
 	}

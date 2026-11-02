@@ -12,7 +12,7 @@ import se.itssimple.realearth.RealEarth;
 import se.itssimple.realearth.world.EarthChunkGenerator;
 
 /**
- * Hooks Real Earth into Distant Horizons. Only loaded when Distant Horizons is installed; nothing
+ * Hooks Project Gaia: Earth into Distant Horizons. Only loaded when Distant Horizons is installed; nothing
  * else in the mod refers to its classes.
  */
 public final class DistantHorizonsCompat {
@@ -31,13 +31,13 @@ public final class DistantHorizonsCompat {
 					&& server.getChunkSource().getGenerator() instanceof EarthChunkGenerator) {
 					DhApiResult<Void> result = DhApi.worldGenOverrides.registerWorldGeneratorOverride(level, new EarthLodGenerator(level));
 					if (result.success) {
-						RealEarth.LOGGER.info("Distant Horizons: distant terrain for {} comes straight from Real Earth's data", server.dimension().identifier());
+						RealEarth.LOGGER.info("Distant Horizons: distant terrain for {} comes straight from Project Gaia: Earth's data", server.dimension().identifier());
 					} else {
-						RealEarth.LOGGER.warn("Distant Horizons refused the Real Earth generator for {}: {}", server.dimension().identifier(), result.message);
+						RealEarth.LOGGER.warn("Distant Horizons refused the Project Gaia: Earth generator for {}: {}", server.dimension().identifier(), result.message);
 					}
 				}
 			}
 		});
-		RealEarth.LOGGER.info("Distant Horizons {} found; Real Earth will supply its distant terrain", DhApi.getModVersion());
+		RealEarth.LOGGER.info("Distant Horizons {} found; Project Gaia: Earth will supply its distant terrain", DhApi.getModVersion());
 	}
 }

@@ -16,7 +16,7 @@ import se.itssimple.realearth.terrain.TerrainField;
 import se.itssimple.realearth.world.Places;
 
 /**
- * What Real Earth knows about a place, for other mods: where on Earth a block is, and what the map has
+ * What Project Gaia: Earth knows about a place, for other mods: where on Earth a block is, and what the map has
  * there (the town, the street, the building and its room).
  *
  * Every query is for the server side (a {@link ServerLevel} of the Earth), from the server thread, and
@@ -70,7 +70,7 @@ public final class RealEarthApi {
 	private RealEarthApi() {
 	}
 
-	/** Whether a level is Real Earth's Earth, with its terrain running. */
+	/** Whether a level is Project Gaia: Earth's Earth, with its terrain running. */
 	public static boolean isEarth(Level level) {
 		return field(level) != null;
 	}

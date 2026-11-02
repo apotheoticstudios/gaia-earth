@@ -23,7 +23,7 @@ import se.itssimple.realearth.RealEarth;
 import se.itssimple.realearth.terrain.TerrainField;
 
 /**
- * {@code realearth:town_map}: turns an empty map into a map of the town round the chest it is found in,
+ * {@code gaia-earth:town_map}: turns an empty map into a map of the town round the chest it is found in,
  * centred on it, with its land already sketched in and a mark where the chest stands, and named after
  * the town. Worked out when the chest is opened, so with Lootr each player gets a map of their own.
  */
@@ -56,7 +56,7 @@ public final class TownMapFunction extends LootItemConditionalFunction {
 		BlockPos at = BlockPos.containing(origin);
 		ItemStack map = MapItem.create(level, at.getX(), at.getZ(), SCALE, true, true);
 		MapItem.renderBiomePreviewMap(level, map);
-		MapItemSavedData.addTargetDecoration(map, at, "realearth:here", MapDecorationTypes.TARGET_POINT);
+		MapItemSavedData.addTargetDecoration(map, at, "gaia-earth:here", MapDecorationTypes.TARGET_POINT);
 		TerrainField field = RealEarth.terrain();
 		Places.Here here = field == null || !RealEarth.isEarth(level) ? null : Places.at(field, origin.x, origin.z);
 		if (here != null && here.town() != null) {

@@ -26,7 +26,7 @@ import xaero.map.world.MapDimension;
 import xaero.map.world.MapWorld;
 
 /**
- * Real Earth's teleport in Xaero's World Map's right-click menu ({@link XaeroWorldMapCompat}), and the
+ * Project Gaia: Earth's teleport in Xaero's World Map's right-click menu ({@link XaeroWorldMapCompat}), and the
  * real map under the explored one ({@link XaeroMapBackground}), out to the whole Earth. The map has no
  * way for other mods to add to the menu or draw under it. Its own mixin config, not required, which lists it only when the
  * world map is installed ({@code XaeroMixins}); with one that has changed, it is left out and the game
@@ -74,7 +74,7 @@ public abstract class GuiMapMixin {
 
 	/**
 	 * Zoomed out that far, the map would go through millions of its regions every frame; it goes through none
-	 * instead, leaving Real Earth's picture: what has been explored is under a pixel there anyway. The most
+	 * instead, leaving Project Gaia: Earth's picture: what has been explored is under a pixel there anyway. The most
 	 * it goes through at its own furthest zoom is some 30,000.
 	 */
 	@ModifyVariable(method = "extractRenderState", at = @At("STORE"), name = "maxRegZ")

@@ -137,7 +137,7 @@ public final class DegradedChunks {
 		}
 		RealEarth.LOGGER.warn("Map data could not be downloaded; new chunks are being generated from stand-ins (flat ground, no land cover). They are listed for /earth repair.");
 		server.execute(() -> {
-			Component message = Component.literal("[Real Earth] Map data could not be downloaded, so new terrain is being generated from placeholders. "
+			Component message = Component.literal("[Project Gaia: Earth] Map data could not be downloaded, so new terrain is being generated from placeholders. "
 				+ "Once you are back online, run /earth repair to regenerate it (" + count + " chunk" + (count == 1 ? "" : "s") + " so far).")
 				.withStyle(ChatFormatting.GOLD);
 			for (ServerPlayer player : server.getPlayerList().getPlayers()) {

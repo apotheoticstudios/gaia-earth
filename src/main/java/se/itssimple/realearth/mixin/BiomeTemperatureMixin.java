@@ -35,7 +35,7 @@ public abstract class BiomeTemperatureMixin {
 			cir.setReturnValue(shape.temperature(base, pos));
 			return;
 		}
-		// No map shape from the server (a Real Earth from before it was sent): its rule, a quarter of vanilla's per block.
+		// No map shape from the server (a Project Gaia: Earth from before it was sent): its rule, a quarter of vanilla's per block.
 		int snowLevel = seaLevel + 17;
 		if (pos.getY() > snowLevel) {
 			float excess = (pos.getY() - snowLevel) * (1.0F - LAPSE_FRACTION) * 0.05F / 40.0F;

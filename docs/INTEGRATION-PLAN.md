@@ -1,10 +1,10 @@
 # Integration with other mods: a plan
 
-It asks what other mods could usefully get from Real Earth, and in what form, so the first pieces are the ones
+It asks what other mods could usefully get from Project Gaia: Earth, and in what form, so the first pieces are the ones
 that earn their keep. Steps 1 and 2 of the suggested order are built (see the README's "Other mods"); the rest is
 still a proposal.
 
-## What Real Earth knows that others can't
+## What Project Gaia: Earth knows that others can't
 
 - **Where on Earth a block is.** Latitude and longitude of any block, and back. The real elevation of a Y, and the
   Y of an elevation.
@@ -17,9 +17,9 @@ still a proposal.
 
 ### 1. Data, no code: datapacks and tags (partly there)
 
-Mods and modpacks can already change loot (`realearth:chests/*`). The same approach could cover:
+Mods and modpacks can already change loot (`gaia-earth:chests/*`). The same approach could cover:
 
-- **Block palettes** as block tags (`realearth:facade/brick`, `realearth:roof/slate`, `realearth:furniture/table`):
+- **Block palettes** as block tags (`gaia-earth:facade/brick`, `gaia-earth:roof/slate`, `gaia-earth:furniture/table`):
   a furniture mod (Macaw's, Handcrafted) or a building block mod puts its blocks in, and the buildings use them.
 - **Landmarks** as structure files keyed by OpenStreetMap or Overture id (`data/<ns>/realearth_landmarks/*.json` →
   `.nbt`): a hand-made build replaces the generated one. This is the hook for real-looking landmarks that
@@ -28,7 +28,7 @@ Mods and modpacks can already change loot (`realearth:chests/*`). The same appro
 
 ### 2. A small Java API (`se.itssimple.realearth.api`)
 
-A stable, versioned interface that other mods compile against with `modCompileOnly`. Real Earth then works with
+A stable, versioned interface that other mods compile against with `modCompileOnly`. Project Gaia: Earth then works with
 them when it is present and nothing breaks when it isn't.
 
 - `RealEarthApi.get(level)`: empty outside Earth.
@@ -54,8 +54,8 @@ them when it is present and nothing breaks when it isn't.
 
 1. Done: the API's position queries and `TownEntered` (small, and the base for everything else).
 2. Done: Jade and Xaero's support, through the API, since they are in the usual pack. Xaero's gets its lines from
-   the server once a second (`realearth:here`), so it works in multiplayer; waypoints for the towns and stations
-   round the player come the same way (`realearth:waypoints`), as the minimap's third-party waypoints, which the
+   the server once a second (`gaia-earth:here`), so it works in multiplayer; waypoints for the towns and stations
+   round the player come the same way (`gaia-earth:waypoints`), as the minimap's third-party waypoints, which the
    world map shows too (or draws itself when it is alone). The world map's right-click menu teleports onto the
    ground through `/earth tp block`, and draws the real map (OpenFreeMap's tiles, fetched by the client) under
    the parts nobody has explored.
@@ -67,4 +67,4 @@ them when it is present and nothing breaks when it isn't.
 - Which of these matter for the packs you play or ship (Xaero's, Jade, Create, furniture mods)?
 - Is a published API (a separate artifact on Maven, kept stable across versions) worth the upkeep, or are
   datapacks plus built-in compatibility enough?
-- For hand-made landmarks: should Real Earth ship any, or only the hook?
+- For hand-made landmarks: should Project Gaia: Earth ship any, or only the hook?

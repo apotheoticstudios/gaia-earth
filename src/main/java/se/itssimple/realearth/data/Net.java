@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.LongAdder;
 import se.itssimple.realearth.RealEarth;
 
 /**
- * Every download Real Earth makes, counted by where it comes from (elevation, map, building detail,
+ * Every download Project Gaia: Earth makes, counted by where it comes from (elevation, map, building detail,
  * land cover), for {@code /earth perf}: how many, how long they take, retries, rate limits and
  * failures; and how long chunks wait for each kind of data. Also makes sure one resource (a URL and
  * byte range) is downloaded once at a time: whoever asks for it while it is on its way waits for that

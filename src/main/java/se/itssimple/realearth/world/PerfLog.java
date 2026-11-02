@@ -19,7 +19,7 @@ import se.itssimple.realearth.terrain.TerrainField;
  * logs/realearth-perf.log (and at debug level in the game log, not in latest.log) on what the server
  * did since the last ones, for working out why chunks come slowly. Per player on
  * the Earth: where, how fast, and how many chunks within their view are still not generated; then
- * the ticks, the chunks generated and how long they took, Real Earth's stages, downloads and waits.
+ * the ticks, the chunks generated and how long they took, Project Gaia: Earth's stages, downloads and waits.
  * The client writes its own lines (chunks it still lacks, frame rate, sections to build).
  */
 public final class PerfLog {
@@ -104,7 +104,7 @@ public final class PerfLog {
 				player.isFallFlying() ? " gliding" : "", view, missing, all, missing == 0 ? "" : ", nearest " + nearest + " chunks away"));
 		}
 
-		// Real Earth's stages since the last lines (terrain runs include Distant Horizons' near patches).
+		// Project Gaia: Earth's stages since the last lines (terrain runs include Distant Horizons' near patches).
 		Map<String, long[]> perf = Perf.snapshot();
 		List<String> stages = new ArrayList<>();
 		perf.forEach((stage, v) -> {
@@ -138,7 +138,7 @@ public final class PerfLog {
 			try {
 				java.nio.file.Files.createDirectories(path.getParent());
 				file = new java.io.PrintWriter(java.nio.file.Files.newBufferedWriter(path, java.nio.charset.StandardCharsets.UTF_8), true);
-				RealEarth.LOGGER.info("Real Earth's performance log is in {}", path);
+				RealEarth.LOGGER.info("Project Gaia: Earth's performance log is in {}", path);
 			} catch (java.io.IOException e) {
 				RealEarth.LOGGER.warn("Could not open the performance log {}: {}", path, e.toString());
 				return;
@@ -153,7 +153,7 @@ public final class PerfLog {
 
 	/**
 	 * While the log is on, a thread that notices when the server has not finished a tick for five
-	 * seconds, and logs what the server thread is doing then, and every thread inside Real Earth's own
+	 * seconds, and logs what the server thread is doing then, and every thread inside Project Gaia: Earth's own
 	 * code: where a stall comes from. Again every ten seconds while it lasts.
 	 */
 	private static synchronized void watch(MinecraftServer server) {
@@ -196,7 +196,7 @@ public final class PerfLog {
 						}
 					});
 					write(b.toString());
-					RealEarth.LOGGER.warn("Real Earth: the server has not finished a tick for {} s; what it is doing is in logs/realearth-perf.log", quiet);
+					RealEarth.LOGGER.warn("Project Gaia: Earth: the server has not finished a tick for {} s; what it is doing is in logs/realearth-perf.log", quiet);
 				}
 			}
 		}, "RealEarth-StallWatch");

@@ -17,7 +17,7 @@ import se.itssimple.realearth.terrain.TerrainField;
 /**
  * Tells a player's client where on Earth they are, for maps and overlays on the client (Xaero's
  * minimap): latitude, longitude, real elevation, town and district. Sent about once a second, and
- * only when it has changed and the client has Real Earth to read it.
+ * only when it has changed and the client has Project Gaia: Earth to read it.
  */
 public final class HereLink {
 	/**

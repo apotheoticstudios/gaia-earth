@@ -13,7 +13,7 @@ import net.minecraft.world.level.block.state.BlockState;
  */
 public final class Strata {
 	/** Distant terrain's name for "banded rock here"; not a real block. */
-	public static final String BANDS = "realearth:bands";
+	public static final String BANDS = "gaia-earth:bands";
 
 	private static final Block[] PALETTE = {
 		Blocks.TERRACOTTA, Blocks.ORANGE_TERRACOTTA, Blocks.RED_TERRACOTTA, Blocks.BROWN_TERRACOTTA,

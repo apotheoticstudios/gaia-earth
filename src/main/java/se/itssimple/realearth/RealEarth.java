@@ -58,7 +58,7 @@ import se.itssimple.realearth.world.EarthBiomeSource;
 import se.itssimple.realearth.world.EarthChunkGenerator;
 
 public class RealEarth implements ModInitializer {
-	public static final String MOD_ID = "realearth";
+	public static final String MOD_ID = "gaia-earth";
 	public static final String VERSION = FabricLoader.getInstance().getModContainer(MOD_ID)
 		.map(c -> c.getMetadata().getVersion().getFriendlyString()).orElse("dev");
 	public static final Logger LOGGER = LoggerFactory.getLogger("RealEarth");
@@ -92,7 +92,7 @@ public class RealEarth implements ModInitializer {
 		return server;
 	}
 
-	/** True in a world created with the Real Earth world type: the Overworld itself is Earth. */
+	/** True in a world created with the Project Gaia: Earth world type: the Overworld itself is Earth. */
 	public static boolean earthIsOverworld(MinecraftServer server) {
 		return server.overworld().getChunkSource().getGenerator() instanceof EarthChunkGenerator;
 	}
@@ -176,7 +176,7 @@ public class RealEarth implements ModInitializer {
 			}
 			int degraded = DegradedChunks.count();
 			if (degraded > 0 && server.getPlayerList().isOp(handler.player.nameAndId())) {
-				handler.player.sendSystemMessage(Component.literal("[Real Earth] " + degraded + " chunk" + (degraded == 1 ? " was" : "s were")
+				handler.player.sendSystemMessage(Component.literal("[Project Gaia: Earth] " + degraded + " chunk" + (degraded == 1 ? " was" : "s were")
 					+ " generated from placeholder data while offline. Run /earth repair when online to regenerate them.").withStyle(ChatFormatting.GOLD));
 			}
 		});
@@ -224,7 +224,7 @@ public class RealEarth implements ModInitializer {
 		se.itssimple.realearth.world.ClimateLink.serve(projection, config.compressAboveMeters, config.compressBelowMeters);
 		PortalTravel.load(worldDir.resolve("realearth-portals.json"));
 
-		LOGGER.info("Real Earth: {} projection, start {}, {} (block {}, {}); tiles cached in {}", projection.id(),
+		LOGGER.info("Project Gaia: Earth: {} projection, start {}, {} (block {}, {}); tiles cached in {}", projection.id(),
 			world.startLatitude, world.startLongitude, terrain.startX(), terrain.startZ(), cache);
 	}
 

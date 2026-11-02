@@ -1,4 +1,4 @@
-# Real Earth roadmap
+# Project Gaia: Earth roadmap
 
 Proposed features and known issues, roughly in the order they'd be worth doing. Done parts are noted where a feature is under way.
 

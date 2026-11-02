@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "axis=x": {
+      "model": "gaia-earth:block/earth_portal_ns"
+    },
+    "axis=z": {
+      "model": "gaia-earth:block/earth_portal_ew"
+    }
+  }
+}

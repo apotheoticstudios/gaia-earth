@@ -66,7 +66,7 @@ public final class XaeroWorldMapCompat {
 			}
 			added = true;
 			WorldMap.mapElementRenderHandler.add(new Marks());
-			RealEarth.LOGGER.info("Added Real Earth's waypoints to Xaero's World Map");
+			RealEarth.LOGGER.info("Added Project Gaia: Earth's waypoints to Xaero's World Map");
 		});
 	}
 
@@ -113,7 +113,7 @@ public final class XaeroWorldMapCompat {
 		return c.getColor();
 	}
 
-	/** Real Earth's marks, drawn on the world map; only when it shows the dimension the player is in, which they are for. */
+	/** Project Gaia: Earth's marks, drawn on the world map; only when it shows the dimension the player is in, which they are for. */
 	private static final class Marks extends ElementRenderer<MapWaypoints.Mark, Void, Marks> {
 		private VertexConsumer fill;
 		/** Whether the map shows the player's dimension, for the provider, which is not told. */

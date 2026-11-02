@@ -14,7 +14,7 @@ import se.itssimple.realearth.terrain.TerrainField;
 import se.itssimple.realearth.world.EarthChunkGenerator;
 
 /**
- * A new Real Earth world spawns at the configured start point, not where the climate noise would put
+ * A new Project Gaia: Earth world spawns at the configured start point, not where the climate noise would put
  * it near block 0, 0 -- which on the Mercator map is the open Atlantic off West Africa -- and on land:
  * a start point in the sea or a lake moves to the nearest dry ground. Vanilla's search for a spot to
  * stand then works around it as usual.

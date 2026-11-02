@@ -13,14 +13,14 @@ public class RealEarthClient implements ClientModInitializer {
 			try {
 				se.itssimple.realearth.compat.xaero.XaeroMinimapCompat.install();
 			} catch (Throwable e) {
-				RealEarth.LOGGER.warn("Could not add Real Earth's lines to Xaero's Minimap", e);
+				RealEarth.LOGGER.warn("Could not add Project Gaia: Earth's lines to Xaero's Minimap", e);
 			}
 		}
 		if (FabricLoader.getInstance().isModLoaded("xaeroworldmap")) {
 			try {
 				se.itssimple.realearth.compat.xaero.XaeroWorldMapCompat.install();
 			} catch (Throwable e) {
-				RealEarth.LOGGER.warn("Could not add Real Earth's waypoints to Xaero's World Map", e);
+				RealEarth.LOGGER.warn("Could not add Project Gaia: Earth's waypoints to Xaero's World Map", e);
 			}
 		}
 		if (Boolean.getBoolean("realearth.shots")) {

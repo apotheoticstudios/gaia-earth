@@ -1,4 +1,4 @@
-# Real Earth
+# Project Gaia: Earth
 
 A Minecraft **26.1** (Fabric) mod that adds an **Earth dimension**, generated from real-world elevation data at
 **one block per metre** (true to scale where you start) instead of Perlin noise.
@@ -21,7 +21,7 @@ A Minecraft **26.1** (Fabric) mod that adds an **Earth dimension**, generated fr
 
 ## The map
 
-A round planet can't be drawn flat without distorting something. Real Earth uses the **Mercator projection**,
+A round planet can't be drawn flat without distorting something. Project Gaia: Earth uses the **Mercator projection**,
 the projection of web maps and of the elevation tiles themselves, with 0°, 0° at block 0, 0:
 
 - **North is up everywhere, and shapes are true everywhere.** The Grand Canyon, Japan or the Alps look the same
@@ -90,7 +90,7 @@ north-south lines lean far from its centre). Set `"projection": "sinusoidal"` to
     Once every player is far away they go again, unless someone has traded with one, named it or leashed it.
     So the streets near you are busy, and a city of thousands of beds doesn't slow the server down.
   - **Loot.** House chests hold what a village house's chest of the same climate holds, pantry barrels household
-    goods (`realearth:chests/storeroom`), shop barrels the shop's stock (`realearth:chests/shop_bakery` and the
+    goods (`gaia-earth:chests/storeroom`), shop barrels the shop's stock (`gaia-earth:chests/shop_bakery` and the
     like); a datapack can change any of them. All fill when first opened. With
     [Lootr](https://modrinth.com/mod/lootr) installed each player gets their own. Barrels that are a villager's
     job block stay empty. Some stoves have fuel left in them, and some bookshelves are chiseled ones with books.
@@ -102,7 +102,7 @@ north-south lines lean far from its centre). Set `"projection": "sinusoidal"` to
     fountain; cemeteries rows of headstones before their graves, allotments plots of crops between paths (watered,
     so they keep growing), flower beds their flowers, sports pitches their white lines.
   - **Maps of your own town** in bookshops and general stores: a filled map of the town round the shop, named
-    after it ("Map of Gamla stan, Stockholm"), with a mark where you found it (`realearth:town_map`, a loot
+    after it ("Map of Gamla stan, Stockholm"), with a mark where you found it (`gaia-earth:town_map`, a loot
     function a datapack can use too).
   - Each building stands level, on the ground under its whole footprint: a foundation on the low side, dug in on
     the high side.
@@ -137,7 +137,7 @@ terrain begins.
 
 ## Two ways to play
 
-- **Real Earth world type.** On the Create World screen, set *World Type* to **Real Earth**. The Overworld itself
+- **Project Gaia: Earth world type.** On the Create World screen, set *World Type* to **Project Gaia: Earth**. The Overworld itself
   is the real Earth: you spawn on the ground at the start point, and the Nether and the End work as usual. The globe
   portal does nothing in this world type, because you're already on Earth.
 - **Earth as a separate dimension** in any normal world, reached through a portal (below).
@@ -155,8 +155,8 @@ not used up. The frame fills with an animated blue-and-green portal.
 - An existing portal within 16 blocks of the arrival point is reused, like the nether.
 - Breaking the frame collapses the portal.
 
-The frame and activator are tags, so a datapack can change them: `realearth:portal_frame` (blocks) and
-`realearth:portal_activators` (items).
+The frame and activator are tags, so a datapack can change them: `gaia-earth:portal_frame` (blocks) and
+`gaia-earth:portal_activators` (items).
 
 ## Commands
 
@@ -188,10 +188,10 @@ arrive, run `/earth download 5000` there first.
 `logs/realearth-perf.log` every few seconds (begun afresh each session; not in `latest.log`, and at debug level
 for setups that log debug): for each player on the Earth where they are, how fast they move and how
 many chunks within their view the server has not generated yet; how long chunks take from their first
-generation step to their last; the ticks; Real Earth's stages; downloads, threads and waits. The client adds
+generation step to their last; the ticks; Project Gaia: Earth's stages; downloads, threads and waits. The client adds
 `[perf client]` lines: chunks within its render distance it has not got, how long chunks took to arrive,
 frames per second, sections waiting to be built. When the server goes five seconds without finishing a tick,
-the log says what its thread, and every thread in Real Earth's code, is doing (and `latest.log` gets one line
+the log says what its thread, and every thread in Project Gaia: Earth's code, is doing (and `latest.log` gets one line
 saying so).
 
 Each tile or byte range is downloaded once at a time: whatever else asks for it meanwhile waits for that
@@ -348,7 +348,7 @@ Vanilla trees, plants, snow and ice decorate on top. Deepslate starts 64 m below
 height-based cooling is cut to a quarter on Earth (about the real 6.5 °C/km), so ordinary forests don't get snow
 at a few hundred metres.
 
-**Distant Horizons.** With [Distant Horizons](https://modrinth.com/mod/distanthorizons) 3.3+ installed, Real Earth
+**Distant Horizons.** With [Distant Horizons](https://modrinth.com/mod/distanthorizons) 3.3+ installed, Project Gaia: Earth
 supplies its distant terrain directly from the data, without generating any chunks:
 - **Matching resolution:** each column reads elevation and land cover at a resolution matching its size.
 - **Near the player:** columns use the same smoothed terrain the chunks use, measured within 0.1 blocks on
@@ -433,22 +433,22 @@ Planned features and known issues: see [ROADMAP.md](ROADMAP.md).
   Earth.
 - **Xaero's World Map.** The same waypoints on the map, with or without the minimap (with it, they are the
   minimap's; without, a square in the same colour and letter, named when the mouse is over it). And "Teleport to
-  the ground here (Real Earth)" in the map's right-click menu on the Earth, for anywhere, seen or not: the map's
+  the ground here (Project Gaia: Earth)" in the map's right-click menu on the Earth, for anywhere, seen or not: the map's
   own teleport has to guess a height there, which in a world 4,000 blocks deep often means inside a mountain or
   high above the sea, while this one asks the server, which finds the ground the way `/earth tp` does. Shown to
-  players allowed `/earth tp` (`teleportPermissionLevel`). Works on servers with Real Earth.
+  players allowed `/earth tp` (`teleportPermissionLevel`). Works on servers with Project Gaia: Earth.
   And the real map wherever you haven't been, instead of black: seas, lakes and rivers, woods, fields, glaciers
   and towns, deserts and tundra by their climate, and, as you zoom in, roads, railways and buildings, with what
   you have explored drawn over it as usual. On the Earth the map zooms out to the whole globe, past its own
   limit; beyond that limit only the real map is drawn (what you explored is under a pixel there). Your game
   downloads the map's tiles itself as you look at them (OpenStreetMap data from OpenFreeMap, credited in the
   map's corner), into the same cache and under the same size limit as the terrain's, so it works on any server
-  with Real Earth. For worlds in the Mercator projection (every new world); `mapBackground: false` in the config
+  with Project Gaia: Earth. For worlds in the Mercator projection (every new world); `mapBackground: false` in the config
   turns it off. Zoomed out, squares the map saved before this version may keep a black edge round what you
   explored until the map redraws them.
 - **Lootr** and **Distant Horizons**: see above.
 
-**For mod authors.** `se.itssimple.realearth.api` (compile against the Real Earth jar, `modCompileOnly`):
+**For mod authors.** `se.itssimple.realearth.api` (compile against the Project Gaia: Earth jar, `modCompileOnly`):
 - `RealEarthApi`: `isEarth(level)`, `latLon(level, x, z)` and `toBlock(level, lat, lon)`, `elevationMeters` and
   `yOf`, `groundMeters`, `place(level, x, z)` (town, district, capital), `street(level, x, z)` and
   `building(level, pos)` (use, hall kind, name, storeys, the storey and room at the block). Server side only;
@@ -466,10 +466,10 @@ Requires Java 25 installed. Gradle runs on it even when started from an older JV
 (`gradle/gradle-daemon-jvm.properties`).
 
 ```bash
-./gradlew build          # build/libs/realearth-<version>.jar
+./gradlew build          # build/libs/gaia-earth-<version>.jar
 ./gradlew runSelftest            # headless server, normal world + Earth dimension: terrain, caves, ores,
                                  # structures, portals; ends with [selftest] PASS/FAIL
-./gradlew runSelftestEarthType   # the same on a Real Earth world-type world (portal must refuse)
+./gradlew runSelftestEarthType   # the same on a Project Gaia: Earth world-type world (portal must refuse)
 ./gradlew runShots               # client: flies to real places and saves screenshots, then quits
 ./gradlew runShots -PshotList=structures   # village, outpost, cave, ancient city in run-shots/saves/earthtest
 ./gradlew runShots -PshotOnly=geiranger    # one place; put Distant Horizons in run-shots/mods/ to test LODs
@@ -486,7 +486,7 @@ the 404-over-ocean behaviour) carried over from the GeoWorld project.
 
 ## About how this mod was made
 
-Real Earth was written almost entirely by an AI, **Claude (by Anthropic)**, working in Claude Code at my direction.
+Project Gaia: Earth was written almost entirely by an AI, **Claude (by Anthropic)**, working in Claude Code at my direction.
 I want to be upfront about that.
 
 **What I did:** came up with the idea and decided what the mod should be and do, chose between the options

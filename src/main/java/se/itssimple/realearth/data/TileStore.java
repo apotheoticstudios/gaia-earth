@@ -322,7 +322,7 @@ public final class TileStore implements AutoCloseable {
 	private Fetch download(Source src, String url, Path dir, Path file, Path missing, String source) {
 		HttpRequest request = HttpRequest.newBuilder(URI.create(url))
 			.timeout(Duration.ofSeconds(30))
-			.header("User-Agent", "RealEarth-Minecraft-Mod/" + RealEarth.VERSION)
+			.header("User-Agent", "gaia-earth-Minecraft-Mod/" + RealEarth.VERSION)
 			.GET()
 			.build();
 

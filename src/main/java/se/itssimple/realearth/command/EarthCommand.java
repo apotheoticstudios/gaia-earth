@@ -84,7 +84,7 @@ public final class EarthCommand {
 					return 1;
 				})))
 			.then(Commands.literal("credits").executes(ctx -> {
-				ctx.getSource().sendSuccess(() -> Component.literal("Real Earth is built from open data:"), false);
+				ctx.getSource().sendSuccess(() -> Component.literal("Project Gaia: Earth is built from open data:"), false);
 				for (Component line : se.itssimple.realearth.Credits.full()) {
 					ctx.getSource().sendSuccess(() -> line, false);
 				}
@@ -131,7 +131,7 @@ public final class EarthCommand {
 	private static int download(CommandSourceStack source, int radius, double lat, double lon) {
 		TerrainField field = RealEarth.terrain();
 		if (field == null) {
-			source.sendFailure(Component.literal("Real Earth is not running."));
+			source.sendFailure(Component.literal("Project Gaia: Earth is not running."));
 			return 0;
 		}
 		double x;
@@ -186,7 +186,7 @@ public final class EarthCommand {
 		DiskCache cache = DiskCache.current();
 		TerrainField field = RealEarth.terrain();
 		if (cache == null || field == null) {
-			source.sendFailure(Component.literal("Real Earth is not running."));
+			source.sendFailure(Component.literal("Project Gaia: Earth is not running."));
 			return 0;
 		}
 		CompletableFuture.supplyAsync(cache::measure).thenAccept(usage -> source.getServer().execute(() -> {
@@ -223,7 +223,7 @@ public final class EarthCommand {
 	private static int clearCache(CommandSourceStack source) {
 		DiskCache cache = DiskCache.current();
 		if (cache == null) {
-			source.sendFailure(Component.literal("Real Earth is not running."));
+			source.sendFailure(Component.literal("Project Gaia: Earth is not running."));
 			return 0;
 		}
 		if (AreaDownload.isRunning()) {

@@ -74,7 +74,7 @@ final class BuildingPainter {
 	private static final double FUELLED = 0.4;
 
 	private static ResourceKey<LootTable> loot(String path) {
-		return ResourceKey.create(Registries.LOOT_TABLE, Identifier.fromNamespaceAndPath("realearth", path));
+		return ResourceKey.create(Registries.LOOT_TABLE, Identifier.fromNamespaceAndPath("gaia-earth", path));
 	}
 
 	/** A house chest holds what a village house's chest of the same climate holds. */
@@ -88,7 +88,7 @@ final class BuildingPainter {
 		};
 	}
 
-	/** What a shop's stock holds: its own table (realearth:chests/shop_*), a datapack can change them. */
+	/** What a shop's stock holds: its own table (gaia-earth:chests/shop_*), a datapack can change them. */
 	private static ResourceKey<LootTable> stockLoot(BuildingPlan.Trade trade) {
 		if (trade == null) {
 			return STOREROOM;

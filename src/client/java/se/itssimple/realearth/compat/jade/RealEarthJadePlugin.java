@@ -69,7 +69,7 @@ public final class RealEarthJadePlugin implements IWailaPlugin {
 				}
 			});
 			RealEarthApi.building(level, pos).ifPresent(b -> tag.putString("building", describe(b)));
-			data.put("realearth", tag);
+			data.put(RealEarth.MOD_ID, tag);
 		}
 
 		@Override
@@ -84,7 +84,7 @@ public final class RealEarthJadePlugin implements IWailaPlugin {
 
 		@Override
 		public void appendTooltip(ITooltip tooltip, BlockAccessor accessor, IPluginConfig config) {
-			CompoundTag tag = accessor.getServerData().getCompoundOrEmpty("realearth");
+			CompoundTag tag = accessor.getServerData().getCompoundOrEmpty(RealEarth.MOD_ID);
 			String building = tag.getStringOr("building", "");
 			if (!building.isEmpty()) {
 				tooltip.add(Component.literal(building).withStyle(ChatFormatting.GRAY));
@@ -113,7 +113,7 @@ public final class RealEarthJadePlugin implements IWailaPlugin {
 
 		@Override
 		public void appendTooltip(ITooltip tooltip, BlockAccessor accessor, IPluginConfig config) {
-			CompoundTag tag = accessor.getServerData().getCompoundOrEmpty("realearth");
+			CompoundTag tag = accessor.getServerData().getCompoundOrEmpty(RealEarth.MOD_ID);
 			if (!tag.contains("lat")) {
 				return;
 			}

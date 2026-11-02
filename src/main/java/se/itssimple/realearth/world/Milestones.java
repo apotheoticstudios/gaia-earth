@@ -11,7 +11,7 @@ import se.itssimple.realearth.RealEarth;
 import se.itssimple.realearth.terrain.TerrainField;
 
 /**
- * Advancements for real places (the "Real Earth" tab): setting foot on Earth, walking into a town and a
+ * Advancements for real places (the "Project Gaia: Earth" tab): setting foot on Earth, walking into a town and a
  * capital, crossing the equator, a polar circle, the prime meridian and the date line, standing high
  * in thin air or on dry land below sea level. Each has one criterion, granted from here.
  */

@@ -1,6 +1,6 @@
-# Real Earth
+# Project Gaia: Earth
 
-**Play on the real Earth, at one block per metre.** Real Earth builds Minecraft terrain from open data about the
+**Play on the real Earth, at one block per metre.** Project Gaia: Earth builds Minecraft terrain from open data about the
 actual planet: real mountains and valleys, real lakes, rivers and coastlines, real forests and farmland, real
 roads and railways, and real towns and cities with their buildings.
 
@@ -41,7 +41,7 @@ Start in your own street, fly to the nearest town centre, or teleport anywhere o
 
 ## Two ways to play
 
-- **Real Earth world type**: choose *Real Earth* as the World Type when creating a world. The Overworld is the
+- **Project Gaia: Earth world type**: choose *Project Gaia: Earth* as the World Type when creating a world. The Overworld is the
   real Earth, and you start in Stockholm unless you change `startLatitude`/`startLongitude` in
   `config/realearth.json` before creating the world.
 - **Earth as a dimension** in a normal world: build a nether-portal-shaped frame of **lapis lazuli blocks** and
@@ -68,7 +68,7 @@ Start in your own street, fly to the nearest town centre, or teleport anywhere o
 
 ## Internet use and privacy
 
-Real Earth downloads public map data while you play, from these services only:
+Project Gaia: Earth downloads public map data while you play, from these services only:
 
 - elevation tiles from the Terrain Tiles dataset on Amazon Web Services' open data registry,
 - map tiles (water, roads, railways, buildings, places) from OpenFreeMap,
@@ -93,7 +93,7 @@ and reused, so places you have been work offline. The climate map is bundled.
 
 ## About how this mod was made
 
-Real Earth was written almost entirely by an AI, **Claude (by Anthropic)**, working in Claude Code at my direction.
+Project Gaia: Earth was written almost entirely by an AI, **Claude (by Anthropic)**, working in Claude Code at my direction.
 I want to be upfront about that.
 
 **What I did:** came up with the idea and decided what the mod should be and do, chose between the options

@@ -53,7 +53,7 @@ public final class Credits {
 
 	/** The short line, with a hint to the full list. */
 	public static Component greeting() {
-		return Component.literal("[Real Earth] " + SHORT + ". /earth credits for details.").withStyle(ChatFormatting.GRAY);
+		return Component.literal("[Project Gaia: Earth] " + SHORT + ". /earth credits for details.").withStyle(ChatFormatting.GRAY);
 	}
 
 	/** The full list, one message per source, each with a link. */

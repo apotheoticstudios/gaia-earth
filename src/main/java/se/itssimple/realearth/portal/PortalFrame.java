@@ -17,8 +17,8 @@ import se.itssimple.realearth.RealEarth;
  * The Earth portal's frame: a nether-portal-shaped ring of blocks (lapis by default -- the blue
  * planet), lit by using a Globe Banner Pattern on it.
  *
- * Both are tags, so a datapack can change them: realearth:portal_frame (blocks) and
- * realearth:portal_activators (items).
+ * Both are tags, so a datapack can change them: gaia-earth:portal_frame (blocks) and
+ * gaia-earth:portal_activators (items).
  */
 public final class PortalFrame {
 	public static final TagKey<Block> FRAME = TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath(RealEarth.MOD_ID, "portal_frame"));

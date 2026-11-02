@@ -1,0 +1,9 @@
+{
+  "type": "gaia-earth:earth",
+  "generator": {
+    "type": "gaia-earth:earth",
+    "biome_source": {
+      "type": "gaia-earth:earth"
+    }
+  }
+}

@@ -280,7 +280,7 @@ public final class XaeroMapBackground {
 					}
 				}
 				long key = e.getKey();
-				texture = new DynamicTexture(() -> "Real Earth map tile " + Long.toHexString(key), image);
+				texture = new DynamicTexture(() -> "Project Gaia: Earth map tile " + Long.toHexString(key), image);
 				uploaded++;
 			}
 			textures.put(e.getKey(), texture);

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **Renamed**: Real Earth, by itssimple, continues as its own mod, **Project Gaia: Earth** (mod id `gaia-earth`).
+  Its blocks, dimension, world type, loot tables and advancements are now under `gaia-earth:`, so worlds made with
+  Real Earth do not carry over.
+
 ### Terrain
 
 - **Lidar elevation** wherever there is national lidar: most of Europe, the USA, Japan, parts of Canada,

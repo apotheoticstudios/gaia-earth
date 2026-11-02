@@ -1728,7 +1728,7 @@ final class SelfTest {
 						found++;
 					}
 				}
-				check(found == 9, "the Real Earth advancements load (%d of 9)", found);
+				check(found == 9, "the Project Gaia: Earth advancements load (%d of 9)", found);
 			}
 		}));
 
@@ -2048,12 +2048,12 @@ final class SelfTest {
 				check(looted >= 3 && looted * 2 >= containers, "chests and storeroom barrels have loot tables (%d of %d)", looted, containers);
 				lootrCheck = new int[] {bestCx, bestCz, looted};
 				var storeroom = server.reloadableRegistries().getLootTable(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.LOOT_TABLE,
-					net.minecraft.resources.Identifier.fromNamespaceAndPath("realearth", "chests/storeroom")));
+					net.minecraft.resources.Identifier.fromNamespaceAndPath("gaia-earth", "chests/storeroom")));
 				check(storeroom != net.minecraft.world.level.storage.loot.LootTable.EMPTY, "the storeroom loot table loads");
 				// Town maps in bookshops: a filled map of the town, named after it.
 				{
 					var bookshop = server.reloadableRegistries().getLootTable(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.LOOT_TABLE,
-						net.minecraft.resources.Identifier.fromNamespaceAndPath("realearth", "chests/shop_books")));
+						net.minecraft.resources.Identifier.fromNamespaceAndPath("gaia-earth", "chests/shop_books")));
 					net.minecraft.world.phys.Vec3 at = new net.minecraft.world.phys.Vec3(field.projection().blockX(59.3250, 18.0710), 0, field.projection().blockZ(59.3250));
 					var params = new net.minecraft.world.level.storage.loot.LootParams.Builder(earth)
 						.withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.ORIGIN, at)
