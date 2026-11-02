@@ -13,3 +13,4 @@ tools/trees/packs/
 tools/trees/out/
 .DS_Store
 src/main/resources/data/realearth/structure/tree/
+tools/treedensity/data/

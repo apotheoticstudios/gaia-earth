@@ -18,53 +18,86 @@ import java.util.SplittableRandom;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.LongAdder;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.Holder;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.data.worldgen.features.TreeFeatures;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.WorldGenRegion;
+import net.minecraft.tags.BiomeTags;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.WorldGenLevel;
+import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.ChunkAccess;
+import net.minecraft.world.level.chunk.ChunkGenerator;
+import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
 import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
 import net.minecraft.world.level.levelgen.feature.TreeFeature;
 import net.minecraft.world.level.levelgen.feature.configurations.TreeConfiguration;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import se.itssimple.realearth.RealEarth;
 import se.itssimple.realearth.climate.Koppen;
+import se.itssimple.realearth.landcover.TreeDensity;
+import se.itssimple.realearth.landcover.WorldCover;
 import se.itssimple.realearth.mixin.StructureTemplateAccessor;
+import se.itssimple.realearth.terrain.ChunkTerrain;
 import se.itssimple.realearth.terrain.TerrainField;
 
 /**
- * Real trees on Earth: where world generation grows a vanilla tree, a tree of a species that really grows there
- * takes its place, built from a builder's schematic (converted by tools/trees into realearth:tree/...).
+ * Earth's trees: where they stand, how close together, and of which species, from real data.
  *
- * Vanilla still decides where trees grow and how many -- its biomes already follow real land cover and climate
- * (see {@link BiomePicker}) -- and the kind of tree it was about to grow (spruce, birch, oak ...) chooses between
- * a place's conifers and broadleaves. The species comes from realearth/trees/species.tsv: per species, the
- * vanilla kinds it stands in for, the climates (Köppen codes, by prefix) and heights against the treeline it
- * grows at, and where. Most trees in a stand about 32 m across are one species, as real forests mostly are.
+ * Where: on the columns the land cover ({@link WorldCover}, 10 m) shows as trees, so forests, woods, hedgerows and
+ * parks have them and fields don't; vanilla's own tree spots are left empty. How close: as many to a hectare as
+ * stand there in the real world ({@link TreeDensity}) -- about 3.5 m apart in a Swedish forest, 9 m in the
+ * savanna -- scattered on a jittered grid, and where they stand close, the species' slimmer trees grow.
  *
- * Only during world generation: saplings players plant grow vanilla trees. Where no species fits, or the
- * trees aren't installed, vanilla's tree grows.
+ * Which: the biome (picked from real land cover and climate, see {@link BiomePicker}) gives the kind of tree
+ * vanilla would grow there -- spruce, birch, oak ... -- and realearth/trees/species.tsv the species of that kind
+ * that really grows there, by climate (Köppen codes, by prefix), height against the treeline and place, built from
+ * a builder's schematic (converted by tools/trees into realearth:tree/...). Most trees in a stand about 32 m across
+ * are one species, as real forests mostly are. Where no species fits, or the trees aren't installed, a vanilla tree
+ * of that kind grows instead.
+ *
+ * Only during world generation: saplings players plant grow vanilla trees.
  */
 public final class EarthTrees {
 	/** Share of trees that follow their stand's species rather than picking their own. */
 	private static final double STAND = 0.7;
-	/** Blocks around a trunk kept free of other trunks, however small or wide the tree. */
-	private static final int MIN_ROOM = 3;
-	private static final int MAX_ROOM = 8;
 	/** Stands are 32 blocks across. */
 	private static final int STAND_SHIFT = 5;
-	private static final Set<String> WOODS = Set.of("spruce", "birch", "dark_oak", "acacia", "jungle", "mangrove", "cherry");
+	/** Trees a hectare where the density map has none but the land cover shows trees (towns, its coasts): 10 m apart. */
+	private static final double DEFAULT_PER_HECTARE = 100;
+	/** Spacing in blocks: never closer than trunks can stand, never so far that a wood is empty. */
+	private static final double MIN_SPACING = 2.5;
+	private static final double MAX_SPACING = 40;
+	/** In close stands only trees whose crowns reach at most this many spacings from the trunk grow. */
+	private static final double REACH_PER_SPACING = 1.5;
+	/** No other trunk within this share of the spacing: the grid's jitter mustn't stand two trees side by side. */
+	private static final double CLEARANCE = 0.5;
 	/** Below this many metres under the treeline a place is "mid" (montane); within 200 m of it, "high". */
 	private static final double TREELINE_BAND = 200.0;
+	private static final Map<String, List<ResourceKey<ConfiguredFeature<?, ?>>>> VANILLA = Map.of(
+		"spruce", List.of(TreeFeatures.SPRUCE, TreeFeatures.PINE),
+		"birch", List.of(TreeFeatures.BIRCH),
+		"oak", List.of(TreeFeatures.OAK, TreeFeatures.FANCY_OAK),
+		"dark_oak", List.of(TreeFeatures.DARK_OAK),
+		"acacia", List.of(TreeFeatures.ACACIA),
+		"jungle", List.of(TreeFeatures.JUNGLE_TREE),
+		"swamp", List.of(TreeFeatures.SWAMP_OAK),
+		"mangrove", List.of(TreeFeatures.MANGROVE),
+		"cherry", List.of(TreeFeatures.CHERRY));
 
 	private static final Map<String, LongAdder> PLACED = new ConcurrentHashMap<>();
+	/** Set while Earth grows a vanilla tree itself, so it isn't turned away as one of vanilla's own. */
+	private static final ThreadLocal<Boolean> GROWING = new ThreadLocal<>();
 	private static volatile Index index;
 
 	private EarthTrees() {
@@ -89,8 +122,9 @@ public final class EarthTrees {
 	}
 
 	/**
-	 * How many trees of each species world generation has grown; "vanilla" for those left as they were, "no room"
-	 * for trees without room for their trunk, and "clipped" for blocks out of world generation's reach.
+	 * How many trees world generation has grown: of each species, "vanilla <kind>" where no species fits; "no room"
+	 * for trees without room for their trunk, and "clipped" for blocks out of world generation's reach. "spot" counts
+	 * the grid's spots, and "spot: ..." those turned away, and why.
 	 */
 	public static Map<String, Long> placed() {
 		Map<String, Long> out = new HashMap<>();
@@ -99,68 +133,132 @@ public final class EarthTrees {
 	}
 
 	/**
-	 * Grows a real tree in place of a vanilla one: true or false for whether one grew, or null to leave the
-	 * vanilla tree to grow.
+	 * Vanilla's own trees on Earth: false to leave the spot empty, as Earth grows its trees itself ({@link #fill}),
+	 * or null to let it grow -- the vanilla trees Earth grows, saplings, and azaleas over lush caves.
 	 */
 	public static Boolean grow(FeaturePlaceContext<TreeConfiguration> context) {
-		if (!(context.level() instanceof WorldGenRegion region) || !(context.chunkGenerator() instanceof EarthChunkGenerator)) {
+		if (GROWING.get() != null || !(context.level() instanceof WorldGenRegion) || !(context.chunkGenerator() instanceof EarthChunkGenerator)
+			|| RealEarth.terrain() == null
+			|| context.config().foliageProvider.getState(context.level(), context.random(), context.origin()).is(Blocks.AZALEA_LEAVES)) {
 			return null;
 		}
+		return false;
+	}
+
+	/** Grows a chunk's trees; before vanilla's decoration, so its snow settles on them. */
+	public static void fill(WorldGenLevel level, ChunkGenerator generator, ChunkAccess chunk) {
 		TerrainField field = RealEarth.terrain();
-		BlockPos pos = context.origin();
-		String kind = field == null ? null : kind(context);
-		Index trees = kind == null ? null : index(region.getServer());
-		if (trees == null || trees.rows.isEmpty()) {
-			return null;
+		ChunkPos pos = chunk.getPos();
+		ChunkTerrain t = field == null ? null : field.chunkIfReady(pos.x(), pos.z());
+		if (t == null || !(level instanceof WorldGenRegion region)) {
+			return;
 		}
-		double lat = field.projection().latitudeAt(pos.getZ() + 0.5);
-		double lon = field.projection().longitudeAt(pos.getX() + 0.5, lat);
-		Koppen koppen = Koppen.get();
-		String climate = Koppen.code(koppen == null ? Koppen.SEA : koppen.classAt(lat, lon));
+		int centre = ChunkTerrain.index(8, 8);
+		TreeDensity density = TreeDensity.get();
+		double perHectare = density == null ? 0 : density.perHectare(t.latitude[centre], t.longitude[centre]);
+		double metres = Math.sqrt(10_000 / (perHectare > 0 ? perHectare : DEFAULT_PER_HECTARE));
+		double spacing = Math.clamp(metres * field.projection().blocksPerMeter(t.latitude[centre]), MIN_SPACING, MAX_SPACING);
+		Index trees = index(region.getServer());
+		int x0 = pos.getMinBlockX();
+		int z0 = pos.getMinBlockZ();
+		// One spot in each cell of a grid laid over the world, so neighbouring chunks agree.
+		for (int i = (int) Math.floor(x0 / spacing); i <= (int) Math.floor((x0 + 15) / spacing); i++) {
+			for (int j = (int) Math.floor(z0 / spacing); j <= (int) Math.floor((z0 + 15) / spacing); j++) {
+				SplittableRandom cell = new SplittableRandom(region.getSeed() ^ (i * 341873128712L + j * 132897987541L));
+				int x = (int) Math.floor((i + cell.nextDouble()) * spacing);
+				int z = (int) Math.floor((j + cell.nextDouble()) * spacing);
+				if (x >= x0 && x < x0 + 16 && z >= z0 && z < z0 + 16) {
+					growAt(region, generator, t, trees, x, z, spacing, RandomSource.create(cell.nextLong()));
+				}
+			}
+		}
+	}
+
+	/** A tree at a spot of the grid, if the land cover shows trees there and the ground takes one. */
+	private static void growAt(WorldGenRegion region, ChunkGenerator generator, ChunkTerrain t, Index trees, int x, int z, double spacing,
+		RandomSource random) {
+		int lx = x & 15;
+		int lz = z & 15;
+		int k = ChunkTerrain.index(lx, lz);
+		int cover = t.cover[k] & 0xFF;
+		count("spot");
+		if (cover != WorldCover.TREES && cover != WorldCover.MANGROVES || t.way[k] != 0 || t.building[k] != 0 || t.hasWater(lx, lz)) {
+			count("spot: " + (cover != WorldCover.TREES && cover != WorldCover.MANGROVES ? "cover " + cover : "way/building/water"));
+			return;
+		}
+		BlockPos pos = new BlockPos(x, t.topSolidY[k] + 1, z);
+		BlockState ground = region.getBlockState(pos.below());
+		if (!ground.is(BlockTags.SUBSTRATE_OVERWORLD) && !ground.is(BlockTags.SAND)) {
+			count("spot: ground " + ground.getBlock().getDescriptionId());
+			return;
+		}
+		int clear = (int) Math.min(4, spacing * CLEARANCE);
+		for (int dx = -clear; dx <= clear; dx++) {
+			for (int dz = -clear; dz <= clear; dz++) {
+				if (region.getBlockState(pos.offset(dx, 1, dz)).is(BlockTags.LOGS)) {
+					count("spot: too close");
+					return;
+				}
+			}
+		}
+		String kind = cover == WorldCover.MANGROVES ? "mangrove" : kind(region.getBiome(pos), random);
+		double lat = t.latitude[k];
+		double lon = t.longitude[k];
 		double treeline = BiomePicker.treelineMeters(lat);
-		double meters = field.toElevation(pos.getY(), lat);
+		double meters = t.groundMeters[k];
 		String zone = meters >= treeline - TREELINE_BAND ? "high" : meters >= treeline / 2 ? "mid" : "low";
 		List<Row> rows = new ArrayList<>();
 		for (Row row : trees.rows) {
-			if (row.matches(kind, climate, zone, lat, lon)) {
+			if (row.matches(kind, Koppen.code(t.climate[k] & 0xFF), zone, lat, lon)) {
 				rows.add(row);
 			}
 		}
-		if (rows.isEmpty()) {
-			count("vanilla");
-			return null;
+		if (!rows.isEmpty()) {
+			long stand = region.getSeed() ^ ((long) (x >> STAND_SHIFT) * 341873128712L + (long) (z >> STAND_SHIFT) * 132897987541L + kind.hashCode());
+			Row row = pick(rows, random.nextDouble() < STAND ? new SplittableRandom(stand).nextDouble() : random.nextDouble());
+			Tree tree = variant(trees.trees.get(row.species), spacing, random);
+			StructureTemplate template = region.getServer().getStructureManager().get(tree.id).orElse(null);
+			if (template != null) {
+				count(place(region, template, tree, pos, random) ? row.species : "no room");
+				return;
+			}
 		}
-		RandomSource random = context.random();
-		long stand = region.getSeed() ^ ((long) (pos.getX() >> STAND_SHIFT) * 341873128712L + (long) (pos.getZ() >> STAND_SHIFT) * 132897987541L
-			+ kind.hashCode());
-		Row row = pick(rows, random.nextDouble() < STAND ? new SplittableRandom(stand).nextDouble() : random.nextDouble());
-		List<Tree> variants = trees.trees.get(row.species);
-		Tree tree = variants.get(random.nextInt(variants.size()));
-		StructureTemplate template = region.getServer().getStructureManager().get(tree.id).orElse(null);
-		if (template == null) {
-			return null;
-		}
-		boolean grown = place(region, template, tree, pos, random);
-		count(grown ? row.species : "no room");
-		return grown;
+		growVanilla(region, generator, kind, pos, random);
 	}
 
 	/**
-	 * The vanilla tree about to grow, by its trunk: spruce (spruces and pines), birch, oak, swamp (oaks in a
-	 * swamp), dark_oak, acacia, jungle, mangrove, cherry. Null for anything else (azaleas, pale oaks).
+	 * The kind of tree vanilla grows in a biome: spruce (spruces and pines), birch, oak, swamp (oaks in a swamp),
+	 * dark_oak, acacia, jungle, mangrove, cherry; mixed as vanilla mixes them.
 	 */
-	private static String kind(FeaturePlaceContext<TreeConfiguration> context) {
-		TreeConfiguration config = context.config();
-		BlockPos pos = context.origin();
-		BlockState trunk = config.trunkProvider.getState(context.level(), context.random(), pos);
-		if (config.foliageProvider.getState(context.level(), context.random(), pos).is(Blocks.AZALEA_LEAVES)) {
-			return null;
+	private static String kind(Holder<Biome> biome, RandomSource random) {
+		if (biome.is(BiomeTags.IS_TAIGA) || biome.is(Biomes.GROVE) || biome.is(Biomes.SNOWY_PLAINS) || biome.is(Biomes.SNOWY_SLOPES)) {
+			return "spruce";
 		}
-		if (trunk.is(Blocks.OAK_LOG)) {
-			return context.level().getBiome(pos).is(Biomes.SWAMP) ? "swamp" : "oak";
+		if (biome.is(Biomes.WINDSWEPT_FOREST) || biome.is(Biomes.WINDSWEPT_HILLS)) {
+			return random.nextInt(3) < 2 ? "spruce" : "oak";
 		}
-		String wood = BuiltInRegistries.BLOCK.getKey(trunk.getBlock()).getPath().replace("_log", "");
-		return WOODS.contains(wood) ? wood : null;
+		if (biome.is(Biomes.BIRCH_FOREST) || biome.is(Biomes.OLD_GROWTH_BIRCH_FOREST)) {
+			return "birch";
+		}
+		if (biome.is(Biomes.DARK_FOREST)) {
+			return random.nextFloat() < 0.7f ? "dark_oak" : "oak";
+		}
+		if (biome.is(BiomeTags.IS_SAVANNA)) {
+			return random.nextFloat() < 0.8f ? "acacia" : "oak";
+		}
+		if (biome.is(BiomeTags.IS_JUNGLE)) {
+			return "jungle";
+		}
+		if (biome.is(Biomes.SWAMP)) {
+			return "swamp";
+		}
+		if (biome.is(Biomes.MANGROVE_SWAMP)) {
+			return "mangrove";
+		}
+		if (biome.is(Biomes.CHERRY_GROVE)) {
+			return "cherry";
+		}
+		return random.nextFloat() < 0.2f ? "birch" : "oak";
 	}
 
 	private static Row pick(List<Row> rows, double u) {
@@ -178,26 +276,45 @@ public final class EarthTrees {
 		return rows.get(rows.size() - 1);
 	}
 
+	/** One of a species' trees whose crown suits the spacing, or its slimmest if none does. */
+	private static Tree variant(List<Tree> variants, double spacing, RandomSource random) {
+		List<Tree> fit = new ArrayList<>();
+		Tree slimmest = variants.get(0);
+		for (Tree tree : variants) {
+			if (tree.reach <= REACH_PER_SPACING * spacing) {
+				fit.add(tree);
+			}
+			if (tree.reach < slimmest.reach) {
+				slimmest = tree;
+			}
+		}
+		return fit.isEmpty() ? slimmest : fit.get(random.nextInt(fit.size()));
+	}
+
+	/** A vanilla tree of the kind, where no species fits or none is installed. */
+	private static void growVanilla(WorldGenRegion region, ChunkGenerator generator, String kind, BlockPos pos, RandomSource random) {
+		List<ResourceKey<ConfiguredFeature<?, ?>>> keys = VANILLA.get(kind);
+		var feature = region.registryAccess().lookupOrThrow(Registries.CONFIGURED_FEATURE).get(keys.get(random.nextInt(keys.size())));
+		if (feature.isEmpty()) {
+			return;
+		}
+		GROWING.set(Boolean.TRUE);
+		try {
+			count(feature.get().value().place(region, generator, random, pos) ? "vanilla " + kind : "no room");
+		} finally {
+			GROWING.remove();
+		}
+	}
+
 	/**
 	 * Builds the tree with its trunk's foot at {@code pos}, turned and mirrored at random. Like a vanilla tree it
-	 * needs room for its trunk, and only fills air, leaves and plants; its roots only go into natural ground.
-	 * Vanilla's tree counts suit its small trees, so a tree only grows with no other trunk within its crown's
-	 * reach: crowns meet, as in a real forest, rather than grow through each other.
+	 * needs room for its trunk, and only fills air, plants, and leaves where it has wood; its roots only go into
+	 * natural ground.
 	 */
 	private static boolean place(WorldGenRegion region, StructureTemplate template, Tree tree, BlockPos pos, RandomSource random) {
 		for (int dy = 0; dy < Math.min(tree.height, 6); dy++) {
 			if (!TreeFeature.validTreePos(region, pos.above(dy))) {
 				return false;
-			}
-		}
-		int room = Math.clamp(tree.reach, MIN_ROOM, MAX_ROOM);
-		for (int dx = -room; dx <= room; dx++) {
-			for (int dz = -room; dz <= room; dz++) {
-				for (int dy = 0; dy <= 2; dy += 2) {
-					if (region.getBlockState(pos.offset(dx, dy, dz)).is(BlockTags.LOGS)) {
-						return false;
-					}
-				}
 			}
 		}
 		Rotation rotation = Rotation.getRandom(random);
@@ -211,8 +328,10 @@ public final class EarthTrees {
 				count("clipped");
 				continue;
 			}
-			boolean root = info.pos().getY() < tree.base.getY();
-			if (root ? natural(region.getBlockState(at)) : TreeFeature.validTreePos(region, at)) {
+			BlockState there = region.getBlockState(at);
+			boolean fits = info.pos().getY() < tree.base.getY() ? natural(there)
+				: there.isAir() || there.is(BlockTags.REPLACEABLE_BY_TREES) || there.is(BlockTags.LEAVES) && !info.state().is(BlockTags.LEAVES);
+			if (fits) {
 				// Known shape: leaves keep the distances tools/trees worked out, so they decay like a sapling's tree.
 				region.setBlock(at, info.state().mirror(mirror).rotate(rotation), 19);
 			}
@@ -221,7 +340,7 @@ public final class EarthTrees {
 	}
 
 	private static boolean natural(BlockState state) {
-		return state.isAir() || state.is(BlockTags.DIRT) || state.is(BlockTags.BASE_STONE_OVERWORLD) || state.is(BlockTags.SAND)
+		return state.isAir() || state.is(BlockTags.SUBSTRATE_OVERWORLD) || state.is(BlockTags.BASE_STONE_OVERWORLD) || state.is(BlockTags.SAND)
 			|| state.is(Blocks.GRAVEL) || state.is(Blocks.CLAY) || state.is(BlockTags.REPLACEABLE_BY_TREES);
 	}
 

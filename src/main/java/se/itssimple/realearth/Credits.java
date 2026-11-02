@@ -14,7 +14,7 @@ import net.minecraft.network.chat.MutableComponent;
 public final class Credits {
 	/** One line, for places with little room: the F3 screen and the greeting on joining. */
 	public static final String SHORT = "Map data © OpenStreetMap contributors (ODbL) · Terrain Tiles (USGS and others) · "
-		+ "© ESA WorldCover 2021 (CC BY 4.0) · Köppen-Geiger, Beck et al. 2023 (CC BY 4.0)";
+		+ "© ESA WorldCover 2021 (CC BY 4.0) · Köppen-Geiger, Beck et al. 2023 (CC BY 4.0) · Tree density, Crowther et al. 2015 (CC BY 4.0)";
 
 	private record Source(String what, String credit, String url) {
 	}
@@ -35,7 +35,11 @@ public final class Credits {
 		new Source("Climate",
 			"Beck, H. E., et al. (2023), High-resolution (1 km) Köppen-Geiger maps for 1901–2099, Scientific Data 10, 724. CC BY 4.0; "
 				+ "bundled re-tiled, classes unchanged.",
-			"https://doi.org/10.1038/s41597-023-02549-6")
+			"https://doi.org/10.1038/s41597-023-02549-6"),
+		new Source("How close together trees stand",
+			"Crowther, T. W., et al. (2015), Mapping tree density at a global scale, Nature 525, 201–205; data Glick, H. B., et al. "
+				+ "(2016), Scientific Data 3, 160069. CC BY 4.0; bundled resampled to 0.1 degrees.",
+			"https://doi.org/10.6084/m9.figshare.3179986")
 	);
 
 	private Credits() {

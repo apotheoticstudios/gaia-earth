@@ -1263,6 +1263,7 @@ final class SelfTest {
 					new Forest("Monchique", 37.32, -8.55, java.util.Set.of("quercus_suber", "olea_europaea", "quercus_coccifera", "pinus_pinea"),
 						java.util.Set.of("picea_abies", "betula_pendula", "betula_pubescens", "pinus_cembra", "larix_decidua")))) {
 					Map<String, Long> before = se.itssimple.realearth.world.EarthTrees.placed();
+					Map<String, long[]> perfBefore = Perf.snapshot();
 					// Somewhere new in the forest each run: trees only grow in chunks not generated before.
 					double lat = f.lat() + (Math.random() - 0.5) * 0.04;
 					double lon = f.lon() + (Math.random() - 0.5) * 0.08;
@@ -1294,16 +1295,45 @@ final class SelfTest {
 							grown.put(k, n);
 						}
 					});
-					long real = grown.entrySet().stream().filter(e -> !java.util.Set.of("vanilla", "no room", "clipped").contains(e.getKey()))
+					long vanilla = grown.entrySet().stream().filter(e -> e.getKey().startsWith("vanilla")).mapToLong(Map.Entry::getValue).sum();
+					long real = grown.entrySet().stream().filter(e -> !e.getKey().startsWith("vanilla") && !e.getKey().startsWith("spot")
+						&& !java.util.Set.of("no room", "clipped").contains(e.getKey()))
 						.mapToLong(Map.Entry::getValue).sum();
 					check(!grown.containsKey("clipped"), "%s's trees stay within world generation's reach", f.name());
 					log("trees at %s %.4f, %.4f (%s): %s; leaves %d, %d set to decay", f.name(), lat, lon,
 						se.itssimple.realearth.climate.Koppen.code(se.itssimple.realearth.climate.Koppen.get().classAt(lat, lon)), grown, leaves, decaying);
 					check(f.expect().stream().anyMatch(grown::containsKey), "%s grows its own trees: %s", f.name(), f.expect());
 					check(f.foreign().stream().noneMatch(grown::containsKey), "%s grows no trees from elsewhere", f.name());
-					check(real > 4 * grown.getOrDefault("vanilla", 0L), "%s's trees are mostly real species (%d of %d)", f.name(), real,
-						real + grown.getOrDefault("vanilla", 0L));
+					check(real > 4 * vanilla, "%s's trees are mostly real species (%d of %d)", f.name(), real, real + vanilla);
 					check(decaying <= leaves / 100, "%s's leaves stay on the trees (%d of %d would decay)", f.name(), decaying, leaves);
+					// As many trees to a hectare of woodland as the real world has: decorating 7 x 7 chunks grows the 9 x 9 round them.
+					int wooded = 0;
+					for (int cx = cx0 - 4; cx <= cx0 + 4; cx++) {
+						for (int cz = cz0 - 4; cz <= cz0 + 4; cz++) {
+							ChunkTerrain t = field.chunkIfReady(cx, cz);
+							for (int x = 0; t != null && x < 16; x++) {
+								for (int z = 0; z < 16; z++) {
+									wooded += t.coverAt(x, z) == se.itssimple.realearth.landcover.WorldCover.TREES ? 1 : 0;
+								}
+							}
+						}
+					}
+					double hectares = wooded / Math.pow(field.projection().blocksPerMeter(lat), 2) / 10_000;
+					double measured = (real + vanilla) / hectares;
+					double expected = se.itssimple.realearth.landcover.TreeDensity.get().perHectare(lat, lon);
+					log("%s: %d trees on %.1f ha of woodland, %.0f a hectare (%.1f m apart); the real world has %.0f (%.1f m apart)", f.name(),
+						real + vanilla, hectares, measured, Math.sqrt(10_000 / measured), expected, Math.sqrt(10_000 / expected));
+					check(measured > 0.4 * expected && measured < 1.5 * expected, "%s's trees stand as close as real ones", f.name());
+					Map<String, long[]> perfAfter = Perf.snapshot();
+					java.util.function.Function<String, double[]> spent = stage -> {
+						long[] a = perfAfter.getOrDefault(stage, new long[2]);
+						long[] b = perfBefore.getOrDefault(stage, new long[2]);
+						return new double[] {(a[0] - b[0]) / 1e6, a[1] - b[1]};
+					};
+					double[] treeTime = spent.apply("trees");
+					double[] decoration = spent.apply("features");
+					log("%s: trees took %.1f ms a chunk, all decoration with them %.1f ms (%d chunks)", f.name(), treeTime[0] / treeTime[1],
+						decoration[0] / decoration[1], (long) decoration[1]);
 				}
 			}
 		}));

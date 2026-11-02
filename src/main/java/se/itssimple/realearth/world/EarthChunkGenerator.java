@@ -952,6 +952,8 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 	@Override
 	public void applyBiomeDecoration(net.minecraft.world.level.WorldGenLevel level, ChunkAccess chunk, StructureManager structureManager) {
 		long started = se.itssimple.realearth.Perf.start();
+		EarthTrees.fill(level, this, chunk);
+		se.itssimple.realearth.Perf.stop("trees", started);
 		super.applyBiomeDecoration(level, chunk, structureManager);
 		coolTownLava(level, chunk);
 		registerPointsOfInterest(level, chunk);
