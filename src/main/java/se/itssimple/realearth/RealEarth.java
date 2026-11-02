@@ -204,7 +204,7 @@ public class RealEarth implements ModInitializer {
 		DiskCache.install(cacheRoot, config.cacheLimitMegabytes << 20);
 		DegradedChunks.load(worldDir.resolve("realearth-degraded.json"));
 		Path cache = cacheRoot.resolve("terrarium");
-		TileStore store = new TileStore(config.tileUrl, cache, config.downloadThreads, 160);
+		TileStore store = new TileStore(config.tileUrl, world.lidarUrl, cache, config.downloadThreads, 160);
 		AtomicInteger threads = new AtomicInteger();
 		auxDownloads = Executors.newFixedThreadPool(Math.max(2, config.downloadThreads), r -> {
 			Thread t = new Thread(r, "RealEarth-Data-" + threads.incrementAndGet());

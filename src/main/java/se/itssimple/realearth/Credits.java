@@ -14,7 +14,8 @@ import net.minecraft.network.chat.MutableComponent;
 public final class Credits {
 	/** One line, for places with little room: the F3 screen and the greeting on joining. */
 	public static final String SHORT = "Map data © OpenStreetMap contributors (ODbL) · Terrain Tiles (USGS and others) · "
-		+ "© ESA WorldCover 2021 (CC BY 4.0) · Köppen-Geiger, Beck et al. 2023 (CC BY 4.0) · Glaciers: RGI 7.0 (CC BY 4.0)";
+		+ "Lidar: Mapterhorn and national surveys · © ESA WorldCover 2021 (CC BY 4.0) · Köppen-Geiger, Beck et al. 2023 (CC BY 4.0) · "
+		+ "Glaciers: RGI 7.0 (CC BY 4.0)";
 
 	private record Source(String what, String credit, String url) {
 	}
@@ -29,6 +30,10 @@ public final class Credits {
 			"Terrain Tiles on AWS (Mapzen): USGS 3DEP, SRTM and GMTED2010; NOAA ETOPO1; Copernicus EU-DEM; Geoscience Australia; "
 				+ "Kartverket; Environment Agency (UK); LINZ; INEGI; Natural Resources Canada; DGM Österreich; ArcticDEM.",
 			"https://registry.opendata.aws/terrain-tiles/"),
+		new Source("Lidar elevation",
+			"Mapterhorn terrain tiles from national surveys (Lantmäteriet, Kartverket, USGS, IGN, swisstopo, GSI and 60 more), "
+				+ "each under its own open licence, listed at the link.",
+			"https://mapterhorn.com/attribution"),
 		new Source("Land cover",
 			"© ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium. CC BY 4.0.",
 			"https://esa-worldcover.org"),

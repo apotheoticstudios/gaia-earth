@@ -80,7 +80,7 @@ public final class Net {
 			return "other";
 		}
 		// The elevation tiles are an S3 bucket, named in the path: s3.amazonaws.com/elevation-tiles-prod/...
-		if (host.contains("elevation-tiles") || url.contains("/elevation-tiles")) {
+		if (host.contains("elevation-tiles") || url.contains("/elevation-tiles") || host.contains("mapterhorn")) {
 			return "elevation";
 		}
 		if (host.contains("openfreemap")) {

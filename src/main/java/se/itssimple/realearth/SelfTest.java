@@ -252,8 +252,21 @@ final class SelfTest {
 				if (p.wet != null) {
 					check(wet == p.wet, "%s is %s", p.name, p.wet ? "under water" : "dry land");
 				}
-				// Known data limitation, logged rather than asserted: central Stockholm is a flat 26-27 m
-				// patch in the elevation source, water and land alike, so its city water stands at 26 m.
+				// Logged rather than asserted: without lidar, central Stockholm is a flat 26-27 m patch in the
+				// elevation source, water and land alike, so its city water stands at 26 m. With lidar, Riddarfjarden
+				// stands at 0.9 m; narrow Norrstrom, between high quays, still reads about 12 m.
+			}
+
+			// Lidar (Mapterhorn) where there is some, in worlds made with it; the Terrarium tiles elsewhere.
+			if (field.store().hasLidar()) {
+				double matterhorn = field.elevationAt(45.97639, 7.65861, Mercator.ZOOM);
+				check(Math.abs(matterhorn - 4478) < 15, "lidar: the Matterhorn's summit at %.0f m (surveyed 4,478; the Terrarium tiles 4,281)", matterhorn);
+				double stockholm = field.elevationAt(59.3293, 18.0686, Mercator.ZOOM);
+				check(stockholm < 12, "lidar: Stockholm's streets at %.1f m, the ground and not the rooftops (the Terrarium tiles 19.6)", stockholm);
+				double nairobi = field.elevationAt(-1.2864, 36.8172, Mercator.ZOOM);
+				check(nairobi > 1600 && nairobi < 1750, "no lidar in Nairobi: the Terrarium tiles carry on (%.0f m)", nairobi);
+			} else {
+				log("this world has no lidar elevation (made before it, or lidarUrl is empty)");
 			}
 
 			// Distant terrain for LOD mods: a 16 km patch around Kebnekaise at 256 m per column.
@@ -663,7 +676,7 @@ final class SelfTest {
 		}
 		int tx = (int) Math.floor(Mercator.sampleX(lon) / Mercator.TILE_SIZE);
 		int ty = (int) Math.floor(Mercator.sampleY(lat) / Mercator.TILE_SIZE);
-		Path tile = field.store().root().resolve("15").resolve(Integer.toString(tx)).resolve(ty + ".png");
+		Path tile = field.store().fileOf(15, tx, ty);
 		Path map = field.store().root().getParent().resolve("openfreemap").resolve("14").resolve(Integer.toString(tx >> 1)).resolve((ty >> 1) + ".pbf");
 		check(Files.exists(tile) && Files.exists(map), "download: elevation and map tiles of the area are on disk");
 		deleteTree(scratch);

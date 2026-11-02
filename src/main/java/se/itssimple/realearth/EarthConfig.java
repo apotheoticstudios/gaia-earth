@@ -41,6 +41,14 @@ public final class EarthConfig {
 	/** Terrarium tile template. Zoom 15 is the highest the bucket serves (z16 answers 404). */
 	public String tileUrl = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png";
 
+	/**
+	 * Lidar elevation for new worlds: Mapterhorn's Terrarium WebP tiles, 512 px, whose zoom 14 exists
+	 * only where it has national lidar (most of Europe, the USA, Japan, parts of Canada, Australia and New
+	 * Zealand). There it replaces {@link #tileUrl}; elsewhere that stays. Empty turns it off. Each world
+	 * keeps the value it was made with (see WorldSettings), so existing worlds stay on {@link #tileUrl}.
+	 */
+	public String lidarUrl = "https://tiles.mapterhorn.com/{z}/{x}/{y}.webp";
+
 	/** Folder under the game directory where downloaded tiles are kept. Shared by every world. */
 	public String cacheDirectory = "realearth-cache";
 

@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Terrain
+
+- **Lidar elevation** wherever there is national lidar: most of Europe, the USA, Japan, parts of Canada,
+  Australia and New Zealand, from Mapterhorn's tiles. Bare ground surveyed at 0.25-10 m instead of 30 m radar
+  and surface models: the Matterhorn's summit within a few metres of its 4,478 m (the old tiles were 190 m
+  short there), Kebnekaise 2,096 m of its 2,097, Stockholm's streets at 7 m instead of on 20-26 m of rooftops.
+  Elsewhere the Terrain Tiles carry on, and they keep the seafloor. New worlds only: existing worlds stay on
+  the Terrain Tiles so their new chunks meet their old ones (`lidarUrl` in the world's `realearth.json`;
+  `lidarUrl` in the config, empty to turn it off).
+
 ### Climate
 
 - **Snow by real elevation**: snowfall, snow cover and ice follow a block's real height above the sea, wherever

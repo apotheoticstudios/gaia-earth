@@ -31,6 +31,11 @@ import se.itssimple.realearth.geo.Mercator;
  * When zoom 15 is missing (404) the nearest ancestor tile is upsampled instead, so terrain never
  * has holes. When the network is down, tiles already on disk -- at any zoom -- are still used, and
  * the rest come back flat at sea level rather than stalling world generation forever.
+ *
+ * With a lidar source (Mapterhorn), a zoom-15 tile comes from its zoom-14 tile instead wherever that
+ * exists: 512 px, so a quarter of it is exactly one zoom-15 tile, sample for sample. It exists only
+ * where national lidar does, and there it is bare ground surveyed at 0.25-10 m, where the Terrarium
+ * tiles are 30 m radar or surface models in many places (Stockholm's city reads 26 m of rooftops).
  */
 public final class TileStore implements AutoCloseable {
 	public static final int SIZE = Mercator.TILE_SIZE;
@@ -39,12 +44,13 @@ public final class TileStore implements AutoCloseable {
 	private static final int DEEPEST_FALLBACK = 7;
 	private static final long OFFLINE_BACKOFF_MS = 30_000;
 
-	private final String urlTemplate;
 	private final Path root;
+	private final Source terrarium;
+	/** Null without a lidar source. */
+	private final Source lidar;
 	private final HttpClient http;
 	private final ExecutorService downloads;
 	private final Map<Long, CompletableFuture<float[]>> cache;
-	private final AtomicLong offlineUntil = new AtomicLong();
 	private final AtomicInteger downloaded = new AtomicInteger();
 	private final AtomicInteger fromDisk = new AtomicInteger();
 	private final AtomicInteger flatFallbacks = new AtomicInteger();
@@ -56,9 +62,26 @@ public final class TileStore implements AutoCloseable {
 	 */
 	private final Set<float[]> degraded = Collections.synchronizedSet(Collections.newSetFromMap(new WeakHashMap<>()));
 
+	/** Where tiles come from and are kept, how big they are, and its own pause after failures. */
+	private record Source(String url, Path root, String extension, int size, AtomicLong offlineUntil) {
+		Source(String url, Path root, String extension, int size) {
+			this(url, root, extension, size, new AtomicLong());
+		}
+
+		float[] decode(byte[] body) throws IOException {
+			return extension.equals(".webp") ? TerrariumWebp.decode(body, size) : TerrariumPng.decode(body, size);
+		}
+	}
+
 	public TileStore(String urlTemplate, Path root, int threads, int maxTilesInMemory) {
-		this.urlTemplate = urlTemplate;
+		this(urlTemplate, null, root, threads, maxTilesInMemory);
+	}
+
+	/** @param lidarUrl lidar tiles (see EarthConfig.lidarUrl), kept beside {@code root}; null or empty for none */
+	public TileStore(String urlTemplate, String lidarUrl, Path root, int threads, int maxTilesInMemory) {
 		this.root = root;
+		this.terrarium = new Source(urlTemplate, root, ".png", SIZE);
+		this.lidar = lidarUrl == null || lidarUrl.isBlank() ? null : new Source(lidarUrl, root.resolveSibling("mapterhorn"), ".webp", 2 * SIZE);
 		AtomicInteger n = new AtomicInteger();
 		this.downloads = Executors.newFixedThreadPool(Math.max(1, threads), r -> {
 			Thread t = new Thread(r, "RealEarth-Download-" + n.incrementAndGet());
@@ -101,7 +124,7 @@ public final class TileStore implements AutoCloseable {
 				if (zoom == Mercator.ZOOM) {
 					return load(x, y);
 				}
-				Fetch f = fetch(zoom, x, y, true);
+				Fetch f = fetch(terrarium, zoom, x, y, true);
 				return f.heights != null ? f.heights : f.status == Status.MISSING ? new float[SIZE * SIZE] : degrade(new float[SIZE * SIZE]);
 			}, downloads);
 			cache.put(key, created);
@@ -117,6 +140,11 @@ public final class TileStore implements AutoCloseable {
 		}
 	}
 
+	/** True when this world's zoom-15 tiles come from lidar where there is some. */
+	public boolean hasLidar() {
+		return lidar != null;
+	}
+
 	/** True for a tile that is only a stand-in because its data could not be downloaded. */
 	public boolean isDegraded(float[] heights) {
 		return degraded.contains(heights);
@@ -130,7 +158,8 @@ public final class TileStore implements AutoCloseable {
 
 	/** True while downloads are paused after failures. */
 	public boolean offline() {
-		return System.currentTimeMillis() < offlineUntil.get();
+		long now = System.currentTimeMillis();
+		return now < terrarium.offlineUntil.get() || lidar != null && now < lidar.offlineUntil.get();
 	}
 
 	public Path root() {
@@ -148,11 +177,34 @@ public final class TileStore implements AutoCloseable {
 		int n = 1 << zoom;
 		int x = Math.floorMod(tx, n);
 		int y = Math.max(0, Math.min(n - 1, ty));
-		Path dir = root.resolve(Integer.toString(zoom)).resolve(Integer.toString(x));
-		if (Files.exists(dir.resolve(y + ".png")) || Files.exists(dir.resolve(y + ".missing"))) {
+		if (zoom == Mercator.ZOOM && lidar != null) {
+			// Where there is lidar the Terrarium tile is never read, so it is not fetched.
+			Prefetch fromLidar = prefetch(lidar, zoom - 1, x >> 1, y >> 1);
+			if (fromLidar != Prefetch.FAILED && Files.exists(file(lidar, zoom - 1, x >> 1, y >> 1))) {
+				return fromLidar;
+			}
+			Prefetch fromTerrarium = prefetch(terrarium, zoom, x, y);
+			return fromLidar == Prefetch.FAILED ? Prefetch.FAILED : fromTerrarium;
+		}
+		return prefetch(terrarium, zoom, x, y);
+	}
+
+	/** Where a tile is kept on disk: the lidar tile one zoom up where there is lidar, else the Terrarium one. */
+	public Path fileOf(int zoom, int x, int y) {
+		Path lidarFile = lidar != null && zoom == Mercator.ZOOM ? file(lidar, zoom - 1, x >> 1, y >> 1) : null;
+		return lidarFile != null && Files.exists(lidarFile) ? lidarFile : file(terrarium, zoom, x, y);
+	}
+
+	private static Path file(Source src, int zoom, int x, int y) {
+		return src.root.resolve(Integer.toString(zoom)).resolve(Integer.toString(x)).resolve(y + src.extension);
+	}
+
+	private Prefetch prefetch(Source src, int zoom, int x, int y) {
+		Path dir = src.root.resolve(Integer.toString(zoom)).resolve(Integer.toString(x));
+		if (Files.exists(dir.resolve(y + src.extension)) || Files.exists(dir.resolve(y + ".missing"))) {
 			return Prefetch.CACHED;
 		}
-		Fetch f = fetch(zoom, x, y, true);
+		Fetch f = fetch(src, zoom, x, y, true);
 		return f.status == Status.FAILED ? Prefetch.FAILED : Prefetch.DOWNLOADED;
 	}
 
@@ -161,7 +213,33 @@ public final class TileStore implements AutoCloseable {
 	}
 
 	private float[] load(int x, int y) {
-		Fetch direct = fetch(Mercator.ZOOM, x, y, true);
+		if (lidar != null) {
+			// shortcut: lidar only at zoom 15 (chunks and the distant terrain next to them); coarser zooms stay
+			// Terrarium, which reads higher over cities and forests -- upgrade if far terrain shows a step.
+			Fetch f = fetch(lidar, Mercator.ZOOM - 1, x >> 1, y >> 1, true);
+			if (f.heights != null) {
+				return quarter(f.heights, x & 1, y & 1);
+			}
+			if (f.status == Status.FAILED) {
+				// Whether there is lidar here is unknown until it can be asked, so this is only a stand-in.
+				float[] heights = terrarium(x, y);
+				return isDegraded(heights) ? heights : degrade(heights);
+			}
+		}
+		return terrarium(x, y);
+	}
+
+	/** One zoom-15 tile out of a 512 px tile one zoom up: the same samples, a quarter of them. */
+	private static float[] quarter(float[] big, int qx, int qy) {
+		float[] out = new float[SIZE * SIZE];
+		for (int j = 0; j < SIZE; j++) {
+			System.arraycopy(big, (qy * SIZE + j) * 2 * SIZE + qx * SIZE, out, j * SIZE, SIZE);
+		}
+		return out;
+	}
+
+	private float[] terrarium(int x, int y) {
+		Fetch direct = fetch(terrarium, Mercator.ZOOM, x, y, true);
 		if (direct.heights != null) {
 			return direct.heights;
 		}
@@ -170,7 +248,7 @@ public final class TileStore implements AutoCloseable {
 		// tile is genuinely absent; if the network is down, ancestors are only taken from disk.
 		boolean network = direct.status == Status.MISSING;
 		for (int k = 1; k <= DEEPEST_FALLBACK; k++) {
-			Fetch parent = fetch(Mercator.ZOOM - k, x >> k, y >> k, network);
+			Fetch parent = fetch(terrarium, Mercator.ZOOM - k, x >> k, y >> k, network);
 			if (parent.heights != null) {
 				float[] up = upsample(parent.heights, k, x, y);
 				// An ancestor is the real answer when the tile is genuinely absent; when the tile was
@@ -196,9 +274,9 @@ public final class TileStore implements AutoCloseable {
 	private record Fetch(Status status, float[] heights) {
 	}
 
-	private Fetch fetch(int z, int x, int y, boolean allowNetwork) {
-		Path dir = root.resolve(Integer.toString(z)).resolve(Integer.toString(x));
-		Path file = dir.resolve(y + ".png");
+	private Fetch fetch(Source src, int z, int x, int y, boolean allowNetwork) {
+		Path dir = src.root.resolve(Integer.toString(z)).resolve(Integer.toString(x));
+		Path file = dir.resolve(y + src.extension);
 		Path missing = dir.resolve(y + ".missing");
 
 		if (Files.exists(missing)) {
@@ -207,7 +285,7 @@ public final class TileStore implements AutoCloseable {
 
 		if (Files.exists(file)) {
 			try {
-				float[] heights = TerrariumPng.decode(Files.readAllBytes(file), SIZE);
+				float[] heights = src.decode(Files.readAllBytes(file));
 				DiskCache.used(file);
 				fromDisk.incrementAndGet();
 				return new Fetch(Status.OK, heights);
@@ -224,24 +302,24 @@ public final class TileStore implements AutoCloseable {
 		if (!allowNetwork) {
 			return new Fetch(Status.FAILED, null);
 		}
-		String url = urlTemplate
+		String url = src.url
 			.replace("{z}", Integer.toString(z))
 			.replace("{x}", Integer.toString(x))
 			.replace("{y}", Integer.toString(y));
 		String source = Net.sourceOf(url);
-		if (System.currentTimeMillis() < offlineUntil.get()) {
+		if (System.currentTimeMillis() < src.offlineUntil.get()) {
 			Net.paused(source);
 			return new Fetch(Status.FAILED, null);
 		}
 		// One download per tile at a time: a second ask while it is on its way gets the same answer.
 		try {
-			return Net.once(url, source, () -> download(url, dir, file, missing, source));
+			return Net.once(url, source, () -> download(src, url, dir, file, missing, source));
 		} catch (IOException e) {
 			return new Fetch(Status.FAILED, null);
 		}
 	}
 
-	private Fetch download(String url, Path dir, Path file, Path missing, String source) {
+	private Fetch download(Source src, String url, Path dir, Path file, Path missing, String source) {
 		HttpRequest request = HttpRequest.newBuilder(URI.create(url))
 			.timeout(Duration.ofSeconds(30))
 			.header("User-Agent", "RealEarth-Minecraft-Mod/" + RealEarth.VERSION)
@@ -260,7 +338,7 @@ public final class TileStore implements AutoCloseable {
 				Net.attempt(source, code, System.nanoTime() - started, response.body() == null ? 0 : response.body().length);
 				if (code == 200) {
 					byte[] body = response.body();
-					float[] heights = TerrariumPng.decode(body, SIZE);
+					float[] heights = src.decode(body);
 					Files.createDirectories(dir);
 					Path tmp = file.resolveSibling(file.getFileName() + "." + Thread.currentThread().threadId() + ".tmp");
 					Files.write(tmp, body);
@@ -287,7 +365,7 @@ public final class TileStore implements AutoCloseable {
 		}
 
 		Net.failed(source);
-		offlineUntil.set(System.currentTimeMillis() + OFFLINE_BACKOFF_MS);
+		src.offlineUntil.set(System.currentTimeMillis() + OFFLINE_BACKOFF_MS);
 		RealEarth.LOGGER.warn("Could not download {} after {} attempts ({}); pausing downloads for {} s",
 			url, MAX_ATTEMPTS, lastError, OFFLINE_BACKOFF_MS / 1000);
 		return new Fetch(Status.FAILED, null);

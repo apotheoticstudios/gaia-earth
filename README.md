@@ -5,6 +5,11 @@ A Minecraft **26.1** (Fabric) mod that adds an **Earth dimension**, generated fr
 
 - Elevation: AWS Terrain Tiles (Terrarium encoding) at **zoom 15**, the highest the service serves (z16 is 404).
   Sample spacing is 4.8 m at the equator and 2.4 m at 60°N, so it is interpolated up to 1 m blocks.
+  Where there is national **lidar** -- most of Europe, the USA, Japan, parts of Canada, Australia and New
+  Zealand -- new worlds take it instead, from **Mapterhorn**: bare ground surveyed at 0.25-10 m, so peaks stand
+  at their surveyed height (the Matterhorn within a few metres, not 120 m short) and city streets lie on the
+  ground rather than on the rooftops. Worlds made before it keep the Terrain Tiles alone (`lidarUrl` in
+  their `realearth.json`), so their new chunks meet their old ones.
 - The whole planet is **one continuous Mercator map**, like a web map: north is up everywhere and every place has
   its true shape. One block is exactly one metre at the start point's latitude (see *The map* below).
 - Vertical: heights follow the same scale, so mountains keep their true proportions. Up to 2,800 blocks above

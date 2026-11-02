@@ -9,10 +9,10 @@ Proposed features and known issues, roughly in the order they'd be worth doing. 
    on the client too (the server sends its map's shape on join). The snowline itself comes from data: the
    Randolph Glacier Inventory's glaciers, and CHELSA summer temperature and precipitation where there are none
    (`tools/snowline/`), so wet coasts get lower snowlines than dry interiors.
-2. **High-resolution national elevation.** Lantmäteriet's 1 m terrain model for Sweden fixes Stockholm's flat
-   26 m city patch (the AWS source is a surface model there). The car game (`D:/cloud/projects/car-game 5.8/`)
-   already has `LidarSheetClient` and `HeightCog` for it. Same idea later for USGS 3DEP (1 m, USA), and
-   other national LiDAR, merged over the Terrarium tiles where present.
+2. **High-resolution national elevation.** Done for new worlds: Mapterhorn's tiles, which bundle national lidar
+   (Lantmäteriet, Kartverket, USGS 3DEP, IGN, swisstopo, GSI and some 60 more), replace the Terrarium tiles
+   at zoom 15 wherever they exist, decoded by our own lossless WebP reader. Next: lidar in distant terrain
+   too (it reads coarser Terrarium tiles), and smoothing the step where lidar coverage ends.
 3. **`/earth go <place name>`.** Place search through OpenStreetMap's Nominatim: cached, at most one request
    per second, with a User-Agent, as its usage policy requires. The car game has a client for it.
 4. **Real day length and sun.** Sunrise and sunset from latitude and today's date: midnight sun in Kiruna in
@@ -49,7 +49,8 @@ Proposed features and known issues, roughly in the order they'd be worth doing. 
 
 - **Humps under city bridges.** Where the elevation is a surface model (central Stockholm), a bridge is
   part of the "ground", so a street passing under it is measured at the bridge's height and the deck is
-  lifted to clear it. A bare-earth model (feature 2) fixes it. A few steps of two blocks also remain where a
+  lifted to clear it. Lidar (feature 2) is bare earth, so this should be gone in worlds made with it;
+  not yet checked in game. A few steps of two blocks also remain where a
   ramp forks off a deck and climbs beside it, and between twin decks over water.
 - **Doors you can walk round.** Some buildings get a door with no wall block beside it, so the door
   can be bypassed.

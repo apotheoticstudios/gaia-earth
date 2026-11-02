@@ -16,7 +16,8 @@ import se.itssimple.realearth.geo.Projection;
  * editing it cannot tear terrain that already exists.
  *
  * Worlds made before the Mercator projection existed have no {@code projection} here and stay
- * sinusoidal around their origin, starting at it.
+ * sinusoidal around their origin, starting at it. Worlds made before lidar elevation have no
+ * {@code lidarUrl} and stay on the Terrarium tiles alone, so their new chunks meet their old ones.
  */
 public final class WorldSettings {
 	/** "mercator" or "sinusoidal"; missing in worlds made before Mercator. */
@@ -29,6 +30,8 @@ public final class WorldSettings {
 	public Double startLongitude;
 	/** Mercator only: the latitude where one block is exactly one metre. */
 	public Double scaleLatitude;
+	/** Lidar elevation tiles over the Terrarium ones (EarthConfig.lidarUrl); empty for none. */
+	public String lidarUrl;
 
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 	/** Beyond this the rest of the world would come out very small. */
@@ -46,6 +49,10 @@ public final class WorldSettings {
 						read.startLongitude = read.originLongitude;
 						read.save(file);
 					}
+					if (read.lidarUrl == null) {
+						read.lidarUrl = "";
+						read.save(file);
+					}
 					return read;
 				}
 			}
@@ -57,6 +64,7 @@ public final class WorldSettings {
 		settings.projection = "sinusoidal".equalsIgnoreCase(defaults.projection) ? "sinusoidal" : "mercator";
 		settings.startLatitude = defaults.startLatitude;
 		settings.startLongitude = defaults.startLongitude;
+		settings.lidarUrl = defaults.lidarUrl == null ? "" : defaults.lidarUrl;
 		if (settings.projection.equals("sinusoidal")) {
 			settings.originLatitude = defaults.startLatitude;
 			settings.originLongitude = defaults.startLongitude;
