@@ -1281,62 +1281,21 @@ final class SelfTest {
 		}));
 
 		phases.add(Map.entry("Structures", () -> {
-			// Structures: starts around the origin and out in the Atlantic, and where they sit against the ground.
+			// Structures: none start on Earth, around the origin or out in the Atlantic.
 			{
 				var structures = earth.registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.STRUCTURE);
 				TerrainField field = RealEarth.terrain();
 				int atlanticX = (int) field.projection().blockX(45.0, -30.0) >> 4;
 				int atlanticZ = (int) field.projection().blockZ(45.0) >> 4;
 				for (int[] region : new int[][] {{startCx, startCz}, {atlanticX, atlanticZ}}) {
-					java.util.Map<String, Integer> counts = new java.util.TreeMap<>();
-					long ts = System.nanoTime();
+					java.util.Set<String> found = new java.util.TreeSet<>();
 					for (int cx = region[0] - 32; cx < region[0] + 32; cx++) {
 						for (int cz = region[1] - 32; cz < region[1] + 32; cz++) {
 							var c = earth.getChunk(cx, cz, net.minecraft.world.level.chunk.status.ChunkStatus.STRUCTURE_STARTS, true);
-							for (var e : c.getAllStarts().entrySet()) {
-								if (!e.getValue().isValid()) {
-									continue;
-								}
-								String name = structures.getKey(e.getKey()).getPath();
-								counts.merge(name, 1, Integer::sum);
-								var box = e.getValue().getBoundingBox();
-								ChunkTerrain t;
-								try {
-									t = field.chunkBlocking(cx, cz, 60);
-								} catch (Exception ex) {
-									continue;
-								}
-								int k = ChunkTerrain.index(8, 8);
-								int ground = t.topSolidY[k];
-								int water = t.waterTopY[k];
-								if (counts.get(name) <= 2) {
-									log("  %-18s chunk %6d,%6d  Y %d..%d, ground at Y %d", name, cx, cz, box.minY(), box.maxY(), ground);
-								}
-								if (name.startsWith("ancient_city") || name.startsWith("trial_chambers")) {
-									check(box.maxY() < ground + 10, "%s is under the ground (top Y %d, ground Y %d)", name, box.maxY(), ground);
-								}
-								if (name.equals("monument")) {
-									check(box.minY() < VerticalScale.SEA_LEVEL_Y && box.maxY() <= Math.max(water, ground) + 2,
-										"monument sits under the sea (Y %d..%d, sea surface Y %d)", box.minY(), box.maxY(), water);
-								}
-								if (name.equals("mineshaft") || name.equals("stronghold")) {
-									check(box.minY() >= VerticalScale.SEA_LEVEL_Y - 140, "%s within vanilla depth of sea level (Y %d)", name, box.minY());
-								}
-							}
+							c.getAllStarts().keySet().forEach(s -> found.add(structures.getKey(s).getPath()));
 						}
 					}
-					log("structure starts in 64 x 64 chunks at %d,%d (%d ms, world seed %d): %s", region[0], region[1], (System.nanoTime() - ts) / 1_000_000,
-						earth.getSeed(), counts);
-					check(!counts.isEmpty(), "structures generate");
-					int villages = counts.entrySet().stream().filter(e -> e.getKey().startsWith("village")).mapToInt(java.util.Map.Entry::getValue).sum();
-					if (region[0] == startCx) {
-						// 64 x 64 chunks of central Stockholm is about 1 km square of city.
-						// Central Stockholm's buildings are all mapped, so they are built instead of villages.
-						check(villages <= 3, "real buildings replace villages in the city: %d villages in 1 km square", villages);
-						check(!counts.containsKey("pillager_outpost"), "no pillager outposts in the city");
-					} else {
-						check(villages == 0, "no villages out at sea");
-					}
+					check(found.isEmpty(), "no structures in 64 x 64 chunks at %d,%d: %s", region[0], region[1], found);
 				}
 			}
 		}));

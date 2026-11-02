@@ -101,6 +101,16 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 	}
 
 	/**
+	 * No Minecraft structures on Earth: an empty structure state, so none start, /locate finds none and
+	 * eyes of ender have nowhere to fly.
+	 */
+	@Override
+	public ChunkGeneratorStructureState createState(net.minecraft.core.HolderLookup<net.minecraft.world.level.levelgen.structure.StructureSet> structureSets,
+		RandomState randomState, long seed) {
+		return ChunkGeneratorStructureState.createForFlat(randomState, seed, getBiomeSource(), java.util.stream.Stream.empty());
+	}
+
+	/**
 	 * Structures need the real ground under them, so the chunk's terrain is fetched first, and while
 	 * they are placed, biome and height questions get exact answers (see {@link GenContext}).
 	 */
