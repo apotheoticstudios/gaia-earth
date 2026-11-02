@@ -55,6 +55,9 @@ import se.itssimple.realearth.terrain.TerrainField;
 public final class EarthTrees {
 	/** Share of trees that follow their stand's species rather than picking their own. */
 	private static final double STAND = 0.7;
+	/** Blocks around a trunk kept free of other trunks, however small or wide the tree. */
+	private static final int MIN_ROOM = 3;
+	private static final int MAX_ROOM = 8;
 	/** Stands are 32 blocks across. */
 	private static final int STAND_SHIFT = 5;
 	private static final Set<String> WOODS = Set.of("spruce", "birch", "dark_oak", "acacia", "jungle", "mangrove", "cherry");
@@ -67,8 +70,8 @@ public final class EarthTrees {
 	private EarthTrees() {
 	}
 
-	/** One converted tree: its template and where its trunk meets the ground inside it. */
-	private record Tree(Identifier id, BlockPos base, int height) {
+	/** One converted tree: its template, where its trunk meets the ground inside it, and how far its crown reaches. */
+	private record Tree(Identifier id, BlockPos base, int height, int reach) {
 	}
 
 	/** One line of species.tsv. */
@@ -178,11 +181,23 @@ public final class EarthTrees {
 	/**
 	 * Builds the tree with its trunk's foot at {@code pos}, turned and mirrored at random. Like a vanilla tree it
 	 * needs room for its trunk, and only fills air, leaves and plants; its roots only go into natural ground.
+	 * Vanilla's tree counts suit its small trees, so a tree only grows with no other trunk within its crown's
+	 * reach: crowns meet, as in a real forest, rather than grow through each other.
 	 */
 	private static boolean place(WorldGenRegion region, StructureTemplate template, Tree tree, BlockPos pos, RandomSource random) {
 		for (int dy = 0; dy < Math.min(tree.height, 6); dy++) {
 			if (!TreeFeature.validTreePos(region, pos.above(dy))) {
 				return false;
+			}
+		}
+		int room = Math.clamp(tree.reach, MIN_ROOM, MAX_ROOM);
+		for (int dx = -room; dx <= room; dx++) {
+			for (int dz = -room; dz <= room; dz++) {
+				for (int dy = 0; dy <= 2; dy += 2) {
+					if (region.getBlockState(pos.offset(dx, dy, dz)).is(BlockTags.LOGS)) {
+						return false;
+					}
+				}
 			}
 		}
 		Rotation rotation = Rotation.getRandom(random);
@@ -241,7 +256,8 @@ public final class EarthTrees {
 					JsonArray base = t.getAsJsonArray("base");
 					Identifier id = Identifier.fromNamespaceAndPath(json.getNamespace(), folder + file.substring(0, file.length() - ".nbt".length()));
 					trees.computeIfAbsent(species(file), k -> new ArrayList<>()).add(new Tree(id,
-						new BlockPos(base.get(0).getAsInt(), base.get(1).getAsInt(), base.get(2).getAsInt()), t.get("height").getAsInt()));
+						new BlockPos(base.get(0).getAsInt(), base.get(1).getAsInt(), base.get(2).getAsInt()), t.get("height").getAsInt(),
+						t.get("reach").getAsInt()));
 				}
 			} catch (IOException | RuntimeException e) {
 				RealEarth.LOGGER.warn("Could not read the tree list {}: {}", json, e.toString());

@@ -5,8 +5,8 @@ vanilla structure template, made ready for world generation to grow:
 
 1. Ground: where the trunk meets the ground, so roots go under it and the trunk stands on it. Taken from soil
    the builder left under the tree; else from the paste origin WorldEdit saved, when it lies at the foot of
-   the trunk; else from the logs: the lowest layer below the first leaves where the trunk is thinnest, since
-   roots spread out under it.
+   the trunk and the pack's builder saved it there (sources.tsv, "ground"); else from the logs: a root flare,
+   the bottom layers clearly wider than the trunk, goes under the ground.
 2. Soil under the ground is dropped, so the world's own ground stays.
 3. Leaves: their decay distance is recomputed as the game does it (steps through leaves to the nearest log), so
    leaves in reach of a log decay once it is chopped, like a sapling's tree. Builders' leaves are saved as
@@ -39,6 +39,8 @@ from collections import Counter
 
 DATA_VERSION = 4786  # Minecraft 26.1
 MAX_REACH = 16
+MAX_ROOTS = 3  # layers of root flare at most
+ROOT_SCAN = 6  # bottom layers looked at for the trunk's width
 AIR = {"minecraft:air", "minecraft:cave_air", "minecraft:void_air", "minecraft:structure_void"}
 SOIL = {"minecraft:dirt", "minecraft:grass_block", "minecraft:podzol", "minecraft:coarse_dirt", "minecraft:rooted_dirt",
         "minecraft:mud", "minecraft:moss_block", "minecraft:mycelium"}
@@ -244,8 +246,12 @@ def neighbours(p):
     return [(p[0] + dx, p[1] + dy, p[2] + dz) for dx, dy, dz in SIDES]
 
 
-def find_base(blocks, origin, at_bottom=False):
-    """The foot of the trunk -- its lowest block above the ground -- and how the ground was found."""
+def find_base(blocks, origin, ground=""):
+    """The foot of the trunk -- its lowest block above the ground -- and how the ground was found.
+
+    ground is the pack's setting in sources.tsv: "" trusts a saved paste origin at the foot of the trunk, "roots"
+    ignores it (the pack's builder always saved from the bottom), "bottom" puts the lowest layer on the ground.
+    """
     ys = [p[1] for p in blocks]
     leaf_ys = [p[1] for p, b in blocks.items() if is_leaves(b[0])]
     top = min(leaf_ys) if leaf_ys else max(ys) + 1
@@ -253,18 +259,13 @@ def find_base(blocks, origin, at_bottom=False):
     soil = [p[1] for p, b in blocks.items() if b[0] in SOIL and p[1] < top]
     if soil:
         y, how = max(soil) + 1, "soil"
-    elif origin and min(ys) <= origin[1] <= top and any(
+    elif ground == "" and origin and min(ys) <= origin[1] <= top and any(
             abs(p[0] - origin[0]) <= 2 and abs(p[2] - origin[2]) <= 2 and abs(p[1] - origin[1]) <= 1 for p in logs):
         y, how = origin[1], "origin"
-    elif at_bottom:  # the pack's trees have no roots: swollen or tapering trunks would pass for them
+    elif ground == "bottom" or not logs:
         y, how = min(ys), "bottom"
     else:
-        counts = Counter(p[1] for p in logs if p[1] < top)
-        if counts:
-            fewest = min(counts.values())
-            y, how = min(layer for layer, n in counts.items() if n == fewest), "trunk"
-        else:
-            y, how = min(ys), "bottom"
+        y, how = root_flare(logs, min(ys), top), "roots"
     trunk = [p for p in logs if p[1] >= y]
     if trunk:
         lowest = min(p[1] for p in trunk)
@@ -274,6 +275,18 @@ def find_base(blocks, origin, at_bottom=False):
         x = (min(p[0] for p in blocks) + max(p[0] for p in blocks)) // 2
         z = (min(p[2] for p in blocks) + max(p[2] for p in blocks)) // 2
     return (x, y, z), how
+
+
+def root_flare(logs, bottom, top):
+    """The first layer above the roots: bottom layers clearly wider than the trunk (at least half as wide again,
+    and more than a log wider), at most three. A trunk swelling gradually towards the ground, a baobab's or a
+    beech's, doesn't count."""
+    counts = Counter(p[1] for p in logs)
+    trunk = min((counts[y] for y in range(bottom, min(top, bottom + ROOT_SCAN)) if counts[y]), default=0)
+    y = bottom
+    while y < bottom + MAX_ROOTS and counts[y] > trunk + 1 and counts[y] >= 1.5 * trunk:
+        y += 1
+    return y
 
 
 def relink_leaves(blocks):
@@ -298,9 +311,9 @@ def relink_leaves(blocks):
     return stuck
 
 
-def convert(blocks, origin, at_bottom=False):
+def convert(blocks, origin, ground=""):
     """A tree as a vanilla structure template, and what trees.json says about it."""
-    base, how = find_base(blocks, origin, at_bottom)
+    base, how = find_base(blocks, origin, ground)
     blocks = {p: b for p, b in blocks.items() if not (b[0] in SOIL and p[1] < base[1])}
     reach = max(max(abs(p[0] - base[0]), abs(p[2] - base[2])) for p in blocks)
     if reach > MAX_REACH:
@@ -362,7 +375,7 @@ def main(sources, pack, folder, out, unapproved=False):
                 blocks, origin = load(src)
                 if not blocks:
                     raise Skip("empty")
-                template, info = convert(blocks, origin, row.get("ground") == "bottom")
+                template, info = convert(blocks, origin, row.get("ground") or "")
             except (Skip, ValueError, KeyError, IndexError, struct.error) as e:
                 skipped.append({"source": rel, "reason": "%s: %s" % (type(e).__name__, e)})
                 continue
@@ -445,7 +458,8 @@ def self_test():
         sources = os.path.join(tmp, "sources.tsv")
         with open(sources, "w", encoding="utf-8") as f:
             f.write('id\tstatus\tauthor\turl\tterms\tnote\tground\ntest\tok\t-\t-\tuse "freely"\t\t\n'
-                    'held\task\t-\t-\t-\t\t\nbanned\tno\t-\t-\t-\t\t\nflat\tok\t-\t-\t-\t\tbottom\n')
+                    'held\task\t-\t-\t-\t\t\nbanned\tno\t-\t-\t-\t\t\nflat\tok\t-\t-\t-\t\tbottom\n'
+                    'rooted\tok\t-\t-\t-\t\troots\n')
         for pack, flag in (("banned", True), ("held", False), ("missing", True)):
             try:
                 main(sources, pack, packs, out, flag)
@@ -456,7 +470,7 @@ def self_test():
         by_file = {t["file"]: t for t in trees}
         assert sorted(by_file) == ["oak_plain.nbt", "oaks/oak_1.nbt", "oaks/oak_soil.nbt"], sorted(by_file)
         assert [s["source"] for s in skipped] == ["wide.schem"] and "reaches 20" in skipped[0]["reason"], skipped
-        for file, how in (("oaks/oak_1.nbt", "origin"), ("oaks/oak_soil.nbt", "soil"), ("oak_plain.nbt", "trunk")):
+        for file, how in (("oaks/oak_1.nbt", "origin"), ("oaks/oak_soil.nbt", "soil"), ("oak_plain.nbt", "roots")):
             t = by_file[file]
             assert (t["ground"], t["base"], t["height"], t["depth"]) == (how, [4, 2, 4], 10, 2), (file, t)
             assert (t["stuck_leaves"], t["log"], t["leaves"]) == (1, "minecraft:oak_log", "minecraft:oak_leaves"), t
@@ -470,6 +484,8 @@ def self_test():
             assert states[(4, 0, 4)] == {"Name": "minecraft:oak_log", "Properties": {"axis": "y"}}
         flat = {t["file"]: t for t in main(sources, "flat", packs, out)[0]}
         assert (flat["oak_plain.nbt"]["ground"], flat["oak_plain.nbt"]["depth"]) == ("bottom", 0), flat["oak_plain.nbt"]
+        rooted = {t["file"]: t for t in main(sources, "rooted", packs, out)[0]}
+        assert (rooted["oaks/oak_1.nbt"]["ground"], rooted["oaks/oak_1.nbt"]["depth"]) == ("roots", 2), rooted["oaks/oak_1.nbt"]
     print("self-test passed")
 
 

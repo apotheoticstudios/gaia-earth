@@ -28,8 +28,12 @@ without the trailing number), the vanilla trees it stands in for (`spruce` for s
 `oak`, `swamp` for oaks in swamps, `dark_oak`, `acacia`, `jungle`, `mangrove`, `cherry`), the Köppen climates
 it grows in (by prefix: `Cs` is every Mediterranean climate), its heights (`low`, `mid` from half the treeline,
 `high` within 200 m of it), a latitude and longitude box, and a weight. Without trees installed, or where no
-line fits, vanilla's trees grow. Check the summary it prints: trees whose ground was found from
-the `trunk` or `bottom` are worth a look in game, and many leaves out of reach of a log means a pack isn't
-survival-friendly.
+line fits, vanilla's trees grow.
+
+Check the summary the converter prints: trees whose ground was found by the `roots` rule or from the `bottom`
+are worth a look in game, and many leaves out of reach of a log means a pack isn't survival-friendly. The
+`ground` column in sources.tsv says how a pack's trees meet the ground: empty trusts a paste origin saved at
+the foot of the trunk, `roots` ignores it for builders who always saved from the bottom (paleozoey), and
+`bottom` stands every tree on its lowest layer.
 
 `python3 convert.py --self-test` converts a few made-up trees and checks the result.
