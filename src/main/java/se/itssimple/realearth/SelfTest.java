@@ -1341,6 +1341,109 @@ final class SelfTest {
 			}
 		}));
 
+		phases.add(Map.entry("Real trees", () -> {
+			// Real trees: Tyresta's pine and spruce forest south-east of Stockholm, and the cork oak hills of Monchique.
+			{
+				TerrainField field = RealEarth.terrain();
+				record Forest(String name, double lat, double lon, java.util.Set<String> expect, java.util.Set<String> foreign,
+					Map<String, Integer> tall) {
+				}
+				for (Forest f : List.of(
+					new Forest("Tyresta", 59.18, 18.30, java.util.Set.of("picea_abies", "pinus_sylvestris"),
+						java.util.Set.of("olea_europaea", "quercus_suber", "pinus_pinea", "cupressus_sempervirens", "betula_celtiberica"),
+						Map.of("picea_abies", 20, "pinus_sylvestris", 16)),
+					new Forest("Monchique", 37.32, -8.55, java.util.Set.of("quercus_suber", "olea_europaea", "quercus_coccifera", "pinus_pinea"),
+						java.util.Set.of("picea_abies", "betula_pendula", "betula_pubescens", "pinus_cembra", "larix_decidua"),
+						Map.of("quercus_suber", 8)))) {
+					Map<String, Long> before = se.itssimple.realearth.world.EarthTrees.placed();
+					Map<String, Long> heightsBefore = se.itssimple.realearth.world.EarthTrees.heights();
+					Map<String, long[]> perfBefore = Perf.snapshot();
+					// Somewhere new in the forest each run: trees only grow in chunks not generated before.
+					double lat = f.lat() + (Math.random() - 0.5) * 0.04;
+					double lon = f.lon() + (Math.random() - 0.5) * 0.08;
+					int cx0 = (int) field.projection().blockX(lat, lon) >> 4;
+					int cz0 = (int) field.projection().blockZ(lat) >> 4;
+					int leaves = 0;
+					int decaying = 0;
+					for (int cx = cx0 - 3; cx <= cx0 + 3; cx++) {
+						for (int cz = cz0 - 3; cz <= cz0 + 3; cz++) {
+							for (var section : earth.getChunk(cx, cz).getSections()) {
+								if (!section.maybeHas(s -> s.is(net.minecraft.tags.BlockTags.LEAVES))) {
+									continue;
+								}
+								for (int i = 0; i < 4096; i++) {
+									BlockState s = section.getBlockState(i & 15, i >> 8, (i >> 4) & 15);
+									if (s.hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.DISTANCE)) {
+										leaves++;
+										decaying += !s.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.PERSISTENT)
+											&& s.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.DISTANCE) == 7 ? 1 : 0;
+									}
+								}
+							}
+						}
+					}
+					java.util.Map<String, Long> grown = new java.util.TreeMap<>();
+					se.itssimple.realearth.world.EarthTrees.placed().forEach((k, v) -> {
+						long n = v - before.getOrDefault(k, 0L);
+						if (n > 0) {
+							grown.put(k, n);
+						}
+					});
+					long vanilla = grown.entrySet().stream().filter(e -> e.getKey().startsWith("vanilla")).mapToLong(Map.Entry::getValue).sum();
+					long real = grown.entrySet().stream().filter(e -> !e.getKey().startsWith("vanilla") && !e.getKey().startsWith("spot")
+						&& !java.util.Set.of("no room", "clipped").contains(e.getKey()))
+						.mapToLong(Map.Entry::getValue).sum();
+					check(!grown.containsKey("clipped"), "%s's trees stay within world generation's reach", f.name());
+					log("trees at %s %.4f, %.4f (%s): %s; leaves %d, %d set to decay", f.name(), lat, lon,
+						se.itssimple.realearth.climate.Koppen.code(se.itssimple.realearth.climate.Koppen.get().classAt(lat, lon)), grown, leaves, decaying);
+					check(f.expect().stream().anyMatch(grown::containsKey), "%s grows its own trees: %s", f.name(), f.expect());
+					check(f.foreign().stream().noneMatch(grown::containsKey), "%s grows no trees from elsewhere", f.name());
+					check(real > 4 * vanilla, "%s's trees are mostly real species (%d of %d)", f.name(), real, real + vanilla);
+					check(decaying <= leaves / 100, "%s's leaves stay on the trees (%d of %d would decay)", f.name(), decaying, leaves);
+					// As many trees to a hectare of woodland as the real world has: decorating 7 x 7 chunks grows the 9 x 9 round them.
+					int wooded = 0;
+					for (int cx = cx0 - 4; cx <= cx0 + 4; cx++) {
+						for (int cz = cz0 - 4; cz <= cz0 + 4; cz++) {
+							ChunkTerrain t = field.chunkIfReady(cx, cz);
+							for (int x = 0; t != null && x < 16; x++) {
+								for (int z = 0; z < 16; z++) {
+									wooded += t.coverAt(x, z) == se.itssimple.realearth.landcover.WorldCover.TREES ? 1 : 0;
+								}
+							}
+						}
+					}
+					double hectares = wooded / Math.pow(field.projection().blocksPerMeter(lat), 2) / 10_000;
+					double measured = (real + vanilla) / hectares;
+					double expected = se.itssimple.realearth.landcover.TreeDensity.get().perHectare(lat, lon);
+					log("%s: %d trees on %.1f ha of woodland, %.0f a hectare (%.1f m apart); the real world has %.0f (%.1f m apart)", f.name(),
+						real + vanilla, hectares, measured, Math.sqrt(10_000 / measured), expected, Math.sqrt(10_000 / expected));
+					check(measured > 0.4 * expected && measured < 1.5 * expected, "%s's trees stand as close as real ones", f.name());
+					Map<String, long[]> perfAfter = Perf.snapshot();
+					java.util.function.Function<String, double[]> spent = stage -> {
+						long[] a = perfAfter.getOrDefault(stage, new long[2]);
+						long[] b = perfBefore.getOrDefault(stage, new long[2]);
+						return new double[] {(a[0] - b[0]) / 1e6, a[1] - b[1]};
+					};
+					double[] treeTime = spent.apply("trees");
+					double[] decoration = spent.apply("features");
+					log("%s: trees took %.1f ms a chunk, all decoration with them %.1f ms (%d chunks)", f.name(), treeTime[0] / treeTime[1],
+						decoration[0] / decoration[1], (long) decoration[1]);
+					// As tall as the species grows: average blocks of height of each species grown here.
+					Map<String, Long> heightsAfter = se.itssimple.realearth.world.EarthTrees.heights();
+					java.util.Map<String, Long> meanHeight = new java.util.TreeMap<>();
+					grown.forEach((species, n) -> {
+						long h = heightsAfter.getOrDefault(species, 0L) - heightsBefore.getOrDefault(species, 0L);
+						if (h > 0) {
+							meanHeight.put(species, h / n);
+						}
+					});
+					log("%s: average height in blocks: %s (%.2f blocks a metre)", f.name(), meanHeight, field.projection().blocksPerMeter(lat));
+					f.tall().forEach((species, least) -> check(meanHeight.getOrDefault(species, 0L) >= least,
+						"%s's %s grow as tall as real ones (%d blocks on average, at least %d)", f.name(), species, meanHeight.getOrDefault(species, 0L), least));
+				}
+			}
+		}));
+
 		phases.add(Map.entry("Roads and railways", () -> {
 			// Roads and railways: central Stockholm, about 600 m square around the start.
 			{

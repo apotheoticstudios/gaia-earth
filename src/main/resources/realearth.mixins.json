@@ -19,6 +19,8 @@
     "DimensionStabilityMixin",
     "SignBlockEntityAccessor",
     "SlimeSpawnMixin",
+    "StructureTemplateAccessor",
+    "TreeFeatureMixin",
     "WaterAnimalSpawnMixin"
   ],
   "injectors": {

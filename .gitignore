@@ -9,3 +9,8 @@ run-shots/
 run-selftest-earthtype/
 libs/
 run-clean/
+tools/trees/packs/
+tools/trees/out/
+.DS_Store
+src/main/resources/data/gaia-earth/structure/tree/
+tools/treedensity/data/

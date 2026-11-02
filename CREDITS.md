@@ -182,6 +182,19 @@ grid of snowline heights every 0.1 degrees (`snowline.bin`): the summer temperat
 by precipitation, is read off the glaciers; the climate gives a snowline everywhere; glaciers correct it within
 about 200 km of them.
 
+## Tree density: Crowther et al.
+
+How many trees stand on a hectare of woodland, which sets how far apart trees grow.
+
+Crowther, T. W., Glick, H. B., Covey, K. R., et al. (2015). Mapping tree density at a global scale. *Nature* 525,
+201–205. <https://doi.org/10.1038/nature14967>. Data: Glick, H. B., Bettigole, C. B., Maynard, D. S., Covey, K. R.,
+Smith, J. R., Crowther, T. W. (2016). Spatially explicit models of global tree density. *Scientific Data* 3, 160069.
+<https://doi.org/10.6084/m9.figshare.3179986>
+
+Licensed under CC BY 4.0 (<https://creativecommons.org/licenses/by/4.0/>). **Changes:** the biome-level model's
+WGS84 revision is resampled to a 0.1 degree grid, each cell taking its second highest sample (the density of its
+wooded pixels), stored as a logarithmic byte (`treedensity.bin`; `tools/treedensity`).
+
 ## Software
 
 - Distant Horizons (optional, by James Seibel and contributors) is used through its public API only; it is not

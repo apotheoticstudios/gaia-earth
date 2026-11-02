@@ -15,7 +15,7 @@ public final class Credits {
 	/** One line, for places with little room: the F3 screen and the greeting on joining. */
 	public static final String SHORT = "Map data © OpenStreetMap contributors (ODbL) · Terrain Tiles (USGS and others) · "
 		+ "Lidar: Mapterhorn and national surveys · © ESA WorldCover 2021 (CC BY 4.0) · Köppen-Geiger, Beck et al. 2023 (CC BY 4.0) · "
-		+ "Glaciers: RGI 7.0 (CC BY 4.0)";
+		+ "Glaciers: RGI 7.0 (CC BY 4.0) · Tree density, Crowther et al. 2015 (CC BY 4.0)";
 
 	private record Source(String what, String credit, String url) {
 	}
@@ -45,7 +45,11 @@ public final class Credits {
 			"RGI 7.0 Consortium (2023), Randolph Glacier Inventory 7.0, NSIDC, doi:10.5067/f6jmovy5navz. CC BY 4.0. "
 				+ "With CHELSA V2.1 climatologies (Karger et al. 2017, Scientific Data 4, 170122), CC0. "
 				+ "Combined into a bundled 0.1° snowline grid.",
-			"https://doi.org/10.5067/f6jmovy5navz")
+			"https://doi.org/10.5067/f6jmovy5navz"),
+		new Source("How close together trees stand",
+			"Crowther, T. W., et al. (2015), Mapping tree density at a global scale, Nature 525, 201–205; data Glick, H. B., et al. "
+				+ "(2016), Scientific Data 3, 160069. CC BY 4.0; bundled resampled to 0.1 degrees.",
+			"https://doi.org/10.6084/m9.figshare.3179986")
 	);
 
 	private Credits() {

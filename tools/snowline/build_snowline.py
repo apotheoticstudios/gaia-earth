@@ -1,4 +1,4 @@
-"""Builds Real Earth's snowline grid (src/main/resources/realearth/snowline.bin) from public data.
+"""Builds Project Gaia: Earth's snowline grid (src/main/resources/realearth/snowline.bin) from public data.
 
 The snowline here is the climatic snowline: the height where a glacier's winter snow just lasts the summer,
 which glaciologists measure as the equilibrium-line altitude (ELA). Two sources:
