@@ -30,6 +30,7 @@ import se.itssimple.realearth.terrain.TerrainField;
  * /earth where              -- latitude, longitude and real elevation here, with a map link
  * /earth origin             -- where this world is anchored
  * /earth tp <lat> <lon>     -- go to a real place (permission level from the config)
+ * /earth tp block <x> <z>   -- the same by block column, onto the ground there (Xaero's World Map uses it)
  * /earth download <radius> [<lat> <lon>] -- fetch an area's data ahead of time; /earth download cancel
  * /earth repair [all]       -- regenerate chunks that were generated offline from placeholder data
  * /earth cache [clear]      -- how big the download cache is; delete it
@@ -92,6 +93,12 @@ public final class EarthCommand {
 			.then(Commands.literal("origin").executes(ctx -> origin(ctx.getSource())))
 			.then(Commands.literal("tp")
 				.requires(Commands.hasPermission(permission(teleportPermissionLevel)))
+				.then(Commands.literal("block")
+					.then(Commands.argument("x", IntegerArgumentType.integer())
+						.then(Commands.argument("z", IntegerArgumentType.integer())
+							.executes(ctx -> teleportToBlock(ctx.getSource(),
+								IntegerArgumentType.getInteger(ctx, "x"),
+								IntegerArgumentType.getInteger(ctx, "z"))))))
 				.then(Commands.argument("latitude", DoubleArgumentType.doubleArg(-Mercator.MAX_LATITUDE, Mercator.MAX_LATITUDE))
 					.then(Commands.argument("longitude", DoubleArgumentType.doubleArg(-180, 180))
 						.executes(ctx -> teleport(ctx.getSource(),
@@ -275,6 +282,22 @@ public final class EarthCommand {
 				lat, lon, field.startX(), field.startZ()))
 			.append(mapLink(lat, lon)), false);
 		return 1;
+	}
+
+	/** A block column's place, for maps that know blocks rather than degrees; off the globe's edges is nowhere. */
+	private static int teleportToBlock(CommandSourceStack source, int x, int z) throws CommandSyntaxException {
+		TerrainField field = RealEarth.terrain();
+		if (field == null) {
+			source.sendFailure(Component.literal("The Earth dimension is not available."));
+			return 0;
+		}
+		var projection = field.projection();
+		double lat = projection.latitudeAt(z + 0.5);
+		if (!(Math.abs(lat) <= Mercator.MAX_LATITUDE) || !projection.onGlobe(lat, projection.longitudeOffsetAt(x + 0.5, lat))) {
+			source.sendFailure(Component.literal("That is beyond the edge of the map."));
+			return 0;
+		}
+		return teleport(source, lat, projection.longitudeAt(x + 0.5, lat));
 	}
 
 	private static int teleport(CommandSourceStack source, double lat, double lon) throws CommandSyntaxException {

@@ -3,12 +3,12 @@ package se.itssimple.realearth.compat.xaero;
 import java.util.List;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import se.itssimple.realearth.RealEarth;
+import se.itssimple.realearth.client.ClientHere;
 import se.itssimple.realearth.world.MapWaypoints;
 import xaero.common.minimap.waypoints.Waypoint;
 import xaero.hud.minimap.BuiltInHudModules;
@@ -27,9 +27,8 @@ import xaero.hud.minimap.world.container.MinimapWorldRootContainer;
 final class XaeroWaypoints {
 	private static final Identifier ORIGIN = RealEarth.id("map");
 
-	/** The marks from the server, and whether they are in the minimap yet. */
-	private static List<MapWaypoints.Mark> marks = List.of();
-	private static boolean applied = true;
+	/** The marks from the server last put in the minimap. */
+	private static List<MapWaypoints.Mark> applied = List.of();
 	/** Where the marks were put, to take them away again. */
 	private static ThirdPartyWaypoints shown;
 	private static ResourceKey<Level> shownIn;
@@ -38,15 +37,10 @@ final class XaeroWaypoints {
 	}
 
 	static void install() {
-		ClientPlayNetworking.registerGlobalReceiver(MapWaypoints.Payload.TYPE, (payload, context) -> {
-			marks = payload.marks();
-			applied = false;
-		});
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
-			marks = List.of();
 			shown = null;
 			shownIn = null;
-			applied = true;
+			applied = List.of();
 		});
 		ClientTickEvents.END_CLIENT_TICK.register(XaeroWaypoints::tick);
 	}
@@ -60,7 +54,8 @@ final class XaeroWaypoints {
 			shown.clear();
 			shown = null;
 		}
-		if (applied) {
+		List<MapWaypoints.Mark> marks = ClientHere.marks();
+		if (marks == applied) {
 			return;
 		}
 		MinimapSession session = BuiltInHudModules.MINIMAP.getCurrentSession() instanceof MinimapSession s ? s : null;
@@ -96,6 +91,6 @@ final class XaeroWaypoints {
 		}
 		shown = waypoints;
 		shownIn = mc.level.dimension();
-		applied = true;
+		applied = marks;
 	}
 }

@@ -27,6 +27,13 @@
   3,000 m in the central Alps, 5,700 m by Everest, higher still over deserts. Snowy biomes, snow cover and
   ice all follow it. A 3 MB grid bundled with the mod; `tools/snowline/` rebuilds it.
 
+### Other mods
+
+- **Xaero's World Map**: the towns and stations round you on the map, with or without Xaero's Minimap; and
+  "Teleport to the ground here" in its right-click menu on the Earth, anywhere on the map, seen or not, onto the
+  real ground instead of at a guessed height. For players allowed `/earth tp`.
+- `/earth tp block <x> <z>`: `/earth tp` by block column.
+
 ## 0.2.0 (2026-10-23)
 
 Towns that feel lived in, buildings that look like themselves, railways you can ride, tunnels under the ground,

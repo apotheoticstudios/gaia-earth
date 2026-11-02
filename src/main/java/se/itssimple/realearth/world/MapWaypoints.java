@@ -25,9 +25,9 @@ import se.itssimple.realearth.terrain.TerrainField;
 
 /**
  * The towns and railway stations round each player on the Earth, sent to their client for the
- * minimap's waypoints (Xaero's). A city's name reaches tens of kilometres, a village's a few; stations
- * the nearest few within walking distance. Worked out every few seconds from map tiles that are
- * already loaded, and sent only when the list changes.
+ * waypoints of Xaero's Minimap and World Map. A city's name reaches tens of kilometres, a village's
+ * a few; stations the nearest few within walking distance. Worked out every few seconds from map
+ * tiles that are already loaded, and sent only when the list changes.
  */
 public final class MapWaypoints {
 	/** What a mark is; the client picks its colour and letters from it. */

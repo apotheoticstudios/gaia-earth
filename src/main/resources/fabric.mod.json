@@ -22,7 +22,11 @@
     ]
   },
   "mixins": [
-    "realearth.mixins.json"
+    "realearth.mixins.json",
+    {
+      "config": "realearth.xaero.mixins.json",
+      "environment": "client"
+    }
   ],
   "depends": {
     "fabricloader": ">=0.19.5",
@@ -33,6 +37,7 @@
   "suggests": {
     "distanthorizons": ">=3.3.0",
     "jade": ">=26.1",
-    "xaerominimap": ">=26.0"
+    "xaerominimap": ">=26.0",
+    "xaeroworldmap": ">=1.47"
   }
 }

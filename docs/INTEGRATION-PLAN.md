@@ -55,7 +55,9 @@ them when it is present and nothing breaks when it isn't.
 1. Done: the API's position queries and `TownEntered` (small, and the base for everything else).
 2. Done: Jade and Xaero's support, through the API, since they are in the usual pack. Xaero's gets its lines from
    the server once a second (`realearth:here`), so it works in multiplayer; waypoints for the towns and stations
-   round the player come the same way (`realearth:waypoints`), as the minimap's third-party waypoints.
+   round the player come the same way (`realearth:waypoints`), as the minimap's third-party waypoints, which the
+   world map shows too (or draws itself when it is alone). The world map's right-click menu teleports onto the
+   ground through `/earth tp block`.
 3. Palette tags and the landmark structure hook.
 4. `BuildingGenerated` for interior decorators.
 

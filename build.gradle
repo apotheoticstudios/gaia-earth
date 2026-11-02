@@ -68,10 +68,11 @@ dependencies {
 	// Optional: Distant Horizons, for level-of-detail terrain. Compile against it, never ship it.
 	// Download DistantHorizons-3.3.3-26.1.2-fabric-neoforge.jar from Modrinth into libs/.
 	compileOnly files("libs/DistantHorizons-3.3.3-26.1.2-fabric-neoforge.jar")
-	// Optional: Jade and Xaero's Minimap, for what Real Earth shows in them. From CurseForge or Modrinth into libs/;
-	// xaerolib is the jar inside the minimap's (META-INF/jars).
+	// Optional: Jade and Xaero's Minimap and World Map, for what Real Earth shows in them. From CurseForge or Modrinth
+	// into libs/; xaerolib is the jar inside the minimap's (META-INF/jars).
 	compileOnly files("libs/Jade-mc26.1-Fabric-26.1.9.jar")
 	compileOnly files("libs/xaerominimap-fabric-26.1.2-26.6.1.jar", "libs/xaerolib-fabric-26.1.2-1.8.3.jar")
+	compileOnly files("libs/xaeroworldmap-fabric-26.1.2-1.47.2.jar")
 }
 
 processResources {

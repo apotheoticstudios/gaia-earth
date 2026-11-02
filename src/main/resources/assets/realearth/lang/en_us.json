@@ -3,6 +3,7 @@
   "generator.realearth.earth": "Real Earth",
   "gui.realearth.xaero.lat_lon": "Latitude, longitude, elevation (Real Earth)",
   "gui.realearth.xaero.town": "Town and district (Real Earth)",
+  "gui.realearth.xaero.teleport": "Teleport to the ground here (Real Earth)",
   "config.jade.plugin_realearth.place": "Real Earth: street, town and building",
   "config.jade.plugin_realearth.coordinates": "Real Earth: latitude, longitude and elevation",
   "advancements.realearth.root.title": "Real Earth",

@@ -165,6 +165,7 @@ The frame and activator are tags, so a datapack can change them: `realearth:port
 | `/earth where` | The town and district, latitude, longitude and real elevation where you stand, with a clickable OpenStreetMap link |
 | `/earth origin` | Which map this world uses, its scale, and the start point |
 | `/earth tp <lat> <lon>` | Go to a real place (permission level 2 by default; configurable) |
+| `/earth tp block <x> <z>` | The same by block column: onto the ground there, generating it first if need be. Xaero's World Map's right-click menu uses it |
 | `/earth download <radius> [<lat> <lon>]` | Download an area's data in advance, around you or a place: elevation, map water, land cover, and the coarser data distant terrain uses. Up to 50 km radius / 20,000 elevation tiles. `/earth download cancel` stops it |
 | `/earth repair [all]` | Regenerate chunks that were generated from placeholders while offline (see below) |
 | `/earth cache` | Cache size per source, this session's downloads, network state, chunks waiting for repair |
@@ -373,7 +374,7 @@ At one block per metre this is what makes mountains on the horizon visible at al
 | `useBuildingDetail` | true | Roof shapes, colours and building parts from the Overture Maps buildings tiles |
 | `buildingDetailUrl`, `buildingDetailRelease`, `buildingDetailCatalog` | Overture's S3, `latest`, Overture's STAC | Where those tiles are, and which monthly release |
 | `placeTitles` | true | Show a town's name on walking into it, and the district's above the hotbar |
-| `mapWaypoints` | true | Towns and stations round you as waypoints in Xaero's Minimap (read on the client) |
+| `mapWaypoints` | true | Towns and stations round you as waypoints in Xaero's Minimap and World Map (read on the client) |
 | `perfLogSeconds` | 0 | Every this many seconds, `[perf]` lines in `logs/realearth-perf.log` on how chunk loading keeps up (0 is off); see "The running performance log" above |
 | `storeyMeters`, `maxFloors` | 4.5, 10 | Height of a storey (at least 5 blocks) and most storeys per building |
 | `villagerChance` | 0.2 | Chance that a chunk with beds gets a villager (one); about one chunk of town in twenty |
@@ -429,6 +430,12 @@ Planned features and known issues: see [ROADMAP.md](ROADMAP.md).
   railway and metro stations within 3 km (aqua, "St"). They are kept apart from your own waypoints, never saved,
   and follow you as you travel; `mapWaypoints: false` in the config turns them off. Works on servers with Real
   Earth.
+- **Xaero's World Map.** The same waypoints on the map, with or without the minimap (with it, they are the
+  minimap's; without, a square in the same colour and letter, named when the mouse is over it). And "Teleport to
+  the ground here (Real Earth)" in the map's right-click menu on the Earth, for anywhere, seen or not: the map's
+  own teleport has to guess a height there, which in a world 4,000 blocks deep often means inside a mountain or
+  high above the sea, while this one asks the server, which finds the ground the way `/earth tp` does. Shown to
+  players allowed `/earth tp` (`teleportPermissionLevel`). Works on servers with Real Earth.
 - **Lootr** and **Distant Horizons**: see above.
 
 **For mod authors.** `se.itssimple.realearth.api` (compile against the Real Earth jar, `modCompileOnly`):
@@ -457,10 +464,11 @@ Requires Java 25.
 ./gradlew runShots -PshotOnly=geiranger    # one place; put Distant Horizons in run-shots/mods/ to test LODs
 ```
 
-Distant Horizons, Jade and Xaero's Minimap are compile-only dependencies: download
-`DistantHorizons-3.3.3-26.1.2-fabric-neoforge.jar`, `Jade-mc26.1-Fabric-26.1.9.jar` and
-`xaerominimap-fabric-26.1.2-26.6.1.jar` into `libs/` before building, with `xaerolib-fabric-26.1.2-1.8.3.jar`
-taken out of the minimap's `META-INF/jars`. `-PshotHud=true` keeps the HUD in screenshots, for what those
+Distant Horizons, Jade and Xaero's Minimap and World Map are compile-only dependencies: download
+`DistantHorizons-3.3.3-26.1.2-fabric-neoforge.jar`, `Jade-mc26.1-Fabric-26.1.9.jar`,
+`xaerominimap-fabric-26.1.2-26.6.1.jar` and `xaeroworldmap-fabric-26.1.2-1.47.2.jar` into `libs/` before building,
+with `xaerolib-fabric-26.1.2-1.8.3.jar` taken out of the minimap's `META-INF/jars`. To try them in
+`./gradlew runClient`, put them in `run/mods/` too. `-PshotHud=true` keeps the HUD in screenshots, for what those
 mods show. The elevation tile approach (global sample grid, pixel-centre sampling,
 the 404-over-ocean behaviour) carried over from the GeoWorld project.
 
