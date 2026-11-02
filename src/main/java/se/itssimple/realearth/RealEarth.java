@@ -127,6 +127,7 @@ public class RealEarth implements ModInitializer {
 
 		se.itssimple.realearth.world.HereLink.register();
 		se.itssimple.realearth.world.MapWaypoints.register();
+		se.itssimple.realearth.world.ClimateLink.register();
 
 		ServerLifecycleEvents.SERVER_STARTING.register(RealEarth::start);
 		ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
@@ -220,6 +221,7 @@ public class RealEarth implements ModInitializer {
 		terrain = new TerrainField(store, config, projection,
 			new VerticalScale(config.compressAboveMeters, config.compressBelowMeters), map, cover);
 		terrain.setStart(world.startLatitude, world.startLongitude);
+		se.itssimple.realearth.world.ClimateLink.serve(projection, config.compressAboveMeters, config.compressBelowMeters);
 		PortalTravel.load(worldDir.resolve("realearth-portals.json"));
 
 		LOGGER.info("Real Earth: {} projection, start {}, {} (block {}, {}); tiles cached in {}", projection.id(),
@@ -233,6 +235,7 @@ public class RealEarth implements ModInitializer {
 		TerrainField t = terrain;
 		terrain = null;
 		server = null;
+		se.itssimple.realearth.world.ClimateLink.stop();
 		if (auxDownloads != null) {
 			auxDownloads.shutdownNow();
 			auxDownloads = null;

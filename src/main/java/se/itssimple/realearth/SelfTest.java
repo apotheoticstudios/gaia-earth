@@ -31,6 +31,8 @@ import se.itssimple.realearth.data.DiskCache;
 import se.itssimple.realearth.data.TileStore;
 import se.itssimple.realearth.geo.Mercator;
 import se.itssimple.realearth.geo.Projection;
+import se.itssimple.realearth.world.BiomePicker;
+import se.itssimple.realearth.world.ClimateLink;
 import se.itssimple.realearth.world.DegradedChunks;
 import se.itssimple.realearth.portal.PortalFrame;
 import se.itssimple.realearth.portal.PortalTravel;
@@ -120,6 +122,59 @@ final class SelfTest {
 					"Mercator: true shapes at the Grand Canyon (%.3f blocks per metre north-south, %.3f east-west)", ns, ew);
 				double wrapped = m.longitudeAt(m.blockX(10.0, 179.9) + 10000, 10.0);
 				check(wrapped < -179.0, "Mercator: flying east past 180 degrees carries on at %.2f", wrapped);
+			}
+			{
+				// The snowline against published glacier equilibrium lines: 2,900-3,200 m in the central Alps at 47N
+				// (https://encyclopedia.pub/entry/history/show/87054), about 1,500 m at Storglaciaren under Kebnekaise
+				// (Tarfala research station); and below Kilimanjaro's 5,895 m summit, where glaciers remain.
+				double alps = BiomePicker.snowlineMeters(47.0);
+				double kebnekaise = BiomePicker.snowlineMeters(67.9);
+				double kilimanjaro = BiomePicker.snowlineMeters(-3.07);
+				check(alps > 2700 && alps < 3400, "snowline in the Alps at %.0f m (published 2,900-3,200)", alps);
+				check(Math.abs(kebnekaise - 1500) < 200, "snowline at Kebnekaise at %.0f m (published about 1,500)", kebnekaise);
+				check(kilimanjaro < 5895, "snowline on Kilimanjaro at %.0f m, below the summit", kilimanjaro);
+
+				// Snow and ice follow it on any map, by real elevation (BiomeTemperatureMixin).
+				VerticalScale vs = new VerticalScale(2800, -600);
+				List<Projection> maps = List.of(new Projection.WebMercator(59.3293), new Projection.WebMercator(0.0), new Projection.Sinusoidal(59.3293, 18.0686));
+				java.util.function.BiFunction<Projection, double[], Float> at = (p, q) -> {
+					double y = vs.toY(q[2] * p.blocksPerMeter(q[0]));
+					BlockPos pos = BlockPos.containing(p.blockX(q[0], q[1]), y, p.blockZ(q[0]));
+					return new ClimateLink.Shape(p, vs).temperature((float) q[3], pos);
+				};
+				// The Grand Canyon's South Rim: pine forest (taiga, 0.25) at 2,100 m with no lasting snow, on every map.
+				for (Projection p : maps) {
+					float t = at.apply(p, new double[] {36.06, -112.11, 2100, 0.25});
+					check(t >= 0.15F, "%s: rain, not snow, in the forest on the South Rim (%.3f)", p.id(), t);
+				}
+				// The same real elevation is as cold on every map, also where heights are eased (Kilimanjaro, 5,000 m),
+				// to within the height of one block there: eased blocks span up to ~20 m.
+				for (double[] q : List.of(new double[] {45.83, 6.86, 3000, 0.5}, new double[] {-3.07, 37.35, 5000, 0.5}, new double[] {67.9, 18.6, 1200, 0.25})) {
+					float lo = Float.MAX_VALUE;
+					float hi = -Float.MAX_VALUE;
+					double block = 0;
+					for (Projection p : maps) {
+						float t = at.apply(p, q);
+						lo = Math.min(lo, t);
+						hi = Math.max(hi, t);
+						double y = Math.floor(vs.toY(q[2] * p.blocksPerMeter(q[0])));
+						block = Math.max(block, (vs.toElevation(y + 1) - vs.toElevation(y)) / p.blocksPerMeter(q[0]));
+					}
+					check(hi - lo <= block * 0.25 * 0.05 / 40 + 1e-4, "%.0f m at %.2f, %.2f is as cold on every map (%.4f to %.4f; a block is %.1f m)",
+						q[2], q[0], q[1], lo, hi, block);
+				}
+				// Snow just above the snowline whatever the biome, rain well below it; cold biomes stay cold.
+				double line = BiomePicker.snowlineMeters(46.0);
+				check(BiomePicker.heightTemperature(0.8F, line + 200, 46.0, 8.0) < 0.15F
+					&& BiomePicker.heightTemperature(0.8F, line - 200, 46.0, 8.0) >= 0.15F,
+					"plains turn from rain to snow within 200 m of the snowline (%.0f m)", line);
+				check(BiomePicker.heightTemperature(0.8F, 100, 59.33, 18.07) == 0.8F, "low ground keeps its biome's temperature");
+				check(BiomePicker.heightTemperature(-0.5F, 0, 59.33, 18.07) == -0.5F, "snowy biomes stay snowy at sea level");
+				// No step where the vertical scale starts to ease (2,800 m on a one-metre map).
+				Projection one = maps.get(2);
+				float below = at.apply(one, new double[] {28.0, 86.9, 2799.5, 0.5});
+				float above = at.apply(one, new double[] {28.0, 86.9, 2800.5, 0.5});
+				check(Math.abs(below - above) < 0.001F, "no step in temperature at the vertical scale's knee (%.4f, %.4f)", below, above);
 			}
 
 			List<Place> places = List.of(

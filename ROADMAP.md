@@ -4,11 +4,11 @@ Proposed features and known issues, roughly in the order they'd be worth doing. 
 
 ## Features
 
-1. **Height cooling at map scale.** Biome temperature cools with height in *blocks* (`BiomeTemperatureMixin`).
-   On the Mercator map a block is not a metre away from the scale latitude, so snow lines come out too low where
-   the map is enlarged (Lapland) and too high where it is shrunk (Alps, Rockies). Divide by
-   `Projection.blocksPerMeter(lat)`. On the client the latitude needs the world's projection, which
-   multiplayer clients don't have yet; send it on join.
+1. **Height cooling at map scale.** Done: snow and ice follow a block's real elevation (map scale and the
+   eased heights above the knee undone), and rain turns to snow at the same snowline the snowy biomes follow,
+   on the client too (the server sends its map's shape on join). Next: a snowline from real data instead of a
+   curve by latitude: glacier median elevations from the Randolph Glacier Inventory, and WorldClim temperature
+   where there are no glaciers, so wet coasts get lower snowlines than dry interiors.
 2. **High-resolution national elevation.** Lantmäteriet's 1 m terrain model for Sweden fixes Stockholm's flat
    26 m city patch (the AWS source is a surface model there). The car game (`D:/cloud/projects/car-game 5.8/`)
    already has `LidarSheetClient` and `HeightCog` for it. Same idea later for USGS 3DEP (1 m, USA), and
@@ -61,6 +61,4 @@ Proposed features and known issues, roughly in the order they'd be worth doing. 
   builds are not shared between copies.
 - **Repaired chunks and structures.** A village crossing into a repaired chunk may not line up with its parts
   next door, since its layout follows the corrected terrain.
-- **Snow on high forest.** Cold high forests (e.g. the Grand Canyon's South Rim at 2,100 m) get vanilla snow
-  layers on steep stone faces. Will change with the height cooling fix above.
 - **Separate caches.** A dedicated server and a client on the same machine each download their own data.

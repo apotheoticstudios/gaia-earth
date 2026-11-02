@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Climate
+
+- **Snow by real elevation**: snowfall, snow cover and ice follow a block's real height above the sea, wherever
+  the map is enlarged or shrunk and above 2,800 m where heights are eased, and start at the same snowline as
+  the snowy biomes: about 3,300 m in the Alps, 1,400 m at Kebnekaise, 5,000 m in the tropics. High forests
+  such as the Grand Canyon's South Rim no longer get snow, and Lapland's low fells no longer do either.
+  Multiplayer clients get the map's shape from the server on joining, so rain and snow fall where they do on
+  the server. Only newly generated chunks change their snow cover.
+
 ## 0.2.0 (2026-10-23)
 
 Towns that feel lived in, buildings that look like themselves, railways you can ride, tunnels under the ground,

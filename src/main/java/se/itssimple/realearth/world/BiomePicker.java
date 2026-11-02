@@ -33,6 +33,22 @@ public final class BiomePicker {
 		return snowlineMeters(latitude) - 800.0;
 	}
 
+	/** Vanilla's line between rain and snow, and between water and ice. */
+	private static final double SNOW_TEMPERATURE = 0.15;
+	/** About 6.5 C per km, if 0.15 is freezing and the climate spread is the overworld's: a quarter of vanilla's per-block rate. */
+	private static final double COOLING_PER_METER = 0.25 * 0.05 / 40.0;
+
+	/**
+	 * A biome's temperature at a real elevation, which decides snow and ice. Whatever the biome's own
+	 * temperature, rain turns to snow at the same snowline that decides the snowy biomes, give or take
+	 * 150 m so the edge is ragged; below it the air cools towards it at about 6.5 C per km, and biomes
+	 * that are colder already stay as they are.
+	 */
+	public static float heightTemperature(float base, double meters, double latitude, double longitude) {
+		double snowline = snowlineMeters(latitude) + 150.0 * GeoNoise.sample(latitude, longitude, 2.0, 23);
+		return (float) Math.min(base, SNOW_TEMPERATURE + COOLING_PER_METER * (snowline - meters));
+	}
+
 	public static ResourceKey<Biome> pick(double latitude, double longitude, double groundMeters, boolean water, boolean lake,
 		double waterMeters, int climate, int cover) {
 		double alat = Math.abs(latitude);
