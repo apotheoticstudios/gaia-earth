@@ -37,7 +37,8 @@ public final class WorldSettings {
 	/**
 	 * 0 is roads a fixed width by class; 1 widens them by region and paints their markings in Saro's asphalt; 2 adds
 	 * marked crossings and paves roads and paths as mapped (paved footways, steps, unpaved roads); 3 adds pavements
-	 * beside town streets, and kerbs.
+	 * beside town streets, and kerbs; 4 adds the street furniture the map has (lamps, benches, bollards, hydrants,
+	 * bicycle stands) and puts street lamps on the pavement, Saro's.
 	 */
 	public int roadVersion;
 
@@ -74,7 +75,7 @@ public final class WorldSettings {
 		settings.startLongitude = defaults.startLongitude;
 		settings.lidarUrl = defaults.lidarUrl == null ? "" : defaults.lidarUrl;
 		settings.waterSurfaceVersion = 3;
-		settings.roadVersion = 3;
+		settings.roadVersion = 4;
 		if (settings.projection.equals("sinusoidal")) {
 			settings.originLatitude = defaults.startLatitude;
 			settings.originLongitude = defaults.startLongitude;

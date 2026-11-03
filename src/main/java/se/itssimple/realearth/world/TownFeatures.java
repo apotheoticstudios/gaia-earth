@@ -27,6 +27,9 @@ final class TownFeatures {
 	/** Chance that an open, flat patch of town gets a feature. */
 	private static final double FEATURE_CHANCE = 0.22;
 	private static final double LAMP_CHANCE = 0.035;
+	/** Steps to the four sides, as StreetLife numbers them: north, east, south, west. */
+	private static final int[] DXS = {0, 1, 0, -1};
+	private static final int[] DZS = {-1, 0, 1, 0};
 	/** Chance that a chunk of town has a street name post at one of its kerbs. */
 	private static final double STREET_SIGN_CHANCE = 0.35;
 	/** A street's name is put up within this many metres of its centreline. */
@@ -56,10 +59,21 @@ final class TownFeatures {
 				}
 			}
 		}
-		// Street lamps: on the kerb, beside paved streets.
-		for (int z = 0; z < 16; z++) {
+		// Street lamps: on the kerb, beside paved streets; from road version 4 on the pavement's kerb edge, Saro's, and
+		// none where the map has its own lamps (StreetLife puts those where they are).
+		boolean pavements = RoadBlocks.roadVersion() >= 4;
+		for (int z = 0; z < 16 && !(pavements && t.mappedLamps); z++) {
 			for (int x = 0; x < 16; x++) {
 				int k = ChunkTerrain.index(x, z);
+				if (pavements) {
+					int street = t.way[k] == Ways.PATH && t.building[k] == 0 && buildingTop[z * 16 + x] == Integer.MIN_VALUE ? StreetLife.roadBeside(t, x, z) : -1;
+					// On the pavement's kerb edge only: the carriageway right beside it.
+					if (street >= 0 && Ways.isPaved(t.way[ChunkTerrain.index(x + DXS[street], z + DZS[street])])
+						&& GeoNoise.hash(baseX + x, 94, baseZ + z) < LAMP_CHANCE) {
+						StreetLife.lamp(chunk, t, pos, x, z);
+					}
+					continue;
+				}
 				if (t.way[k] != Ways.NONE || t.building[k] != 0 || t.waterTopY[k] != Integer.MIN_VALUE || buildingTop[z * 16 + x] != Integer.MIN_VALUE) {
 					continue;
 				}

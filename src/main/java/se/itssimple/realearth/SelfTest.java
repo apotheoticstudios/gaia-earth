@@ -2057,6 +2057,10 @@ final class SelfTest {
 			int bestBars = 0;
 			int barCx = cx0;
 			int barCz = cz0;
+			Map<String, Integer> furniture = new java.util.TreeMap<>();
+			int bestLamps = 0;
+			int lampCx = cx0;
+			int lampCz = cz0;
 			for (int cx = cx0 - 4; cx <= cx0 + 4; cx++) {
 				for (int cz = cz0 - 4; cz <= cz0 + 4; cz++) {
 					ChunkTerrain c;
@@ -2080,6 +2084,18 @@ final class SelfTest {
 						barCx = cx;
 						barCz = cz;
 					}
+					int lamps = 0;
+					for (ChunkTerrain.Poi poi : c.pois) {
+						if ("overture".equals(poi.cls())) {
+							furniture.merge(poi.subclass(), 1, Integer::sum);
+							lamps += poi.subclass().equals("street_lamp") ? 1 : 0;
+						}
+					}
+					if (lamps > bestLamps) {
+						bestLamps = lamps;
+						lampCx = cx;
+						lampCz = cz;
+					}
 				}
 			}
 			ChunkTerrain c = field.chunkIfReady(barCx, barCz);
@@ -2099,6 +2115,21 @@ final class SelfTest {
 			check(bars > 100, "Paris's marked crossings are painted as zebra crossings (%d bar columns)", bars);
 			check(bestBars > 0 && built * 10 >= bestBars * 8, "zebra bars are built in white (%d of %d)", built, bestBars);
 			check(pavers > 50, "Paris's paving stones are paved as mapped (%d columns)", pavers);
+			// Street furniture: the map's lamps built as Saro's street lights where they stand.
+			var lampChunk = earth.getChunk(lampCx, lampCz);
+			ChunkTerrain lc = field.chunkIfReady(lampCx, lampCz);
+			int lights = 0;
+			for (int x = 0; lc != null && x < 16; x++) {
+				for (int z = 0; z < 16; z++) {
+					int top = lc.topSolidY[ChunkTerrain.index(x, z)];
+					for (int y = top + 1; y <= top + 12; y++) {
+						lights += lampChunk.getBlockState(new BlockPos(lampCx * 16 + x, y, lampCz * 16 + z)).getBlock().getDescriptionId().endsWith(".street_light") ? 1 : 0;
+					}
+				}
+			}
+			log("Paris's street furniture round Chatelet: %s; chunk %d,%d: %d mapped lamps, %d street lights built", furniture, lampCx, lampCz, bestLamps, lights);
+			check(furniture.values().stream().mapToInt(Integer::intValue).sum() > 20, "Paris's mapped street furniture is read (%s)", furniture);
+			check(bestLamps > 0 && lights * 10 >= bestLamps * 6, "Paris's mapped lamps are built as street lights (%d of %d)", lights, bestLamps);
 		}));
 
 		phases.add(Map.entry("Real trees: Paris's mapped street trees", () -> {

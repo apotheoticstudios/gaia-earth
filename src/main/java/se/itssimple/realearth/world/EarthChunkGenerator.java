@@ -499,37 +499,8 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 		};
 	}
 
-	/**
-	 * Saro's Road Blocks (a dependency): its asphalt, plain or painted with a white or yellow line down the middle
-	 * (texture_variant straight or road_block_linie_yellow; along Z facing north, along X facing east). Looked up on
-	 * first use, after every mod has registered its blocks; vanilla blocks if a version of it renames them.
-	 */
-	private static final class RoadBlocks {
-		static final BlockState ASPHALT = net.minecraft.core.registries.BuiltInRegistries.BLOCK
-			.getOptional(net.minecraft.resources.Identifier.fromNamespaceAndPath("saros_road_blocks_mod", "asphalt")).map(Block::defaultBlockState)
-			.orElse(null);
-		static final BlockState WHITE = ASPHALT == null ? block(Blocks.WHITE_CONCRETE) : with(ASPHALT, "texture_variant", "straight");
-		static final BlockState YELLOW = ASPHALT == null ? block(Blocks.YELLOW_CONCRETE) : with(ASPHALT, "texture_variant", "road_block_linie_yellow");
-		static final BlockState SIDEWALK = net.minecraft.core.registries.BuiltInRegistries.BLOCK
-			.getOptional(net.minecraft.resources.Identifier.fromNamespaceAndPath("saros_road_blocks_mod", "sidewalk")).map(Block::defaultBlockState)
-			.orElse(null);
-
-		/** The state with a property of the mod's set by name, unchanged where it has no such property or value. */
-		static BlockState with(BlockState state, String property, String value) {
-			var p = state.getBlock().getStateDefinition().getProperty(property);
-			return p == null ? state : set(state, p, value);
-		}
-
-		private static <T extends Comparable<T>> BlockState set(BlockState state, net.minecraft.world.level.block.state.properties.Property<T> p,
-			String value) {
-			return p.getValue(value).map(v -> state.setValue(p, v)).orElse(state);
-		}
-	}
-
-	/** This world's road version (WorldSettings.roadVersion): from 1 asphalt and markings, from 3 kerbs. */
 	private static int roadVersion() {
-		TerrainField field = RealEarth.terrain();
-		return field == null || field.map() == null ? 0 : field.map().roadVersion();
+		return RoadBlocks.roadVersion();
 	}
 
 	private static boolean currentRoads() {

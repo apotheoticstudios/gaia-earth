@@ -53,6 +53,22 @@ final class StreetLife {
 				case "picnic_site", "picnic_table" -> picnic(chunk, t, buildingTop, pos, x, z);
 				case "playground" -> sandpit(chunk, t, buildingTop, pos, x, z);
 				case "marketplace" -> market(chunk, t, buildingTop, pos, x, z, baseX, baseZ);
+				case "street_lamp" -> {
+					int[] at = offRoad(t, buildingTop, x, z);
+					if (at != null) {
+						lamp(chunk, t, pos, at[0], at[1]);
+					}
+				}
+				case "bench" -> {
+					int[] at = offRoad(t, buildingTop, x, z);
+					if (at != null) {
+						int street = roadBeside(t, at[0], at[1]);
+						bench(chunk, pos, at[0], ground(t, at[0], at[1]), at[1], street < 0 ? 0 : (street + 2) % 4);
+					}
+				}
+				case "bollard" -> single(chunk, t, buildingTop, pos, x, z, Blocks.POLISHED_BLACKSTONE_WALL.defaultBlockState());
+				case "fire_hydrant" -> single(chunk, t, buildingTop, pos, x, z, Blocks.RED_NETHER_BRICK_WALL.defaultBlockState());
+				case "bicycle_parking" -> single(chunk, t, buildingTop, pos, x, z, Blocks.IRON_BARS.defaultBlockState());
 				default -> {
 				}
 			}
@@ -137,13 +153,13 @@ final class StreetLife {
 		return t.building[k] == 0 && t.waterTopY[k] == Integer.MIN_VALUE && t.deckY[k] == Integer.MIN_VALUE && buildingTop[z * 16 + x] == Integer.MIN_VALUE;
 	}
 
-	/** Open ground off the road: the column itself, or the nearest beside it that is not a way. */
+	/** Open ground off the road: the column itself, or the nearest beside it that is not a way, or is a path or pavement. */
 	private static int[] offRoad(ChunkTerrain t, int[] buildingTop, int x, int z) {
 		for (int r = 0; r <= 2; r++) {
 			for (int dz = -r; dz <= r; dz++) {
 				for (int dx = -r; dx <= r; dx++) {
-					if (Math.max(Math.abs(dx), Math.abs(dz)) == r && open(t, buildingTop, x + dx, z + dz)
-						&& t.way[ChunkTerrain.index(x + dx, z + dz)] == Ways.NONE) {
+					byte way = Math.max(Math.abs(dx), Math.abs(dz)) == r && open(t, buildingTop, x + dx, z + dz) ? t.way[ChunkTerrain.index(x + dx, z + dz)] : -1;
+					if (way == Ways.NONE || way == Ways.PATH) {
 						return new int[] {x + dx, z + dz};
 					}
 				}
@@ -211,6 +227,44 @@ final class StreetLife {
 				bench(chunk, pos, bx, ground(t, bx, bz), bz, (street + 2) % 4);
 			}
 		}
+	}
+
+	/** The direction (index) of the nearest carriageway within three blocks along the four sides, or -1. */
+	static int roadBeside(ChunkTerrain t, int x, int z) {
+		for (int r = 1; r <= 3; r++) {
+			for (int d = 0; d < 4; d++) {
+				int nx = x + DX[d] * r;
+				int nz = z + DZ[d] * r;
+				if (nx >= -1 && nx <= 16 && nz >= -1 && nz <= 16 && Ways.isPaved(t.way[ChunkTerrain.index(nx, nz)])) {
+					return d;
+				}
+			}
+		}
+		return -1;
+	}
+
+	/**
+	 * A street lamp about 6 m tall at the map's scale: Saro's poles and head, its lamp hanging toward the nearest
+	 * carriageway (a lantern on a post where Saro's blocks are missing).
+	 */
+	static void lamp(ChunkAccess chunk, ChunkTerrain t, BlockPos.MutableBlockPos pos, int x, int z) {
+		int k = ChunkTerrain.index(x, z);
+		int y = t.topSolidY[k];
+		if (RoadBlocks.POLE == null || RoadBlocks.LIGHT == null) {
+			set(chunk, pos, x, y + 1, z, Blocks.COBBLESTONE_WALL.defaultBlockState());
+			set(chunk, pos, x, y + 2, z, Blocks.SPRUCE_FENCE.defaultBlockState());
+			set(chunk, pos, x, y + 3, z, Blocks.LANTERN.defaultBlockState());
+			return;
+		}
+		var field = se.itssimple.realearth.RealEarth.terrain();
+		double perMeter = field == null ? 1 : field.projection().blocksPerMeter(t.latitude[k]);
+		int poles = Math.max(2, (int) Math.round(6 * perMeter) - 1);
+		int street = roadBeside(t, x, z);
+		String facing = DIRS[street < 0 ? 0 : street].getSerializedName();
+		for (int i = 1; i <= poles; i++) {
+			set(chunk, pos, x, y + i, z, RoadBlocks.with(RoadBlocks.POLE, "facing", facing));
+		}
+		set(chunk, pos, x, y + poles + 1, z, RoadBlocks.with(RoadBlocks.LIGHT, "facing", facing));
 	}
 
 	/** A bench: a stair whose back is toward {@code back} (direction index). */

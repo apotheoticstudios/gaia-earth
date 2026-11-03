@@ -93,6 +93,8 @@ public final class ChunkTerrain {
 	public record Crossing(int x, int z, byte markings) {
 	}
 
+	/** Whether the map has street lamps in or round this chunk: then they stand where mapped, and no others are added. */
+	public volatile boolean mappedLamps;
 	/** The marked crossings in and just round this chunk (a crossing paints a few blocks either side of it). */
 	public volatile java.util.List<Crossing> crossings = java.util.List.of();
 	/** The single trees the map has in this chunk: street trees, park trees. */

@@ -36,10 +36,18 @@ public final class OsmTrees {
 	public record Crossing(double x, double y, byte markings) {
 	}
 
-	/** A tile's trees, and its marked crossings (the base theme's infrastructure points). */
-	public record Tile(List<Tree> trees, List<Crossing> crossings, boolean failed) {
-		public static final Tile EMPTY = new Tile(List.of(), List.of(), false);
-		public static final Tile FAILED = new Tile(List.of(), List.of(), true);
+	/** Street furniture the map has: what it is (Overture's class, OSM's: street_lamp, bench, ...) and its name, if any. */
+	public record Furniture(double x, double y, String what, String name) {
+	}
+
+	/** The street furniture read, as OSM tags it. */
+	static final Set<String> FURNITURE = Set.of("street_lamp", "bench", "waste_basket", "bollard", "fire_hydrant", "bicycle_parking", "bus_stop",
+		"drinking_water");
+
+	/** A tile's trees, its marked crossings and its street furniture (the base theme's infrastructure points). */
+	public record Tile(List<Tree> trees, List<Crossing> crossings, List<Furniture> furniture, boolean failed) {
+		public static final Tile EMPTY = new Tile(List.of(), List.of(), List.of(), false);
+		public static final Tile FAILED = new Tile(List.of(), List.of(), List.of(), true);
 	}
 
 	private final OvertureTiles<Tile> tiles;
@@ -67,8 +75,19 @@ public final class OsmTrees {
 		double samplesPerTile = (double) Mercator.TILE_SIZE * (1 << (Mercator.ZOOM - ZOOM));
 		List<Tree> trees = new ArrayList<>();
 		List<Crossing> crossings = new ArrayList<>();
+		List<Furniture> furniture = new ArrayList<>();
 		boolean americas = tileX < (1 << ZOOM) * (180 - 30) / 360.0 && tileX > (1 << ZOOM) * (180 - 170) / 360.0;
 		for (VectorTile.Feature f : features) {
+			if (f.type() == VectorTile.POINT && FURNITURE.contains(f.string("class"))) {
+				double scale = samplesPerTile / f.extent();
+				for (int[] p : f.parts()) {
+					for (int i = 0; i + 1 < p.length; i += 2) {
+						furniture.add(new Furniture(tileX * samplesPerTile + p[i] * scale - 0.5, tileY * samplesPerTile + p[i + 1] * scale - 0.5,
+							f.string("class"), f.string("@name")));
+					}
+				}
+				continue;
+			}
 			if (f.type() == VectorTile.POINT && "crossing".equals(f.string("class"))) {
 				byte markings = markings(f.string("source_tags"), americas);
 				double scale = samplesPerTile / f.extent();
@@ -90,7 +109,8 @@ public final class OsmTrees {
 				}
 			}
 		}
-		return trees.isEmpty() && crossings.isEmpty() ? Tile.EMPTY : new Tile(List.copyOf(trees), List.copyOf(crossings), false);
+		return trees.isEmpty() && crossings.isEmpty() && furniture.isEmpty() ? Tile.EMPTY
+			: new Tile(List.copyOf(trees), List.copyOf(crossings), List.copyOf(furniture), false);
 	}
 
 	/**

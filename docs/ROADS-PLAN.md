@@ -57,6 +57,13 @@ road's class, whether it is one-way, and the country's norms.
   - the asphalt two sixteenths below the pavement, a kerb of about 12 cm;
   - 13,834 pavement columns in central Stockholm;
   - road version 3.
+- **Street furniture** from the base theme's points (`OsmTrees` furniture, `StreetLife`):
+  - street lamps as Saro's street lights, about 6 m tall, the lamp over the nearest carriageway;
+  - benches facing the street, bollards, fire hydrants, bicycle stands, bins, drinking fountains, bus stops;
+  - where lamps are mapped, no others; elsewhere a few on the pavement's kerb edge (`TownFeatures`);
+  - 48 mapped lamps, 32 benches and 5 hydrants round Chatelet;
+  - road version 4.
+  - Not built: traffic signals (Saro's Road Blocks has none).
 
 ## Phases
 

@@ -866,6 +866,27 @@ public final class TerrainField implements AutoCloseable {
 					}
 				}
 				terrain.crossings = List.copyOf(crossings);
+				// The street furniture the map has, as more points of interest (see StreetLife), where this world's roads use it.
+				if (map != null && map.roadVersion() >= 4) {
+					List<ChunkTerrain.Poi> furnished = new ArrayList<>(terrain.pois);
+					for (OsmTrees.Tile tile : trees) {
+						for (OsmTrees.Furniture f : tile.furniture()) {
+							if (f.x() < sx0 - 24 || f.x() > sx1 + 24 || f.y() < sy0 - 24 || f.y() > sy1 + 24) {
+								continue;
+							}
+							double[] b = Buildings.toBlock(projection, f.x(), f.y(), baseX + 8);
+							int bx = (int) Math.floor(b[0]);
+							int bz = (int) Math.floor(b[1]);
+							terrain.mappedLamps |= f.what().equals("street_lamp");
+							boolean inside = bx >= baseX && bx < baseX + 16 && bz >= baseZ && bz < baseZ + 16;
+							// The same thing in OpenFreeMap's points (a bus stop, a bin) stays as that.
+							if (inside && terrain.pois.stream().noneMatch(p -> f.what().equals(p.subclass()) && Math.abs(p.x() - bx) <= 2 && Math.abs(p.z() - bz) <= 2)) {
+								furnished.add(new ChunkTerrain.Poi(bx, bz, "overture", f.what(), f.name()));
+							}
+						}
+					}
+					terrain.pois = List.copyOf(furnished);
+				}
 				if (config.useRoads || config.useRailways) {
 					long started = se.itssimple.realearth.Perf.start();
 					long minX = Long.MAX_VALUE;
