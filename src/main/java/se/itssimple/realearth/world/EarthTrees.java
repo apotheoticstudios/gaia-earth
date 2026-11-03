@@ -217,16 +217,22 @@ public final class EarthTrees {
 		boolean forest = cover == WorldCover.TREES || cover == WorldCover.MANGROVES;
 		String spot = mapped ? "spot mapped" : "spot";
 		count(spot);
-		if (forest == mapped || t.way[k] != 0 || t.building[k] != 0 || t.hasWater(lx, lz)) {
+		// A mapped tree may stand on a footpath or a square, as trees do in promenades and plazas.
+		boolean onWay = t.way[k] != 0 && !(mapped && t.way[k] == se.itssimple.realearth.osm.Ways.PATH);
+		if (forest == mapped || onWay || t.building[k] != 0 || t.hasWater(lx, lz)) {
 			// A forest's trees stand on the grid, at its real density; a mapped tree there would be one more.
 			count(spot + ": " + (forest == mapped ? (mapped ? "in a forest" : "cover " + cover) : "way/building/water"));
 			return;
 		}
 		BlockPos pos = new BlockPos(x, t.topSolidY[k] + 1, z);
 		BlockState ground = region.getBlockState(pos.below());
+		boolean pit = false;
 		if (!ground.is(BlockTags.SUBSTRATE_OVERWORLD) && !ground.is(BlockTags.SAND)) {
-			count("spot: ground " + ground.getBlock().getDescriptionId());
-			return;
+			if (!mapped || !ground.isCollisionShapeFullBlock(region, pos.below()) || ground.is(BlockTags.LOGS) || ground.is(BlockTags.LEAVES)) {
+				count("spot: ground " + ground.getBlock().getDescriptionId());
+				return;
+			}
+			pit = true; // a street tree in paving or gravel: a pit of soil under its trunk, the paving left round it
 		}
 		int clear = mapped ? 1 : (int) Math.min(4, spacing * CLEARANCE); // mapped trees stand where they really are
 		for (int dx = -clear; dx <= clear; dx++) {
@@ -266,6 +272,9 @@ public final class EarthTrees {
 				return;
 			}
 			if (template != null) {
+				if (pit) {
+					region.setBlock(pos.below(), net.minecraft.world.level.block.Blocks.COARSE_DIRT.defaultBlockState(), 2);
+				}
 				int grown = place(region, template, tree, pos, height, random);
 				count(grown > 0 ? row.species : "no room");
 				if (mapped && grown > 0) {
@@ -274,6 +283,9 @@ public final class EarthTrees {
 				HEIGHTS.computeIfAbsent(row.species, s -> new LongAdder()).add(grown);
 				return;
 			}
+		}
+		if (pit) {
+			region.setBlock(pos.below(), net.minecraft.world.level.block.Blocks.COARSE_DIRT.defaultBlockState(), 2);
 		}
 		growVanilla(region, generator, kind, pos, random);
 	}
