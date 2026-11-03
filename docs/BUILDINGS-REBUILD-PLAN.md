@@ -150,5 +150,7 @@ code goes.
 
 ## Not changed
 
-Roads, rails, bridges, tunnels, trees, water and the overlay format stay as they are. The pavement work (BGT
-surfaces) runs in its own session and touches only roads.
+Buildings are held to this standard of exactness. Roads, rails, bridges, tunnels, trees, water and other features
+may be generated from map data, as long as they look as they do in real life (2026-11-03). They stay as they are,
+improved through `DATA-SOURCES-PLAN.md`. The overlay format stays too. The pavement work (BGT surfaces) runs in its
+own session and touches only roads.
