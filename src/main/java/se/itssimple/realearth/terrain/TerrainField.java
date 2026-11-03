@@ -401,6 +401,10 @@ public final class TerrainField implements AutoCloseable {
 		return chunk(chunkX, chunkZ).get(timeoutSeconds, TimeUnit.SECONDS);
 	}
 
+	private static final int CURRENT_SLOPE_REACH = 8;
+	// Covers the widest line-only channel (12 metres) even at Mercator's latitude limit.
+	private static final int LOCAL_WATERWAY_REACH = 24;
+
 	/** Read only the water geometry and elevation needed for currents, including in old chunks. */
 	public CompletableFuture<MappedCurrents.Field> mappedCurrents(int chunkX, int chunkZ) {
 		if (map == null) return CompletableFuture.completedFuture(MappedCurrents.EMPTY);
@@ -419,15 +423,22 @@ public final class TerrainField implements AutoCloseable {
 			minX = Math.min(minX, x[i]); maxX = Math.max(maxX, x[i]);
 			minY = Math.min(minY, y[i]); maxY = Math.max(maxY, y[i]);
 		}
-		int reach = MappedCurrents.REACH_SAMPLES;
-		List<CompletableFuture<OsmWater.Shapes>> geometry = OsmWater.tilesCovering(
-			(long) Math.floor(minX) - reach, (long) Math.floor(minY) - reach,
-			(long) Math.ceil(maxX) + reach, (long) Math.ceil(maxY) + reach)
-			.stream().map(tile -> map.tile(tile[0], tile[1])).toList();
-		return CompletableFuture.allOf(geometry.toArray(CompletableFuture[]::new)).thenComposeAsync(ignored -> {
-			List<OsmWater.Shapes> shapes = geometry.stream().map(CompletableFuture::join).toList();
+		long left = (long) Math.floor(minX), right = (long) Math.ceil(maxX);
+		long top = (long) Math.floor(minY), bottom = (long) Math.ceil(maxY);
+		long haloMinX = (long) Math.floor(minX) - CURRENT_SLOPE_REACH - 1;
+		long haloMaxX = (long) Math.ceil(maxX) + CURRENT_SLOPE_REACH + 1;
+		long haloMinY = (long) Math.floor(minY) - CURRENT_SLOPE_REACH - 1;
+		long haloMaxY = (long) Math.ceil(maxY) + CURRENT_SLOPE_REACH + 1;
+		// Only mapped river polygons can need a distant centreline. An ocean or narrow stream
+		// chunk should not fetch the same outer ring of map tiles as a wide river.
+		var geometry = currentGeometry(left, top, right, bottom, LOCAL_WATERWAY_REACH).thenComposeAsync(local ->
+			MappedCurrents.intersectsRiverArea(local, left, top, right, bottom)
+				? currentGeometry(left, top, right, bottom, MappedCurrents.REACH_SAMPLES)
+				: CompletableFuture.completedFuture(local), workers);
+		return geometry.thenComposeAsync(shapes -> {
 			if (shapes.stream().anyMatch(OsmWater.Shapes::failed)) return CompletableFuture.completedFuture(null);
-			byte[] angles = MappedCurrents.directions(projection, nearX, x, y, shapes);
+			var directions = MappedCurrents.directions(projection, nearX, x, y, shapes);
+			byte[] angles = directions.world();
 			Map<Long, CompletableFuture<ProcessedTile>> elevations = new HashMap<>();
 			for (int i = 0; i < 256; i++) {
 				if (angles[i] == CurrentAngle.NONE) continue;
@@ -435,21 +446,92 @@ public final class TerrainField implements AutoCloseable {
 				addTiles(elevations, sx - 1, sx + 2, sy - 1, sy + 2);
 			}
 			if (elevations.isEmpty()) return CompletableFuture.completedFuture(MappedCurrents.EMPTY);
+			var required = java.util.Set.copyOf(elevations.keySet());
+			addTiles(elevations, haloMinX, haloMaxX, haloMinY, haloMaxY);
 			return CompletableFuture.allOf(elevations.values().toArray(CompletableFuture[]::new)).thenApplyAsync(done -> {
 				Map<Long, ProcessedTile> tiles = new HashMap<>();
 				elevations.forEach((key, tile) -> tiles.put(key, tile.join()));
-				if (tiles.values().stream().anyMatch(tile -> tile.degraded || tile.mapWater == null)) return null;
+				if (required.stream().map(tiles::get).anyMatch(tile -> tile.degraded || tile.mapWater == null)) return null;
 				int[] surface = new int[256];
-				float[] sample = new float[3];
+				byte[] speeds = new byte[256];
+				byte[] depths = new byte[256];
+				float[] sample = new float[4];
 				for (int i = 0; i < 256; i++) {
 					if (angles[i] == CurrentAngle.NONE) continue;
 					sample(tiles, x[i], y[i], sample);
 					if (Float.isNaN(sample[1])) angles[i] = CurrentAngle.NONE;
-					else surface[i] = (int) Math.round(toY(sample[1], latitude[i])) - 1;
+					else {
+						surface[i] = (int) Math.round(toY(sample[1], latitude[i])) - 1;
+						int bed = (int) Math.round(toY(sample[0], latitude[i])) - 1;
+						depths[i] = (byte) Math.clamp(surface[i] - bed, 1, 16);
+						var direction = MappedCurrents.direction(directions.map()[i]);
+						double dx = direction.x * CURRENT_SLOPE_REACH;
+						double dy = direction.z * CURRENT_SLOPE_REACH;
+						double slope = Double.NaN;
+						// A straight probe around a bend may leave the channel. Only use a pair of
+						// levels when the intervening stations are water too.
+						if (mappedWaterAt(tiles, x[i] - dx / 2, y[i] - dy / 2) == 1
+							&& mappedWaterAt(tiles, x[i] + dx / 2, y[i] + dy / 2) == 1) {
+							double upstream = mappedLevelAt(tiles, x[i] - dx, y[i] - dy);
+							double downstream = mappedLevelAt(tiles, x[i] + dx, y[i] + dy);
+							slope = (upstream - downstream) / (2 * CURRENT_SLOPE_REACH * Mercator.sampleSpacingMeters(latitude[i]));
+						}
+						speeds[i] = MappedCurrents.speed(sample[3], slope);
+						// An estuary loses its downstream push as the flow spreads into the sea.
+						// A dry station stops the probe so a river behind a dune keeps its current.
+						if (sample[1] <= 3) {
+							for (int step = 1; step <= CURRENT_SLOPE_REACH; step++) {
+								double fraction = step / (double) CURRENT_SLOPE_REACH;
+								byte water = mappedWaterAt(tiles, x[i] + dx * fraction, y[i] + dy * fraction);
+								if (water == 2) speeds[i] = MappedCurrents.taperOutlet(speeds[i], fraction);
+								if (water != 1) break;
+							}
+						}
+					}
 				}
-				return MappedCurrents.of(angles, surface);
+				return MappedCurrents.of(angles, surface, speeds, depths);
 			}, workers);
 		}, workers);
+	}
+
+	private CompletableFuture<List<OsmWater.Shapes>> currentGeometry(long left, long top, long right, long bottom, int reach) {
+		var tiles = OsmWater.tilesCovering(left - reach, top - reach, right + reach, bottom + reach)
+			.stream().map(tile -> map.tile(tile[0], tile[1])).toList();
+		return CompletableFuture.allOf(tiles.toArray(CompletableFuture[]::new))
+			.thenApply(done -> tiles.stream().map(CompletableFuture::join).toList());
+	}
+
+	private static double mappedLevelAt(Map<Long, ProcessedTile> tiles, double sx, double sy) {
+		byte water = mappedWaterAt(tiles, sx, sy);
+		if (water == 2) return 0;
+		if (water != 1) return Double.NaN;
+		long x = (long) Math.floor(sx), y = (long) Math.floor(sy);
+		double dx = sx - x, dy = sy - y;
+		double sum = 0, weight = 0;
+		for (int b = 0; b < 2; b++) {
+			for (int a = 0; a < 2; a++) {
+				ProcessedTile tile = tileFor(tiles, x + a, y + b);
+				if (tile == null || tile.degraded) continue;
+				float level = tile.lakeLevel[indexIn(x + a, y + b)];
+				if (Float.isNaN(level)) continue;
+				double w = (a == 0 ? 1 - dx : dx) * (b == 0 ? 1 - dy : dy);
+				sum += w * level;
+				weight += w;
+			}
+		}
+		return weight > 0 ? sum / weight : Double.NaN;
+	}
+
+	private static byte mappedWaterAt(Map<Long, ProcessedTile> tiles, double sx, double sy) {
+		double x = sx + 0.5, y = sy + 0.5;
+		long ix = (long) Math.floor(x), iy = (long) Math.floor(y);
+		ProcessedTile tile = tileFor(tiles, ix, iy);
+		if (tile == null || tile.mapWater == null) return -1;
+		long localX = Math.floorMod(ix, Mercator.TILE_SIZE);
+		long localY = Math.clamp(iy, 0, Mercator.SAMPLES_PER_AXIS - 1) % Mercator.TILE_SIZE;
+		int fineX = Math.min(ProcessedTile.FINE_SIZE - 1, (int) ((localX + (x - ix)) * ProcessedTile.FINE));
+		int fineY = Math.min(ProcessedTile.FINE_SIZE - 1, (int) ((localY + (y - iy)) * ProcessedTile.FINE));
+		return tile.mapWater[fineY * ProcessedTile.FINE_SIZE + fineX];
 	}
 
 	private CompletableFuture<ChunkTerrain> computeChunk(int chunkX, int chunkZ) {
@@ -892,16 +974,8 @@ public final class TerrainField implements AutoCloseable {
 		}
 
 		// With OpenStreetMap water: the map decides, block by block, from its 4x-resolution raster.
-		double px = sx + 0.5;
-		double py = sy + 0.5;
-		ProcessedTile own = tileFor(tiles, (long) Math.floor(px), (long) Math.floor(py));
-		if (own.mapWater != null) {
-			long wpx = Math.floorMod((long) Math.floor(px), Mercator.SAMPLES_PER_AXIS);
-			int fi = (int) Math.floor((px - Math.floor(px) + (wpx % Mercator.TILE_SIZE)) * ProcessedTile.FINE);
-			int fj = (int) Math.floor((py - Math.floor(py) + (Math.max(0, Math.min(Mercator.SAMPLES_PER_AXIS - 1, (long) Math.floor(py))) % Mercator.TILE_SIZE)) * ProcessedTile.FINE);
-			fi = Math.max(0, Math.min(ProcessedTile.FINE_SIZE - 1, fi));
-			fj = Math.max(0, Math.min(ProcessedTile.FINE_SIZE - 1, fj));
-			int mapped = own.mapWater[fj * ProcessedTile.FINE_SIZE + fi];
+		int mapped = mappedWaterAt(tiles, sx, sy);
+		if (mapped >= 0) {
 			if (mapped == 0) {
 				out[1] = Float.NaN;
 				out[0] = (float) height;
@@ -909,6 +983,7 @@ public final class TerrainField implements AutoCloseable {
 			}
 			double surface = mapped == 2 ? 0.0 : wet > 0 ? levelSum / wet : height;
 			double below = wet > 0 ? Math.max(1.0, depth / wet) : 1.0;
+			if (out.length > 3) out[3] = (float) below;
 			if (mapped == 2 || surface <= 0.5) {
 				out[1] = 0f;
 				out[0] = (float) Math.min(height, -below);

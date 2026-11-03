@@ -17,6 +17,7 @@
     "StructureTemplateAccessor",
     "TreeFeatureMixin",
     "RiverWaterFlowMixin",
+    "RiverEntityPushMixin",
     "WaterAnimalSpawnMixin"
   ],
   "injectors": {
@@ -24,7 +25,7 @@
   },
   "client": [
     "CanopyBlockUpdateMixin",
-    "CanopyRenderRegionMixin",
+    "CanopySodiumSliceMixin",
     "ClientLevelDataMixin",
     "RiverRenderRegionMixin",
     "SodiumRiverRenderRegionMixin"

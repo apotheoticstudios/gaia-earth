@@ -17,6 +17,9 @@
     "client": [
       "se.itssimple.realearth.client.RealEarthClient"
     ],
+    "modmenu": [
+      "se.itssimple.realearth.client.GaiaModMenu"
+    ],
     "jade": [
       "se.itssimple.realearth.compat.jade.RealEarthJadePlugin"
     ]
@@ -24,19 +27,21 @@
   "mixins": [
     "realearth.mixins.json",
     {
-      "config": "realearth.sodium.mixins.json",
-      "environment": "client"
-    },
-    {
       "config": "realearth.xaero.mixins.json",
       "environment": "client"
+    }
+  ],
+  "jars": [
+    {
+      "file": "META-INF/jars/gaia-earth-client.jar"
     }
   ],
   "depends": {
     "fabricloader": ">=0.19.5",
     "minecraft": "~26.1",
     "java": ">=25",
-    "fabric-api": "*"
+    "fabric-api": "*",
+    "gaia-earth-client": "*"
   },
   "suggests": {
     "distanthorizons": ">=3.3.0",

@@ -2,6 +2,7 @@ package se.itssimple.realearth;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -77,6 +78,23 @@ public final class EarthConfig {
 	 * Without it -- or where the map cannot be fetched -- water is inferred from elevation alone.
 	 */
 	public boolean useMapWater = true;
+	/** Apply mapped river currents and send their data to clients. Read on the server. */
+	public boolean mappedRiverCurrents = true;
+	/** Mapped river push as a percentage of vanilla's current force. Read on the server. */
+	public int riverCurrentStrength = 100;
+	/** Number of blocks below the mapped surface affected by the current. Read on the server. */
+	public int riverCurrentDepth = 8;
+	/** Orient the water surface texture along the current. Read on the client. */
+	public boolean riverVisualFlow = true;
+	/** Maximum river wake particles emitted locally per tick. 0 turns them off. */
+	public int riverParticlesPerTick = 3;
+	/** Horizontal distance in blocks for local river effects. */
+	public int riverEffectRadius = 12;
+	/** Wake drift speed as a percentage of the default. */
+	public int riverWakeSpeed = 100;
+	/** Play quiet water ambience near moving waterways. Read on the client. */
+	public boolean riverSounds = false;
+	public int riverSoundVolume = 18;
 	/** TileJSON of the OpenMapTiles-schema vector tiles to read water from. */
 	public String mapTileJson = "https://tiles.openfreemap.org/planet";
 
@@ -160,15 +178,50 @@ public final class EarthConfig {
 
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
+	public static EarthConfig read(Path file) throws IOException {
+		EarthConfig read = Files.exists(file) ? GSON.fromJson(Files.readString(file), EarthConfig.class) : null;
+		EarthConfig config = read == null ? new EarthConfig() : read;
+		config.clampRiverSettings();
+		return config;
+	}
+
+	private void clampRiverSettings() {
+		riverCurrentStrength = Math.clamp(riverCurrentStrength, 0, 200);
+		riverCurrentDepth = Math.clamp(riverCurrentDepth, 1, 16);
+		riverParticlesPerTick = Math.clamp(riverParticlesPerTick, 0, 12);
+		riverEffectRadius = Math.clamp(riverEffectRadius, 4, 32);
+		riverWakeSpeed = Math.clamp(riverWakeSpeed, 0, 200);
+		riverSoundVolume = Math.clamp(riverSoundVolume, 0, 100);
+	}
+
+	/** Merge the screen's river settings into the latest config on disk. */
+	public void saveRiverSettings(Path file) throws IOException {
+		clampRiverSettings();
+		JsonObject json = Files.exists(file) ? GSON.fromJson(Files.readString(file), JsonObject.class) : new JsonObject();
+		if (json == null) json = new JsonObject();
+		json.addProperty("mappedRiverCurrents", mappedRiverCurrents);
+		json.addProperty("riverCurrentStrength", riverCurrentStrength);
+		json.addProperty("riverCurrentDepth", riverCurrentDepth);
+		json.addProperty("riverVisualFlow", riverVisualFlow);
+		json.addProperty("riverParticlesPerTick", riverParticlesPerTick);
+		json.addProperty("riverEffectRadius", riverEffectRadius);
+		json.addProperty("riverWakeSpeed", riverWakeSpeed);
+		json.addProperty("riverSounds", riverSounds);
+		json.addProperty("riverSoundVolume", riverSoundVolume);
+		Files.createDirectories(file.getParent());
+		Path temporary = Files.createTempFile(file.getParent(), "realearth-", ".json");
+		try {
+			Files.writeString(temporary, GSON.toJson(json));
+			Files.move(temporary, file, java.nio.file.StandardCopyOption.ATOMIC_MOVE, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+		} finally {
+			Files.deleteIfExists(temporary);
+		}
+	}
+
 	public static EarthConfig load(Path file) {
 		EarthConfig config = new EarthConfig();
 		try {
-			if (Files.exists(file)) {
-				EarthConfig read = GSON.fromJson(Files.readString(file), EarthConfig.class);
-				if (read != null) {
-					config = read;
-				}
-			}
+			config = read(file);
 			if (config.startLatitude == null || config.startLongitude == null) {
 				boolean old = config.originLatitude != null && config.originLongitude != null;
 				config.startLatitude = old ? config.originLatitude : 59.3293;

@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "gaia-earth-client",
+  "version": "1.0.0",
+  "name": "Project Gaia: Earth Client Requirements",
+  "icon": "icon.png",
+  "environment": "client",
+  "depends": {
+    "sodium": "~0.8.9"
+  }
+}

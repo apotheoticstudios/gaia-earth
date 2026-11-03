@@ -10,6 +10,7 @@ public class RealEarthClient implements ClientModInitializer {
 		ClientHere.install();
 		ClientRiverCurrent.install();
 		ClientPerfLog.install();
+		CanopyMeshUpdates.install();
 		if (FabricLoader.getInstance().isModLoaded("xaerominimap")) {
 			try {
 				se.itssimple.realearth.compat.xaero.XaeroMinimapCompat.install();

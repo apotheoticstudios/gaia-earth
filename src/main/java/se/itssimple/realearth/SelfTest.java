@@ -1171,6 +1171,15 @@ final class SelfTest {
 	 * run between them, so no one tick holds everything the checks load.
 	 */
 	private static void testMappedWaterways(MinecraftServer server) throws Exception {
+		int shallow = Byte.toUnsignedInt(MappedCurrents.speed(0.7, 0.0003));
+		int deep = Byte.toUnsignedInt(MappedCurrents.speed(2, 0.0003));
+		int steep = Byte.toUnsignedInt(MappedCurrents.speed(2, 0.003));
+		check(shallow > 0 && shallow < deep && deep < steep,
+			"estimated currents gain speed with depth and downstream slope");
+		check(Byte.toUnsignedInt(MappedCurrents.taperOutlet((byte) deep, 0))
+			< Byte.toUnsignedInt(MappedCurrents.taperOutlet((byte) deep, 0.5))
+			&& MappedCurrents.taperOutlet((byte) deep, 1) == (byte) deep,
+			"coastal outlet drag increases toward the sea");
 		ServerLevel earth = RealEarth.earthLevel(server);
 		TerrainField field = RealEarth.terrain();
 		Projection projection = field.projection();
@@ -1216,7 +1225,18 @@ final class SelfTest {
 					int y = chunk.getHeight(Heightmap.Types.WORLD_SURFACE, dx, dz);
 					BlockPos at = new BlockPos(pos.getMinBlockX() + dx, y, pos.getMinBlockZ() + dz);
 					if (earth.getBlockState(at).is(Blocks.WATER) && MappedCurrents.flowAt(earth, at).lengthSqr() > 0.9
-						&& earth.getFluidState(at).getFlow(earth, at).lengthSqr() > 0.9) return true;
+						&& earth.getFluidState(at).getFlow(earth, at).lengthSqr() > 0.9) {
+						var config = RealEarth.config();
+						config.mappedRiverCurrents = false;
+						try {
+							check(MappedCurrents.flowAt(earth, at) == Vec3.ZERO,
+								"disabling mapped currents suppresses a saved current field");
+						} finally {
+							config.mappedRiverCurrents = true;
+						}
+						testCurrentControls(earth, at);
+						return true;
+					}
 				}
 			}
 			return false;
@@ -1229,9 +1249,67 @@ final class SelfTest {
 		check(lake != null && lake.isEmpty(), "mapped lake Siljan stays still");
 	}
 
+	private static void testCurrentControls(ServerLevel earth, BlockPos surface) {
+		double speed = MappedCurrents.speedAt(earth, surface);
+		check(speed >= 0.17 && speed <= 1.81, "mapped river has a bounded speed estimate (%.2fx)", speed);
+		var config = RealEarth.config();
+		int oldDepth = config.riverCurrentDepth;
+		int oldStrength = config.riverCurrentStrength;
+		try {
+			config.riverCurrentDepth = 1;
+			check(MappedCurrents.flowAt(earth, surface).lengthSqr() > 0.9
+				&& MappedCurrents.flowAt(earth, surface.below()) == Vec3.ZERO, "one-block current depth keeps the surface current");
+
+			var item = new ItemEntity(earth, surface.getX() + 0.5, surface.getY() + 0.25,
+				surface.getZ() + 0.5, new ItemStack(Items.STICK), 0, 0, 0);
+			var interaction = new net.minecraft.world.entity.EntityFluidInteraction(java.util.Set.of(net.minecraft.tags.FluidTags.WATER));
+			interaction.update(item, false);
+			config.riverCurrentStrength = 100;
+			interaction.applyCurrentTo(net.minecraft.tags.FluidTags.WATER, item, 0.014);
+			Vec3 normal = item.getDeltaMovement();
+			item.setDeltaMovement(Vec3.ZERO);
+			config.riverCurrentStrength = 200;
+			interaction.applyCurrentTo(net.minecraft.tags.FluidTags.WATER, item, 0.014);
+			Vec3 strong = item.getDeltaMovement();
+			item.setDeltaMovement(Vec3.ZERO);
+			config.riverCurrentStrength = 0;
+			interaction.applyCurrentTo(net.minecraft.tags.FluidTags.WATER, item, 0.014);
+			check(normal.lengthSqr() > 0 && strong.subtract(normal.scale(2)).lengthSqr() < 1e-12
+				&& item.getDeltaMovement().lengthSqr() < 1e-12, "river strength scales the item push from zero to double");
+			testRiverBedBound(earth, surface);
+		} finally {
+			config.riverCurrentStrength = oldStrength;
+			config.riverCurrentDepth = oldDepth;
+		}
+	}
+
+	private static void testRiverBedBound(ServerLevel earth, BlockPos surface) {
+		var chunk = earth.getChunkAt(surface);
+		var saved = chunk.getAttached(MappedCurrents.TYPE);
+		byte[] angles = new byte[256], speeds = new byte[256], depths = new byte[256];
+		int[] surfaces = new int[256];
+		java.util.Arrays.fill(angles, (byte) 255);
+		int column = (surface.getX() & 15) + (surface.getZ() & 15) * 16;
+		angles[column] = 0;
+		speeds[column] = (byte) 128;
+		depths[column] = 2;
+		surfaces[column] = surface.getY();
+		try {
+			chunk.setAttached(MappedCurrents.TYPE, MappedCurrents.of(angles, surfaces, speeds, depths));
+			RealEarth.config().riverCurrentDepth = 16;
+			check(MappedCurrents.speedAt(earth, surface.below()) == 1 && MappedCurrents.speedAt(earth, surface.below(2)) == 0,
+				"a shallow river current stops at its bed even with a larger depth setting");
+		} finally {
+			chunk.setAttached(MappedCurrents.TYPE, saved);
+		}
+	}
+
 	private static boolean waitForCurrent(MinecraftServer server, LevelChunk chunk) throws Exception {
 		for (int i = 0; i < 120; i++) {
-			if (server.submit(() -> chunk.hasAttached(MappedCurrents.TYPE)).get(10, java.util.concurrent.TimeUnit.SECONDS)) return true;
+			if (server.submit(() -> {
+				var field = chunk.getAttached(MappedCurrents.TYPE);
+				return field != null && field.isUpToDate();
+			}).get(10, java.util.concurrent.TimeUnit.SECONDS)) return true;
 			Thread.sleep(250);
 		}
 		return false;

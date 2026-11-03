@@ -3,6 +3,8 @@
 A Minecraft **26.1** (Fabric) mod that adds an **Earth dimension**, generated from real-world elevation data at
 **one block per metre** (true to scale where you start) instead of Perlin noise.
 
+Minecraft clients require Sodium 0.8.9 or a later 0.8 release for terrain rendering. Dedicated servers can run without Sodium.
+
 - Elevation: AWS Terrain Tiles (Terrarium encoding) at **zoom 15**, the highest the service serves (z16 is 404).
   Sample spacing is 4.8 m at the equator and 2.4 m at 60°N, so it is interpolated up to 1 m blocks.
   Where there is national **lidar** -- most of Europe, the USA, Japan, parts of Canada, Australia and New
@@ -351,6 +353,8 @@ At one block per metre this is what makes mountains on the horizon visible at al
 
 ## Configuration: `config/realearth.json`
 
+In `runClient` or `runPlaytest`, open **Mods → Project Gaia: Earth → Configure** to edit the river settings. Save and restart the game to apply them.
+
 | Key | Default | |
 |---|---|---|
 | `startLatitude`, `startLongitude` | 59.3293, 18.0686 | Where players start, and what portals lead relative to, for **new** worlds |
@@ -359,6 +363,15 @@ At one block per metre this is what makes mountains on the horizon visible at al
 | `smoothingMeters` | 5.0 | Gaussian smoothing (0 to disable) |
 | `despikeMeters` | 25.0 | Spike threshold |
 | `useMapWater`, `mapTileJson` | true, OpenFreeMap | Water from OpenStreetMap |
+| `mappedRiverCurrents` | true | Apply downstream currents in mapped waterways. Set on the server or in single-player. |
+| `riverCurrentStrength` | 100 | Mapped river push as a percentage, from 0 to 200. Set on the server or in single-player. |
+| `riverCurrentDepth` | 8 | Number of blocks below the river surface affected by currents, from 1 to 16. Set on the server or in single-player. |
+| `riverVisualFlow` | true | Orient water textures downstream on this client. |
+| `riverParticlesPerTick` | 3 | Maximum downstream wake particles per client tick, from 0 (off) to 12. |
+| `riverEffectRadius` | 12 | Horizontal range for local wake particles and sound, from 4 to 32 blocks. |
+| `riverWakeSpeed` | 100 | Wake particle drift speed as a percentage, from 0 to 200. |
+| `riverSounds` | false | Play quiet water sounds near mapped currents on this client. |
+| `riverSoundVolume` | 18 | River sound volume as a percentage, from 0 to 100. |
 | `useLandCover`, `landCoverUrl` | true, ESA S3 | Land cover from ESA WorldCover |
 | `useRoads`, `useRailways` | true, true | Roads, tracks and paths; railways and trams (need `useMapWater`'s map tiles) |
 | `useBuildings` | true | Build the map's buildings |

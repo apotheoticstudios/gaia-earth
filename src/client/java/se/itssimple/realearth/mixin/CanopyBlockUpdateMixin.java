@@ -4,16 +4,15 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.Heightmap;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import se.itssimple.realearth.RealEarth;
 import se.itssimple.realearth.client.CanopyLight;
+import se.itssimple.realearth.client.CanopyMeshUpdates;
 
 @Mixin(Level.class)
 public abstract class CanopyBlockUpdateMixin {
@@ -37,25 +36,11 @@ public abstract class CanopyBlockUpdateMixin {
 		int newTop = chunk.getHeight(Heightmap.Types.WORLD_SURFACE, x, z);
 		int newBottom = CanopyLight.shadeBottom(chunk, x, z, newTop);
 		if (oldTop != newTop || oldBottom != newBottom || CanopyLight.changesTransmission(before, state)) {
-			realearth$dirtyShade(level, pos, oldBottom, oldTop);
+			CanopyMeshUpdates.dirtyColumn(level, pos, oldBottom, oldTop);
 			if (oldTop != newTop || oldBottom != newBottom) {
-				realearth$dirtyShade(level, pos, newBottom, newTop);
+				CanopyMeshUpdates.dirtyColumn(level, pos, newBottom, newTop);
 			}
 		}
 		return before;
-	}
-
-	@Unique
-	private static void realearth$dirtyShade(ClientLevel level, BlockPos pos, int minY, int top) {
-		int maxY = Math.min(top, pos.getY() - 1);
-		if (minY > maxY) {
-			return;
-		}
-		int x = pos.getX();
-		int z = pos.getZ();
-		// Sodium samples up to two blocks past the section edge when shading border faces.
-		level.setSectionRangeDirty(
-			SectionPos.blockToSectionCoord(x - 2), SectionPos.blockToSectionCoord(minY - 2), SectionPos.blockToSectionCoord(z - 2),
-			SectionPos.blockToSectionCoord(x + 2), SectionPos.blockToSectionCoord(maxY + 2), SectionPos.blockToSectionCoord(z + 2));
 	}
 }

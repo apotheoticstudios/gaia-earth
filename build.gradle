@@ -36,7 +36,7 @@ loom {
 		}
 		clean {
 			client()
-			name "Clean Client (no other mods)"
+			name "Clean Client (required mods only)"
 			vmArg "-Drealearth.shots=true"
 			vmArg "-Drealearth.shotList=towns"
 			vmArg "-Drealearth.shotTicks=900"
@@ -75,6 +75,10 @@ repositories {
 }
 
 configurations {
+	clientMenu {
+		transitive = false
+		canBeConsumed = false
+	}
 	clientPerformance {
 		transitive = false
 		canBeConsumed = false
@@ -83,6 +87,14 @@ configurations {
 		transitive = false
 	}
 	compileOnly.extendsFrom xaero
+	clientCompileOnly.extendsFrom clientMenu
+}
+
+def clientRequirements = tasks.register("clientRequirementsJar", Jar) {
+	archiveFileName = "gaia-earth-client.jar"
+	destinationDirectory = layout.buildDirectory.dir("client-requirements")
+	from("src/clientRequirements")
+	from("src/main/resources/assets/gaia-earth/icon.png")
 }
 
 dependencies {
@@ -99,19 +111,22 @@ dependencies {
 	// xaerolib is published only inside Xaero's mods (META-INF/jars): the minimap's copy.
 	compileOnly files(zipTree(configurations.xaero.find { it.name.startsWith("xaeros-minimap") }).matching { include "META-INF/jars/*.jar" })
 
-	// Development client only. The Modrinth releases below support Fabric on Minecraft 26.1.
-	clientPerformance "maven.modrinth:sodium:mc26.1.1-0.8.9-fabric"
+	// The metadata JAR lets Fabric enforce Sodium on clients while accepting dedicated servers.
+	runtimeOnly files(clientRequirements)
+	clientRuntimeOnly "maven.modrinth:sodium:mc26.1.1-0.8.9-fabric"
+
+	// Optional development-client mods.
 	clientPerformance "maven.modrinth:lithium:mc26.1.2-0.24.7-fabric"
 	clientPerformance "maven.modrinth:ferrite-core:9.0.0-fabric"
+	clientMenu "maven.modrinth:modmenu:18.0.2"
 }
 
-// Keep the clean client and dedicated-server runs as comparison baselines.
+// Keep the clean client free of optional mods.
 def performanceMods = providers.gradleProperty("noPerformanceMods").isPresent() ? [] : configurations.clientPerformance.files.toList()
-def clientMods = configurations.xaero.files.toList() + performanceMods
+def playtestMods = configurations.clientMenu.files.toList() + performanceMods
+def clientMods = configurations.xaero.files.toList() + playtestMods
 loom.runs.client.vmArg "-Dfabric.addMods=${clientMods.join(File.pathSeparator)}"
-if (!performanceMods.isEmpty()) {
-	loom.runs.playtest.vmArg "-Dfabric.addMods=${performanceMods.join(File.pathSeparator)}"
-}
+loom.runs.playtest.vmArg "-Dfabric.addMods=${playtestMods.join(File.pathSeparator)}"
 
 processResources {
 	def version = project.version
@@ -134,4 +149,7 @@ java {
 // The data sources' licences ask for attribution wherever the mod is passed on.
 jar {
 	from("CREDITS.md", "LICENSE")
+	from(clientRequirements) {
+		into("META-INF/jars")
+	}
 }

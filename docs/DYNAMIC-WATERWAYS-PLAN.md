@@ -4,7 +4,14 @@ Mapped currents now activate automatically when Earth chunks load. They follow O
 waterway lines and extend across mapped river surfaces. Gaia uses the existing water surface
 elevation to keep currents out of caves and unrelated water above the channel. Saved Earth worlds
 gain currents as their chunks load, and the current data is saved and synced with each chunk.
-The later phases cover changes to channel shape, variable current strength and waterfalls.
+Currents turn gradually through bends and use the estimated channel depth and downstream water
+surface slope to vary speed. The model uses the depth and slope terms of [Manning's open-channel
+formula](https://pubs.usgs.gov/of/1992/0290/report.pdf) to estimate relative game speed. Gaia's
+carved beds approximate channel depth, and a conservative fallback covers narrow or sharply curving
+reaches where both slope samples cannot be read. Channel reshaping and waterfalls remain later phases.
+The saved current field also records the bed limit so shallow rivers cannot push water beneath their
+channel. A downstream probe reduces the current as the mapped channel meets the sea. Map lookups
+start near the chunk and search farther only when a mapped river polygon needs a centreline.
 
 To try the prototype, stand at a still water surface on Earth and run `/earth water test` as an
 operator. It sets an eastward current in a temporary 32-by-32 area, four blocks deep. Append a heading
