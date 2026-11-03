@@ -54,6 +54,7 @@ public final class EarthCommand {
 	public static void register(CommandDispatcher<CommandSourceStack> dispatcher, int teleportPermissionLevel) {
 		dispatcher.register(Commands.literal("earth")
 			.then(Commands.literal("where").executes(ctx -> where(ctx.getSource())))
+			.then(se.itssimple.realearth.hydrology.RiverCurrentDemo.command())
 			.then(Commands.literal("perf")
 				.requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
 				.executes(ctx -> {

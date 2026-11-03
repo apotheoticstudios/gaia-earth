@@ -34,7 +34,7 @@ final class WayRaster {
 	}
 
 	static void apply(TerrainField field, ChunkTerrain t, Map<Long, ProcessedTile> tiles, double[] sx, double[] sy, boolean[] onGlobe,
-		List<OsmWater.Way> ways, Bridges.Network bridges, int chunkX, int chunkZ, boolean roads, boolean rails) {
+		List<OsmWater.Way> ways, Bridges.Network bridges, int chunkX, int chunkZ, boolean roads, boolean rails, Map<Long, Integer> railEnds) {
 		int n = ChunkTerrain.SPAN;
 		int centre = ChunkTerrain.index(8, 8);
 		double minSX = Double.MAX_VALUE;
@@ -62,21 +62,45 @@ final class WayRaster {
 		double[] deck = new double[n * n];
 		Arrays.fill(target, Double.NaN);
 		Arrays.fill(deck, Double.NaN);
-		double[] near = new double[5];
+		double[] near = new double[7];
+
+		// Road bridges side by side, their edges overlapping: a column goes to the one whose centreline is
+		// clearly the nearer, whatever their kinds, so each keeps its own deck down its middle. (Where they
+		// cross, the higher kind still wins.)
+		double[] bridgeNear = new double[n * n];
+		double[] bridgeDx = new double[n * n];
+		double[] bridgeDz = new double[n * n];
+		Arrays.fill(bridgeNear, Double.MAX_VALUE);
+		for (OsmWater.Way way : ways) {
+			Bridges.Run run = bridges.runOf.get(way);
+			double half = half(way, perMeter) / spacing;
+			if (!roads || !way.bridge() || run == null || isRail(way) || !reaches(way, half + 1, minSX, minSY, maxSX, maxSY)) {
+				continue;
+			}
+			for (int k = 0; k < n * n; k++) {
+				if (onGlobe[k] && covers(way, run, t, k, sx[k], sy[k], half, near) && near[0] < bridgeNear[k]) {
+					bridgeNear[k] = near[0];
+					bridgeDx[k] = near[5];
+					bridgeDz[k] = near[6];
+				}
+			}
+		}
+		double clearlyNearer = 0.5 / perMeter / spacing;
 
 		for (OsmWater.Way way : ways) {
-			boolean rail = way.kind() == Ways.RAIL || way.kind() == Ways.TRAM;
+			boolean rail = isRail(way);
 			if (rail ? !rails : !roads) {
 				continue;
 			}
-			// At least a block wide, wherever the map is shrunk.
-			double half = rail ? Math.max(RAIL_BED_HALF_METERS, 1.5 / perMeter) : Math.max(way.widthMeters() / 2, 0.55 / perMeter);
-			double margin = half / spacing + 1;
-			if (way.maxX() < minSX - margin || way.minX() > maxSX + margin || way.maxY() < minSY - margin || way.minY() > maxSY + margin) {
+			double half = half(way, perMeter);
+			if (!reaches(way, half / spacing + 1, minSX, minSY, maxSX, maxSY)) {
 				continue;
 			}
 			byte kind = rail ? Ways.RAIL_BED : way.kind();
 			Bridges.Run run = way.bridge() ? bridges.runOf.get(way) : null;
+			if (way.bridge() && run == null) {
+				continue; // a neighbouring map tile's copy of a piece of bridge (see Bridges.runs): that tile lays it
+			}
 			double[] wp = way.points();
 			double rampStart = way.bridge() ? Double.NaN : bridges.anchors.getOrDefault(Bridges.node(wp[0], wp[1]), Double.NaN);
 			double rampEnd = way.bridge() ? Double.NaN : bridges.anchors.getOrDefault(Bridges.node(wp[wp.length - 2], wp[wp.length - 1]), Double.NaN);
@@ -85,20 +109,16 @@ final class WayRaster {
 				if (!onGlobe[k] || (way.bridge() ? kind < t.deckWay[k] : kind < t.way[k] && Double.isNaN(deck[k]))) {
 					continue;
 				}
-				nearest(way.points(), sx[k], sy[k], near);
-				if (near[0] * spacing > half) {
+				if (way.bridge() ? !covers(way, run, t, k, sx[k], sy[k], half / spacing, near) : !nearest(way.points(), sx[k], sy[k], near, half / spacing)) {
 					continue;
+				}
+				if (way.bridge() && !rail && bridgeNear[k] < near[0] - clearlyNearer && Math.abs(bridgeDx[k] * near[5] + bridgeDz[k] * near[6]) > 0.7) {
+					continue; // another bridge alongside, its centreline the nearer
 				}
 				double h = TerrainField.splineHeight(tiles, near[1], near[2]);
 				boolean lifted = false;
 				if (way.bridge()) {
-					double d = run == null ? Double.NaN : run.heightOnWay(way, near[3], near[4]);
-					// Past the run's own ends the bridge stops: what lies beyond is the road it joins,
-					// ramping on from there, not a cap of deck sticking out at the deck's height.
-					double s = run == null ? Double.NaN : run.positionOnWay(way, near[3], near[4]);
-					if (!Double.isNaN(s) && (s <= 1e-6 || s >= run.length() - 1e-6) && Float.isNaN(t.waterMeters[k])) {
-						continue;
-					}
+					double d = run.heightOnWay(way, near[3], near[4]);
 					if (!Double.isNaN(d)) {
 						if (!Float.isNaN(t.waterMeters[k]) || (d - t.groundMeters[k]) * perMeter >= DECK_MIN_BLOCKS) {
 							if (kind >= t.deckWay[k]) {
@@ -133,7 +153,7 @@ final class WayRaster {
 				Bridges.Run railRun = run;
 				double railRampStart = rampStart;
 				double railRampEnd = rampEnd;
-				double[] q = new double[5];
+				double[] q = new double[7];
 				RailTracks.trace(field, t, way, chunkX, chunkZ, deck, false, (px, py) -> {
 					nearest(way.points(), px, py, q);
 					double h = TerrainField.splineHeight(tiles, q[1], q[2]);
@@ -146,7 +166,7 @@ final class WayRaster {
 					double cone = Math.max(Double.isNaN(railRampStart) ? Double.NEGATIVE_INFINITY : railRampStart - Bridges.GRADIENT * fromStart,
 						Double.isNaN(railRampEnd) ? Double.NEGATIVE_INFINITY : railRampEnd - Bridges.GRADIENT * fromEnd);
 					return Math.max(h, cone);
-				});
+				}, railEnds);
 			}
 		}
 		if (rails) {
@@ -191,9 +211,43 @@ final class WayRaster {
 		}
 	}
 
+	private static boolean isRail(OsmWater.Way way) {
+		return way.kind() == Ways.RAIL || way.kind() == Ways.TRAM;
+	}
+
+	/** Half a way's width in metres: at least a block wide, wherever the map is shrunk. */
+	private static double half(OsmWater.Way way, double perMeter) {
+		return isRail(way) ? Math.max(RAIL_BED_HALF_METERS, 1.5 / perMeter) : Math.max(way.widthMeters() / 2, 0.55 / perMeter);
+	}
+
+	/** Whether a way's box comes within {@code margin} samples of the chunk's. */
+	private static boolean reaches(OsmWater.Way way, double margin, double minSX, double minSY, double maxSX, double maxSY) {
+		return way.maxX() >= minSX - margin && way.minX() <= maxSX + margin && way.maxY() >= minSY - margin && way.minY() <= maxSY + margin;
+	}
+
+	/**
+	 * Whether a bridge way is laid on column k, {@code half} samples either side of its centreline (its
+	 * nearest point into {@code near}). Past the run's own ends the bridge stops: what lies beyond is the
+	 * road it joins, ramping on from there, not a cap of deck sticking out at the deck's height.
+	 */
+	private static boolean covers(OsmWater.Way way, Bridges.Run run, ChunkTerrain t, int k, double x, double y, double half, double[] near) {
+		if (!nearest(way.points(), x, y, near, half)) {
+			return false;
+		}
+		double s = run.positionOnWay(way, near[3], near[4]);
+		return Double.isNaN(s) || s > 1e-6 && s < run.length() - 1e-6 || !Float.isNaN(t.waterMeters[k]);
+	}
+
+	/** {@link #nearest}, and whether the point lies within {@code half} of the line. */
+	private static boolean nearest(double[] p, double x, double y, double[] out, double half) {
+		nearest(p, x, y, out);
+		return out[0] <= half;
+	}
+
 	/**
 	 * Nearest point of a polyline to (x, y): out[0] distance, out[1..2] the point, out[3] distance
-	 * along the line to it, out[4] the line's length. All in sample units.
+	 * along the line to it, out[4] the line's length, out[5..6] the direction of the line there. All in
+	 * sample units.
 	 */
 	private static void nearest(double[] p, double x, double y, double[] out) {
 		double best = Double.MAX_VALUE;
@@ -213,6 +267,8 @@ final class WayRaster {
 				out[1] = qx;
 				out[2] = qy;
 				out[3] = length + u * segment;
+				out[5] = segment > 0 ? dx / segment : 0;
+				out[6] = segment > 0 ? dy / segment : 0;
 			}
 			length += segment;
 		}

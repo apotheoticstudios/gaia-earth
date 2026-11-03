@@ -478,7 +478,8 @@ public final class Tunnels {
 	 * out, and the floor's height; track laid along the railway ones. (A shallow one takes its way through
 	 * a building over it: see Buildings.)
 	 */
-	static void apply(TerrainField field, ChunkTerrain t, List<Run> runs, double[] sx, double[] sy, boolean[] onGlobe, int chunkX, int chunkZ) {
+	static void apply(TerrainField field, ChunkTerrain t, List<Run> runs, double[] sx, double[] sy, boolean[] onGlobe, int chunkX, int chunkZ,
+		Map<Long, Integer> railEnds) {
 		int n = ChunkTerrain.SPAN;
 		for (Run run : runs) {
 			for (int k = 0; k < n * n; k++) {
@@ -510,7 +511,7 @@ public final class Tunnels {
 				RailTracks.trace(field, t, run.asWay(), chunkX, chunkZ, null, true, (px, py) -> {
 					distance(run, px, py, along);
 					return run.floorAt(along[0]);
-				});
+				}, railEnds);
 			}
 		}
 		RailTracks.joinPortals(t);

@@ -2,6 +2,7 @@ package se.itssimple.realearth.terrain;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import se.itssimple.realearth.geo.Mercator;
 import se.itssimple.realearth.geo.Projection;
 import se.itssimple.realearth.osm.OsmWater;
@@ -53,8 +54,13 @@ final class RailTracks {
 	 * then is set so the track can be ridden: a curve stands as high as the higher of its neighbours
 	 * (rails only slope where they run straight), and a straight rail sunk between two higher ones, or
 	 * standing proud of two lower ones, is brought level with the nearer.
+	 *
+	 * {@code ends} holds the rail's Y at each end of the lines on the ground, by cell: they are laid first,
+	 * and a tunnel's line coming out where one ends (its portal) stands at the same height there, so its
+	 * curves next to the portal are raised to meet it.
 	 */
-	static void trace(TerrainField field, ChunkTerrain t, OsmWater.Way way, int chunkX, int chunkZ, double[] deck, boolean tunnel, Heights heights) {
+	static void trace(TerrainField field, ChunkTerrain t, OsmWater.Way way, int chunkX, int chunkZ, double[] deck, boolean tunnel, Heights heights,
+		Map<Long, Integer> ends) {
 		Projection projection = field.projection();
 		List<int[]> cells = walk(projection, way, chunkX * 16 + 8);
 		int baseX = chunkX * 16;
@@ -74,6 +80,12 @@ final class RailTracks {
 			if (!Double.isNaN(m)) {
 				level[i] = (int) Math.round(field.toY(m, lat));
 				known[i] = true;
+			}
+		}
+		for (int i : new int[] {0, n - 1}) {
+			Integer ground = tunnel && known[i] ? ends.get(cell(cells.get(i))) : null;
+			if (ground != null && Math.abs(ground - level[i]) <= 1) {
+				level[i] = ground;
 			}
 		}
 		// Curves as high as the higher neighbour; then straights out of a dip or off a peak.
@@ -108,6 +120,11 @@ final class RailTracks {
 				}
 			}
 		}
+		for (int i : new int[] {0, n - 1}) {
+			if (!tunnel && known[i]) {
+				ends.merge(cell(cells.get(i)), ridden[i], Math::max);
+			}
+		}
 		int[] prev = null;
 		boolean prevKept = false;
 		int[] levels = tunnel ? t.tunnelRailY : t.railY;
@@ -135,6 +152,10 @@ final class RailTracks {
 			prev = c;
 			prevKept = kept;
 		}
+	}
+
+	private static long cell(int[] c) {
+		return ((long) c[0] << 32) ^ (c[1] & 0xFFFFFFFFL);
 	}
 
 	/** Whether the line turns at cell i: it comes in one way and goes on another. */

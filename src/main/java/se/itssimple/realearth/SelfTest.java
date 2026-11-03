@@ -10,14 +10,19 @@ import java.util.Map;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import io.netty.buffer.Unpooled;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -25,6 +30,7 @@ import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.phys.Vec3;
 import se.itssimple.realearth.command.AreaDownload;
 import se.itssimple.realearth.command.ChunkRepair;
 import se.itssimple.realearth.climate.Snowline;
@@ -32,6 +38,7 @@ import se.itssimple.realearth.data.DiskCache;
 import se.itssimple.realearth.data.TileStore;
 import se.itssimple.realearth.geo.Mercator;
 import se.itssimple.realearth.geo.Projection;
+import se.itssimple.realearth.hydrology.CurrentDemoPayload;
 import se.itssimple.realearth.world.BiomePicker;
 import se.itssimple.realearth.world.ClimateLink;
 import se.itssimple.realearth.world.DegradedChunks;
@@ -1138,6 +1145,60 @@ final class SelfTest {
 	 * The checks in the world, as phases: each is run as a server task of its own, with the server let
 	 * run between them, so no one tick holds everything the checks load.
 	 */
+	private static void testWaterCurrent(ServerLevel earth) {
+		Projection projection = RealEarth.terrain().projection();
+		int x = (int) Math.floor(projection.blockX(60.88, 14.75));
+		int z = (int) Math.floor(projection.blockZ(60.88));
+		var chunk = earth.getChunk(x >> 4, z >> 4);
+		int y = chunk.getHeight(Heightmap.Types.WORLD_SURFACE, x & 15, z & 15);
+		BlockPos surface = new BlockPos(x, y, z);
+		Vec3 centre = Vec3.atCenterOf(surface);
+		var server = earth.getServer();
+		var source = server.createCommandSourceStack().withLevel(earth).withPosition(centre).withSuppressedOutput();
+		var commands = server.getCommands();
+		var water = earth.getFluidState(surface);
+		check(water.isSource() && earth.getBlockState(surface).is(Blocks.WATER), "current test starts at a water surface");
+		var payload = new CurrentDemoPayload(earth.dimension(), surface, (byte) 0);
+		var buffer = new FriendlyByteBuf(Unpooled.buffer());
+		try {
+			CurrentDemoPayload.CODEC.encode(buffer, payload);
+			var received = CurrentDemoPayload.CODEC.decode(buffer);
+			check(received.equals(payload) && received.appliesTo(earth)
+				&& !received.appliesTo(server.getLevel(net.minecraft.world.level.Level.NETHER)),
+				"current packet keeps its position, direction and dimension");
+		} finally {
+			buffer.release();
+		}
+		try {
+			commands.performPrefixedCommand(source, "earth water test");
+			Vec3 flow = water.getFlow(earth, surface);
+			check(flow.x > 0.99 && Math.abs(flow.z) < 1e-6, "test current points east (%s)", flow);
+
+			ItemEntity item = new ItemEntity(earth, centre.x, y + 0.25, centre.z, new ItemStack(Items.STICK), 0, 0, 0);
+			double startX = item.getX();
+			for (int i = 0; i < 20; i++) item.tick();
+			check(item.getX() > startX + 0.25, "dropped item drifts east by %.2f blocks", item.getX() - startX);
+
+			var boat = EntityType.OAK_BOAT.create(earth, EntitySpawnReason.COMMAND);
+			boat.setPos(centre.x, y + 0.7, centre.z);
+			for (int i = 0; i < 20; i++) boat.tick();
+			check(boat.getX() > centre.x + 0.25, "unoccupied boat drifts east by %.2f blocks", boat.getX() - centre.x);
+
+			BlockPos below = surface.below(4);
+			check(earth.getFluidState(below).getFlow(earth, below).lengthSqr() < 1e-9,
+				"water below the test zone stays still");
+			commands.performPrefixedCommand(source.withPosition(centre.add(0, -1, 0)), "earth water test 180");
+			Vec3 west = water.getFlow(earth, surface);
+			check(west.x < -0.99 && Math.abs(west.z) < 1e-6, "a submerged swimmer can set a due west current");
+			commands.performPrefixedCommand(source, "earth water test 90");
+			Vec3 south = water.getFlow(earth, surface);
+			check(south.z > 0.99 && Math.abs(south.x) < 1e-6, "a 90 degree heading points due south");
+		} finally {
+			commands.performPrefixedCommand(source, "earth water off");
+		}
+		check(water.getFlow(earth, surface).lengthSqr() < 1e-9, "turning off the test restores still water");
+	}
+
 	private static List<Map.Entry<String, Runnable>> inWorld(MinecraftServer server) {
 		List<Map.Entry<String, Runnable>> phases = new ArrayList<>();
 		ServerLevel earth = RealEarth.earthLevel(server);
@@ -1883,6 +1944,8 @@ final class SelfTest {
 				check(water && ok == 20, "fish may spawn in lakes above the sea (%d of 20)", ok);
 			}
 		}));
+
+		phases.add(Map.entry("Water current", () -> testWaterCurrent(earth)));
 
 		// Railways you can ride: every rail joins the next, on the ground, over bridges and through tunnels.
 		// Karlberg's yards; the main line by Marsta; the Arlanda line going under ground; Gothenburg's rail

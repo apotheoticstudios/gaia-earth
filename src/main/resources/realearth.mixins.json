@@ -16,12 +16,16 @@
     "SlimeSpawnMixin",
     "StructureTemplateAccessor",
     "TreeFeatureMixin",
+    "RiverWaterFlowMixin",
     "WaterAnimalSpawnMixin"
   ],
   "injectors": {
     "defaultRequire": 1
   },
   "client": [
-    "ClientLevelDataMixin"
+    "CanopyBlockUpdateMixin",
+    "CanopyRenderRegionMixin",
+    "ClientLevelDataMixin",
+    "RiverRenderRegionMixin"
   ]
 }

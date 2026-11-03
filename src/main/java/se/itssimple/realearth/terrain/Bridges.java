@@ -168,13 +168,25 @@ final class Bridges {
 	}
 
 	/**
+	 * Whether a way lies wholly in the strip its map tile reaches into its neighbours: a copy of a piece
+	 * the neighbour has too. Laid as a run of its own beside that piece, it would be a second deck.
+	 */
+	static boolean outsideOwnTile(OsmWater.Way w) {
+		// The tile's own samples, in the frame its ways are given in (see OsmWater).
+		double per = Mercator.TILE_SIZE * (double) (1 << (Mercator.ZOOM - OsmWater.ZOOM));
+		double x0 = w.tileX() * per - 0.5;
+		double y0 = w.tileY() * per - 0.5;
+		return w.maxX() < x0 || w.minX() >= x0 + per || w.maxY() < y0 || w.minY() >= y0 + per;
+	}
+
+	/**
 	 * Joins the bridge ways into runs. Ways are taken in a fixed order, so every chunk that sees the
 	 * same ways makes the same runs.
 	 */
 	static List<Run> runs(List<OsmWater.Way> ways) {
 		List<OsmWater.Way> bridges = new ArrayList<>();
 		for (OsmWater.Way w : ways) {
-			if (w.bridge() && w.points().length >= 4) {
+			if (w.bridge() && w.points().length >= 4 && !outsideOwnTile(w)) {
 				bridges.add(w);
 			}
 		}
@@ -211,7 +223,9 @@ final class Bridges {
 					double dy = p[a + 1] - p[b + 1];
 					OsmWater.Way next = null;
 					boolean nextRev = false;
-					double best = -2;
+					// A way turning back alongside the run (two pieces leaving one node the same way) is no
+					// carrying on.
+					double best = -0.5;
 					for (OsmWater.Way c : ends.getOrDefault(node(p[a], p[a + 1]), List.of())) {
 						if (used.containsKey(c) || railFamily(c.kind()) != rail) {
 							continue;

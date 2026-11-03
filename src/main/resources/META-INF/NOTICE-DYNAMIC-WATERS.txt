@@ -1,0 +1,13 @@
+This mod incorporates code adapted from Dynamic Waters by AdamNewGames under the
+Mozilla Public License, version 2.0. See LICENSE-DYNAMIC-WATERS.txt in this directory.
+
+Upstream source:
+https://github.com/AdamNewGames/dynamicwaters-public/tree/563ec7b559c32719155d6e808159896316dbe962
+
+Adapted portions:
+- VanillaRiverFlow.java: angle codec in hydrology/CurrentAngle.java.
+- mixin/FlowingFluidMixin.java: getFlow hook in mixin/RiverWaterFlowMixin.java.
+- network/SyncVanillaFlowPacket.java: packet structure in hydrology/CurrentDemoPayload.java.
+
+The corresponding modified sources are in the source tree for this build:
+https://github.com/apotheoticstudios/gaia-earth
