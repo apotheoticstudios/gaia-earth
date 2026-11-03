@@ -1479,15 +1479,39 @@ final class SelfTest {
 				java.util.Set.of("picea_abies", "bertholletia_excelsa", "araucaria_araucana", "pinus_taeda"), Map.of("araucaria_angustifolia", 11)),
 			new Forest("the Valdivian rainforest", -40.1, -72.9,
 				java.util.Set.of("nothofagus_obliqua", "laurelia_sempervirens", "aextoxicon_punctatum", "drimys_winteri", "luma_apiculata"),
-				java.util.Set.of("picea_abies", "quercus_robur", "araucaria_angustifolia", "pseudotsuga_menziesii"), Map.of("nothofagus_obliqua", 10)))) {
+				java.util.Set.of("picea_abies", "quercus_robur", "araucaria_angustifolia", "pseudotsuga_menziesii"), Map.of("nothofagus_obliqua", 10)),
+			new Forest("Victoria's mountain ash forest", -37.5, 145.5,
+				java.util.Set.of("eucalyptus_regnans", "nothofagus_cunninghamii", "eucalyptus_obliqua", "acacia_melanoxylon", "dicksonia_antarctica"),
+				java.util.Set.of("picea_abies", "quercus_robur", "eucalyptus_marginata", "agathis_australis"), Map.of("eucalyptus_regnans", 28)),
+			new Forest("Western Australia's jarrah forest", -32.7, 116.1,
+				java.util.Set.of("eucalyptus_marginata", "corymbia_calophylla", "banksia_grandis", "allocasuarina_fraseriana"),
+				java.util.Set.of("picea_abies", "eucalyptus_regnans", "agathis_australis", "eucalyptus_pilularis"), Map.of("eucalyptus_marginata", 9)),
+			new Forest("Kakadu", -12.9, 132.6, java.util.Set.of("eucalyptus_tetrodonta", "eucalyptus_miniata"),
+				java.util.Set.of("eucalyptus_regnans", "acacia_aneura", "picea_abies", "agathis_australis"), Map.of()),
+			new Forest("Waipoua's kauri forest", -35.6, 173.55,
+				java.util.Set.of("agathis_australis", "dacrydium_cupressinum", "beilschmiedia_tawa", "podocarpus_totara"),
+				java.util.Set.of("eucalyptus_regnans", "acacia_aneura", "picea_abies", "eucalyptus_marginata"), Map.of("agathis_australis", 15)))) {
 			phases.add(Map.entry("Real trees: " + f.name(), () -> {
 				TerrainField field = RealEarth.terrain();
 				Map<String, Long> before = se.itssimple.realearth.world.EarthTrees.placed();
 				Map<String, Long> heightsBefore = se.itssimple.realearth.world.EarthTrees.heights();
 				Map<String, long[]> perfBefore = Perf.snapshot();
-				// Somewhere new in the forest each run: trees only grow in chunks not generated before.
-				double lat = f.lat() + (Math.random() - 0.5) * 0.04;
-				double lon = f.lon() + (Math.random() - 0.5) * 0.08;
+				// Somewhere new in the forest each run, as trees only grow in chunks not generated before; and wooded, as forests
+				// have clearings, lakes, fields and burns: the first of a few tries whose middle chunk is a third tree cover.
+				double lat = f.lat();
+				double lon = f.lon();
+				for (int attempt = 0; attempt < 8; attempt++) {
+					lat = f.lat() + (Math.random() - 0.5) * 0.04 * (1 + attempt / 2);
+					lon = f.lon() + (Math.random() - 0.5) * 0.08 * (1 + attempt / 2);
+					ChunkTerrain middle = field.chunk((int) field.projection().blockX(lat, lon) >> 4, (int) field.projection().blockZ(lat) >> 4).join();
+					int wooded = 0;
+					for (int k = 0; k < 256; k++) {
+						wooded += middle.coverAt(k & 15, k >> 4) == se.itssimple.realearth.landcover.WorldCover.TREES ? 1 : 0;
+					}
+					if (wooded >= 256 / 3) {
+						break;
+					}
+				}
 				int cx0 = (int) field.projection().blockX(lat, lon) >> 4;
 				int cz0 = (int) field.projection().blockZ(lat) >> 4;
 				int leaves = 0;
