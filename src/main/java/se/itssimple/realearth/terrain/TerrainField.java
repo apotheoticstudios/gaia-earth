@@ -18,6 +18,8 @@ import se.itssimple.realearth.osm.OsmWater;
 import se.itssimple.realearth.data.TileStore;
 import se.itssimple.realearth.geo.Mercator;
 import se.itssimple.realearth.geo.Projection;
+import se.itssimple.realearth.hydrology.CurrentAngle;
+import se.itssimple.realearth.hydrology.MappedCurrents;
 
 /**
  * The terrain of the Earth dimension: block columns in, ground and water heights out.
@@ -397,6 +399,57 @@ public final class TerrainField implements AutoCloseable {
 	/** Blocks until the chunk is known. For commands and portals, never for world generation. */
 	public ChunkTerrain chunkBlocking(int chunkX, int chunkZ, long timeoutSeconds) throws Exception {
 		return chunk(chunkX, chunkZ).get(timeoutSeconds, TimeUnit.SECONDS);
+	}
+
+	/** Read only the water geometry and elevation needed for currents, including in old chunks. */
+	public CompletableFuture<MappedCurrents.Field> mappedCurrents(int chunkX, int chunkZ) {
+		if (map == null) return CompletableFuture.completedFuture(MappedCurrents.EMPTY);
+		double nearX = chunkX * 16 + 8;
+		double midLat = projection.latitudeAt(chunkZ * 16 + 8);
+		if (!projection.onGlobe(midLat, projection.longitudeOffsetAt(nearX, midLat))
+			|| Math.abs(midLat) >= Mercator.MAX_LATITUDE) return CompletableFuture.completedFuture(MappedCurrents.EMPTY);
+		double reference = Mercator.sampleX(projection.longitudeAt(nearX, midLat));
+		double[] x = new double[256], y = new double[256], latitude = new double[256];
+		double minX = Double.POSITIVE_INFINITY, minY = Double.POSITIVE_INFINITY;
+		double maxX = Double.NEGATIVE_INFINITY, maxY = Double.NEGATIVE_INFINITY;
+		for (int i = 0; i < 256; i++) {
+			latitude[i] = projection.latitudeAt(chunkZ * 16 + (i >> 4) + 0.5);
+			x[i] = MappedCurrents.near(Mercator.sampleX(projection.longitudeAt(chunkX * 16 + (i & 15) + 0.5, latitude[i])), reference);
+			y[i] = Mercator.sampleY(latitude[i]);
+			minX = Math.min(minX, x[i]); maxX = Math.max(maxX, x[i]);
+			minY = Math.min(minY, y[i]); maxY = Math.max(maxY, y[i]);
+		}
+		int reach = MappedCurrents.REACH_SAMPLES;
+		List<CompletableFuture<OsmWater.Shapes>> geometry = OsmWater.tilesCovering(
+			(long) Math.floor(minX) - reach, (long) Math.floor(minY) - reach,
+			(long) Math.ceil(maxX) + reach, (long) Math.ceil(maxY) + reach)
+			.stream().map(tile -> map.tile(tile[0], tile[1])).toList();
+		return CompletableFuture.allOf(geometry.toArray(CompletableFuture[]::new)).thenComposeAsync(ignored -> {
+			List<OsmWater.Shapes> shapes = geometry.stream().map(CompletableFuture::join).toList();
+			if (shapes.stream().anyMatch(OsmWater.Shapes::failed)) return CompletableFuture.completedFuture(null);
+			byte[] angles = MappedCurrents.directions(projection, nearX, x, y, shapes);
+			Map<Long, CompletableFuture<ProcessedTile>> elevations = new HashMap<>();
+			for (int i = 0; i < 256; i++) {
+				if (angles[i] == CurrentAngle.NONE) continue;
+				long sx = (long) Math.floor(x[i]), sy = (long) Math.floor(y[i]);
+				addTiles(elevations, sx - 1, sx + 2, sy - 1, sy + 2);
+			}
+			if (elevations.isEmpty()) return CompletableFuture.completedFuture(MappedCurrents.EMPTY);
+			return CompletableFuture.allOf(elevations.values().toArray(CompletableFuture[]::new)).thenApplyAsync(done -> {
+				Map<Long, ProcessedTile> tiles = new HashMap<>();
+				elevations.forEach((key, tile) -> tiles.put(key, tile.join()));
+				if (tiles.values().stream().anyMatch(tile -> tile.degraded || tile.mapWater == null)) return null;
+				int[] surface = new int[256];
+				float[] sample = new float[3];
+				for (int i = 0; i < 256; i++) {
+					if (angles[i] == CurrentAngle.NONE) continue;
+					sample(tiles, x[i], y[i], sample);
+					if (Float.isNaN(sample[1])) angles[i] = CurrentAngle.NONE;
+					else surface[i] = (int) Math.round(toY(sample[1], latitude[i])) - 1;
+				}
+				return MappedCurrents.of(angles, surface);
+			}, workers);
+		}, workers);
 	}
 
 	private CompletableFuture<ChunkTerrain> computeChunk(int chunkX, int chunkZ) {

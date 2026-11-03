@@ -39,6 +39,7 @@ import se.itssimple.realearth.data.TileStore;
 import se.itssimple.realearth.geo.Mercator;
 import se.itssimple.realearth.geo.Projection;
 import se.itssimple.realearth.hydrology.CurrentDemoPayload;
+import se.itssimple.realearth.hydrology.MappedCurrents;
 import se.itssimple.realearth.world.BiomePicker;
 import se.itssimple.realearth.world.ClimateLink;
 import se.itssimple.realearth.world.DegradedChunks;
@@ -89,6 +90,12 @@ final class SelfTest {
 
 	private static void run(MinecraftServer server) {
 		try {
+			if ("Mapped waterways".equals(System.getProperty("realearth.selftestOnly"))) {
+				testMappedWaterways(server);
+				log(FAILURES.isEmpty() ? "PASS" : "FAIL (%d): %s", FAILURES.size(), FAILURES);
+				server.execute(() -> server.halt(false));
+				return;
+			}
 			TerrainField field = RealEarth.terrain();
 			VerticalScale scale = field.scale();
 
@@ -1145,6 +1152,73 @@ final class SelfTest {
 	 * The checks in the world, as phases: each is run as a server task of its own, with the server let
 	 * run between them, so no one tick holds everything the checks load.
 	 */
+	private static void testMappedWaterways(MinecraftServer server) throws Exception {
+		ServerLevel earth = RealEarth.earthLevel(server);
+		TerrainField field = RealEarth.terrain();
+		Projection projection = field.projection();
+		if (projection instanceof Projection.WebMercator) {
+			// Outside the mapped latitude range, current resolution returns an already-completed future.
+			// Loading a wet chunk here used to wait on its own full-chunk future.
+			int polarZ = ((int) Math.floor(projection.blockZ(86))) >> 4;
+			var empty = field.mappedCurrents(0, polarZ);
+			check(empty.isDone() && empty.join().isEmpty(), "polar ocean has an immediately available empty current");
+			var polar = server.submit(() -> {
+				earth.setChunkForced(0, polarZ, true);
+				return earth.getChunk(0, polarZ);
+			}).get(60, java.util.concurrent.TimeUnit.SECONDS);
+			check(waitForCurrent(server, polar), "loading polar ocean defers its ready current without blocking the server");
+			server.submit(() -> earth.setChunkForced(0, polarZ, false)).join();
+		}
+		int x = (int) Math.floor(projection.blockX(59.328334, 18.067459));
+		int z = (int) Math.floor(projection.blockZ(59.328334));
+		// Allow for tile resolution and the channel's bends around the real-world reference point.
+		ChunkPos river = null;
+		for (int dz : new int[] {0, -1, 1}) {
+			for (int dx : new int[] {0, -1, 1}) {
+				int cx = (x >> 4) + dx, cz = (z >> 4) + dz;
+				var currents = field.mappedCurrents(cx, cz).get(60, java.util.concurrent.TimeUnit.SECONDS);
+				if (currents != null && !currents.isEmpty()) {
+					river = new ChunkPos(cx, cz);
+					break;
+				}
+			}
+			if (river != null) break;
+		}
+		check(river != null, "mapped Norrstrom has downstream current columns");
+		if (river == null) return;
+		ChunkPos pos = river;
+		var chunk = server.submit(() -> {
+			earth.setChunkForced(pos.x(), pos.z(), true);
+			return earth.getChunk(pos.x(), pos.z());
+		}).join();
+		check(waitForCurrent(server, chunk), "mapped currents attach automatically when an Earth chunk loads");
+		boolean moving = server.submit(() -> {
+			for (int dz = 0; dz < 16; dz++) {
+				for (int dx = 0; dx < 16; dx++) {
+					int y = chunk.getHeight(Heightmap.Types.WORLD_SURFACE, dx, dz);
+					BlockPos at = new BlockPos(pos.getMinBlockX() + dx, y, pos.getMinBlockZ() + dz);
+					if (earth.getBlockState(at).is(Blocks.WATER) && MappedCurrents.flowAt(earth, at).lengthSqr() > 0.9
+						&& earth.getFluidState(at).getFlow(earth, at).lengthSqr() > 0.9) return true;
+				}
+			}
+			return false;
+		}).join();
+		check(moving, "ordinary water in the mapped river exposes a current without a test zone");
+		server.submit(() -> earth.setChunkForced(pos.x(), pos.z(), false)).join();
+		int lakeX = (int) Math.floor(projection.blockX(60.88, 14.75));
+		int lakeZ = (int) Math.floor(projection.blockZ(60.88));
+		var lake = field.mappedCurrents(lakeX >> 4, lakeZ >> 4).get(60, java.util.concurrent.TimeUnit.SECONDS);
+		check(lake != null && lake.isEmpty(), "mapped lake Siljan stays still");
+	}
+
+	private static boolean waitForCurrent(MinecraftServer server, LevelChunk chunk) throws Exception {
+		for (int i = 0; i < 120; i++) {
+			if (server.submit(() -> chunk.hasAttached(MappedCurrents.TYPE)).get(10, java.util.concurrent.TimeUnit.SECONDS)) return true;
+			Thread.sleep(250);
+		}
+		return false;
+	}
+
 	private static void testWaterCurrent(ServerLevel earth) {
 		Projection projection = RealEarth.terrain().projection();
 		int x = (int) Math.floor(projection.blockX(60.88, 14.75));

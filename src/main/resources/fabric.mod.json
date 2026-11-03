@@ -24,6 +24,10 @@
   "mixins": [
     "realearth.mixins.json",
     {
+      "config": "realearth.sodium.mixins.json",
+      "environment": "client"
+    },
+    {
       "config": "realearth.xaero.mixins.json",
       "environment": "client"
     }

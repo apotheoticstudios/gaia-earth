@@ -5,15 +5,15 @@ package se.itssimple.realearth.hydrology;
 import net.minecraft.world.phys.Vec3;
 
 /** Quantised world-space direction, measured from east towards south. */
-final class CurrentAngle {
-	static final byte NONE = (byte) 255;
+public final class CurrentAngle {
+	public static final byte NONE = (byte) 255;
 	// Use a multiple of four so each cardinal heading has an exact slot.
 	private static final int STEPS = 252;
 
 	private CurrentAngle() {
 	}
 
-	static byte encode(double angle) {
+	public static byte encode(double angle) {
 		double a = angle % (Math.PI * 2.0);
 		if (a < 0) a += Math.PI * 2.0;
 		return (byte) (Math.round(a / (Math.PI * 2.0) * STEPS) % STEPS);

@@ -129,6 +129,7 @@ public class RealEarth implements ModInitializer {
 		se.itssimple.realearth.world.MapWaypoints.register();
 		se.itssimple.realearth.world.ClimateLink.register();
 		se.itssimple.realearth.hydrology.RiverCurrentDemo.register();
+		se.itssimple.realearth.hydrology.MappedCurrents.register();
 
 		ServerLifecycleEvents.SERVER_STARTING.register(RealEarth::start);
 		ServerLifecycleEvents.SERVER_STOPPED.register(server -> {

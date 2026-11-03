@@ -40,7 +40,20 @@ public final class OsmWater {
 	private static final Set<String> PLACE_LAYER = Set.of("place");
 
 	/** A water area: rings of interleaved x,y in global z15 sample coordinates. Even-odd filled. */
-	public record Area(List<double[]> rings, boolean sea) {
+	public record Area(List<double[]> rings, boolean sea, boolean river, double minX, double minY, double maxX, double maxY) {
+		private static Area of(List<double[]> rings, String cls) {
+			double minX = Double.POSITIVE_INFINITY, minY = Double.POSITIVE_INFINITY;
+			double maxX = Double.NEGATIVE_INFINITY, maxY = Double.NEGATIVE_INFINITY;
+			for (double[] ring : rings) {
+				for (int i = 0; i < ring.length; i += 2) {
+					minX = Math.min(minX, ring[i]);
+					minY = Math.min(minY, ring[i + 1]);
+					maxX = Math.max(maxX, ring[i]);
+					maxY = Math.max(maxY, ring[i + 1]);
+				}
+			}
+			return new Area(rings, "ocean".equals(cls), "river".equals(cls), minX, minY, maxX, maxY);
+		}
 	}
 
 	/** A waterway centreline, and how wide to draw it. */
@@ -390,7 +403,7 @@ public final class OsmWater {
 				if ("swimming_pool".equals(cls)) {
 					continue;
 				}
-				areas.add(new Area(parts, "ocean".equals(cls)));
+				areas.add(Area.of(parts, cls));
 			} else if (f.layer().equals("transportation") && f.type() == VectorTile.LINE) {
 				byte kind = Ways.kind(cls, f.string("subclass"));
 				if (kind != Ways.NONE) {

@@ -120,6 +120,29 @@ final class RailTracks {
 				}
 			}
 		}
+		// A curve raised beside a slope (by a portal, or on a steep stretch) can leave the rail next to it two
+		// blocks down: the lower rail is raised to climb to it, then curves and dips are put right again,
+		// along the line until it can be ridden. A line that already can be is left as it is.
+		for (int sweep = 0, changed = 1; changed > 0 && sweep < 64; sweep++) {
+			changed = 0;
+			for (int i = 0; i + 1 < n; i++) {
+				if (known[i] && known[i + 1] && Math.abs(ridden[i] - ridden[i + 1]) > 1) {
+					ridden[ridden[i] < ridden[i + 1] ? i : i + 1] = Math.max(ridden[i], ridden[i + 1]) - 1;
+					changed++;
+				}
+			}
+			for (int i = 1; i + 1 < n; i++) {
+				if (known[i] && known[i - 1] && known[i + 1]) {
+					int a = ridden[i - 1];
+					int b = ridden[i + 1];
+					int up = curve(cells, i) ? Math.max(a, b) : a > ridden[i] && b > ridden[i] ? Math.min(a, b) : ridden[i];
+					if (up > ridden[i]) {
+						ridden[i] = up;
+						changed++;
+					}
+				}
+			}
+		}
 		for (int i : new int[] {0, n - 1}) {
 			if (!tunnel && known[i]) {
 				ends.merge(cell(cells.get(i)), ridden[i], Math::max);

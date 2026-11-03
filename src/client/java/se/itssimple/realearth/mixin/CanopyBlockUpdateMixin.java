@@ -53,9 +53,9 @@ public abstract class CanopyBlockUpdateMixin {
 		}
 		int x = pos.getX();
 		int z = pos.getZ();
-		// Neighbouring meshes also sample this column when shading their border faces.
+		// Sodium samples up to two blocks past the section edge when shading border faces.
 		level.setSectionRangeDirty(
-			SectionPos.blockToSectionCoord(x - 1), SectionPos.blockToSectionCoord(minY - 1), SectionPos.blockToSectionCoord(z - 1),
-			SectionPos.blockToSectionCoord(x + 1), SectionPos.blockToSectionCoord(maxY + 1), SectionPos.blockToSectionCoord(z + 1));
+			SectionPos.blockToSectionCoord(x - 2), SectionPos.blockToSectionCoord(minY - 2), SectionPos.blockToSectionCoord(z - 2),
+			SectionPos.blockToSectionCoord(x + 2), SectionPos.blockToSectionCoord(maxY + 2), SectionPos.blockToSectionCoord(z + 2));
 	}
 }

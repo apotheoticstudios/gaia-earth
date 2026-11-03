@@ -1,0 +1,47 @@
+package se.itssimple.realearth.mixin;
+
+import com.llamalad7.mixinextras.injector.ModifyReturnValue;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.LightLayer;
+import net.minecraft.world.level.levelgen.structure.BoundingBox;
+import org.spongepowered.asm.mixin.Final;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Pseudo;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import se.itssimple.realearth.RealEarth;
+import se.itssimple.realearth.client.CanopyLight;
+
+@Pseudo
+@Mixin(targets = "net.caffeinemc.mods.sodium.client.world.LevelSlice", remap = false)
+public abstract class CanopySodiumSliceMixin {
+	@Shadow @Final private ClientLevel level;
+	@Shadow private BoundingBox volume;
+
+	@Unique private CanopyLight.SectionCache realearth$canopyLight;
+
+	@Inject(method = "<init>", at = @At("TAIL"))
+	private void realearth$initCanopyLight(CallbackInfo ci) {
+		if (RealEarth.isEarth(level)) {
+			// Sodium samples a two-block border around the section it is building.
+			realearth$canopyLight = new CanopyLight.SectionCache(level, 20);
+		}
+	}
+
+	@Inject(method = "copyData", at = @At("TAIL"))
+	private void realearth$resetCanopyLight(CallbackInfo ci) {
+		if (realearth$canopyLight != null) {
+			realearth$canopyLight.reset(volume.minX(), volume.minY(), volume.minZ());
+		}
+	}
+
+	@ModifyReturnValue(method = "getBrightness", at = @At("RETURN"))
+	private int realearth$canopySky(int vanilla, LightLayer layer, BlockPos pos) {
+		return layer == LightLayer.SKY && realearth$canopyLight != null
+			? realearth$canopyLight.skyLight(pos, vanilla) : vanilla;
+	}
+}
