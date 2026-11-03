@@ -88,6 +88,8 @@ public final class EarthTrees {
 	private static final double TREELINE_HEIGHT = 0.6;
 	/** A tree grown taller keeps at least this share of its height as crown, as close-grown trees do. */
 	private static final double MAX_BOLE = 0.55;
+	/** A tree grown shorter keeps at least this much bare trunk under its crown. */
+	private static final int MIN_BOLE = 2;
 	private static final Map<String, List<ResourceKey<ConfiguredFeature<?, ?>>>> VANILLA = Map.of(
 		"spruce", List.of(TreeFeatures.SPRUCE, TreeFeatures.PINE),
 		"birch", List.of(TreeFeatures.BIRCH),
@@ -351,7 +353,9 @@ public final class EarthTrees {
 	/**
 	 * Builds the tree with its trunk's foot at {@code pos}, turned and mirrored at random, and grown towards
 	 * {@code height} blocks: a tree shorter than that gets a longer trunk under its crown, keeping at least
-	 * {@link #MAX_BOLE}'s complement of its height as crown. Like a vanilla tree it needs room for its trunk, and
+	 * {@link #MAX_BOLE}'s complement of its height as crown; a taller one loses trunk under its crown, down to
+	 * {@link #MIN_BOLE} -- where the map is drawn smaller than 1:1 every version may be too tall. Like a vanilla
+	 * tree it needs room for its trunk, and
 	 * only fills air, plants, and leaves where it has wood; its roots only go into natural ground. Returns its
 	 * height, or 0 when it had no room.
 	 */
@@ -359,7 +363,8 @@ public final class EarthTrees {
 		List<StructureTemplate.StructureBlockInfo> blocks = ((StructureTemplateAccessor) template).realearth$palettes().get(0).blocks();
 		Shape shape = SHAPES.computeIfAbsent(tree.id, id -> shape(blocks, tree.base.getY()));
 		int bole = shape.crownBase - tree.base.getY();
-		int extra = shape.trunk.isEmpty() ? 0 : (int) Math.clamp((MAX_BOLE * tree.height - bole) / (1 - MAX_BOLE), 0, Math.max(0, height - tree.height));
+		int extra = height < tree.height ? -Math.min(tree.height - height, Math.max(0, bole - MIN_BOLE))
+			: shape.trunk.isEmpty() ? 0 : (int) Math.clamp((MAX_BOLE * tree.height - bole) / (1 - MAX_BOLE), 0, height - tree.height);
 		for (int dy = 0; dy < Math.min(tree.height + extra, 6); dy++) {
 			if (!TreeFeature.validTreePos(region, pos.above(dy))) {
 				return 0;
@@ -370,8 +375,12 @@ public final class EarthTrees {
 		// The game mirrors about 0, not the pivot, so turn both and keep the trunk's foot where it was.
 		BlockPos foot = StructureTemplate.transform(tree.base, mirror, rotation, BlockPos.ZERO);
 		for (StructureTemplate.StructureBlockInfo info : blocks) {
+			int y = info.pos().getY();
+			if (y < shape.crownBase && y >= shape.crownBase + extra) {
+				continue; // the trunk a shortened tree loses
+			}
 			BlockPos at = pos.offset(StructureTemplate.transform(info.pos(), mirror, rotation, BlockPos.ZERO).subtract(foot));
-			set(region, at.above(info.pos().getY() >= shape.crownBase ? extra : 0), info, tree, mirror, rotation);
+			set(region, at.above(y >= shape.crownBase ? extra : 0), info, tree, mirror, rotation);
 		}
 		for (StructureTemplate.StructureBlockInfo info : shape.trunk) {
 			BlockPos at = pos.offset(StructureTemplate.transform(info.pos(), mirror, rotation, BlockPos.ZERO).subtract(foot));

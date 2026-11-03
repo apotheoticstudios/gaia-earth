@@ -1470,7 +1470,16 @@ final class SelfTest {
 			new Forest("the Landes forest", 44.2, -0.9, java.util.Set.of("pinus_pinaster"),
 				java.util.Set.of("picea_abies", "olea_europaea", "pinus_taeda"), Map.of("pinus_pinaster", 11)),
 			new Forest("Mesa Verde", 37.2, -108.5, java.util.Set.of("juniperus_monosperma", "pinus_ponderosa"),
-				java.util.Set.of("picea_abies", "quercus_ilex", "pinus_sylvestris"), Map.of()))) {
+				java.util.Set.of("picea_abies", "quercus_ilex", "pinus_sylvestris"), Map.of()),
+			new Forest("the central Amazon", -2.93, -59.95,
+				java.util.Set.of("bertholletia_excelsa", "hevea_brasiliensis", "ceiba_pentandra", "socratea_exorrhiza", "calophyllum_brasiliense",
+					"caropa_guianensis", "euterpe_oleracea"),
+				java.util.Set.of("picea_abies", "quercus_robur", "araucaria_araucana", "nothofagus_obliqua", "roystonea_regia"), Map.of()),
+			new Forest("the Araucaria highlands", -26.9, -51.3, java.util.Set.of("araucaria_angustifolia", "ocotea_porosa", "ilex_paraguariensis"),
+				java.util.Set.of("picea_abies", "bertholletia_excelsa", "araucaria_araucana", "pinus_taeda"), Map.of("araucaria_angustifolia", 11)),
+			new Forest("the Valdivian rainforest", -40.1, -72.9,
+				java.util.Set.of("nothofagus_obliqua", "laurelia_sempervirens", "aextoxicon_punctatum", "drimys_winteri", "luma_apiculata"),
+				java.util.Set.of("picea_abies", "quercus_robur", "araucaria_angustifolia", "pseudotsuga_menziesii"), Map.of("nothofagus_obliqua", 10)))) {
 			phases.add(Map.entry("Real trees: " + f.name(), () -> {
 				TerrainField field = RealEarth.terrain();
 				Map<String, Long> before = se.itssimple.realearth.world.EarthTrees.placed();
