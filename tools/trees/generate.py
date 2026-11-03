@@ -152,8 +152,8 @@ SPECIES = {
     "quercus_laurina": dict(CROWN, h=(15, 30), bole=0.4, width=0.6, clump=(3, 2.2), spacing=0.9,
                             bark={"spruce": 1, "dark_oak": 1}, leaves={"dark_oak": 1}),
     # Europe
-    "pinus_halepensis": dict(CROWN, h=(10, 25), lean=0.12, crook=0.35, bole=0.45, width=0.6, clump=(3, 1.8),
-                             spacing=1.1, bark={"spruce": 2, "mangrove": 1}, leaves={"spruce": 1}),
+    "pinus_halepensis": dict(CROWN, h=(10, 25), lean=0.12, crook=0.35, bole=0.45, width=0.65, clump=(3, 2),
+                             spacing=0.9, bark={"spruce": 2, "mangrove": 1}, leaves={"spruce": 1}),
 }
 
 
