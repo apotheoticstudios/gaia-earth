@@ -65,16 +65,14 @@ public final class MapPainter {
 		/**
 		 * Whether the name shows on a map at web-map zoom {@code zoom}, appearing as one gets close, as on web
 		 * maps: capitals from a continent's view, cities from a country's, then towns, villages and the rest
-		 * nearer still. States' names never: they crowd the view without telling where one is.
+		 * nearer still. States', suburbs' and hamlets' names never: kept sparse, they crowd the view.
 		 */
 		public boolean showsAt(int zoom) {
 			return switch (kind) {
-				case STATE -> false;
-				case CITY -> zoom >= (priority < CITY * 1000 ? 4 : 7);
-				case TOWN -> zoom >= 10;
-				case VILLAGE -> zoom >= 12;
-				case SUBURB -> zoom >= 13;
-				default -> zoom >= 15;
+				case CITY -> zoom >= (priority < CITY * 1000 ? 5 : 8);
+				case TOWN -> zoom >= 11;
+				case VILLAGE -> zoom >= 14;
+				default -> false;
 			};
 		}
 	}

@@ -63,7 +63,9 @@ public final class XaeroMapBackground {
 	/** The elevation tiles' last zoom; deeper pictures are shaded from a part of one, stretched. */
 	private static final int ELEVATION_ZOOM = 15;
 	/** Most names written on the screen at once. */
-	private static final int MAX_NAMES = 120;
+	private static final int MAX_NAMES = 40;
+	/** Clear space kept round each name, in GUI pixels, so the map stays readable between them. */
+	private static final int NAME_SPACE = 24;
 	/** How many zooms out the stand-in fetched first for a view with nothing in it is. */
 	private static final int COARSE_STEPS = 3;
 	/** Pictures kept on the GPU, a quarter of a megabyte each; a screen at most zoom levels needs under a hundred. */
@@ -275,7 +277,7 @@ public final class XaeroMapBackground {
 			int w = (int) Math.ceil(font.width(text) * k);
 			int x = (int) (((n.x() - cameraX) * scale + window.getWidth() / 2.0) / gui) - w / 2;
 			int y = (int) (((n.z() - cameraZ) * scale + window.getHeight() / 2.0) / gui) - (int) (4 * k);
-			int[] box = {x - 2, y - 1, x + w + 2, y + (int) Math.ceil(9 * k) + 1};
+			int[] box = {x - NAME_SPACE, y - NAME_SPACE / 2, x + w + NAME_SPACE, y + (int) Math.ceil(9 * k) + NAME_SPACE / 2};
 			if (box[2] < 0 || box[0] > width || box[3] < 0 || box[1] > height || taken.stream().anyMatch(t -> t[0] < box[2] && box[0] < t[2] && t[1] < box[3] && box[1] < t[3])) {
 				continue;
 			}

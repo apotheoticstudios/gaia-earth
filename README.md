@@ -450,7 +450,7 @@ Planned features and known issues: see [ROADMAP.md](ROADMAP.md).
   explored until the map redraws them.
   The real map is shaded by the ground's relief, lit from the north-west, so mountains and valleys show before
   you have been there; the shading comes from the same elevation tiles as the terrain. Place names appear as you
-  zoom in, as on web maps: capitals when a continent is in view, then cities, towns, villages and suburbs nearer
+  zoom in, as on web maps: capitals when a continent is in view, then cities, towns and villages nearer
   in, in English where the map has an English name, and never over one another. Right-clicking the Earth also
   shows the spot's latitude and longitude; clicking them opens the place on OpenStreetMap.
 - **Lootr** and **Distant Horizons**: see above.
