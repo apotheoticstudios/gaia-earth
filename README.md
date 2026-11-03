@@ -165,6 +165,7 @@ The frame and activator are tags, so a datapack can change them: `gaia-earth:por
 | `/earth origin` | Which map this world uses, its scale, and the start point |
 | `/earth tp <lat> <lon>` | Go to a real place (permission level 2 by default; configurable) |
 | `/earth tp block <x> <z>` | The same by block column: onto the ground there, generating it first if need be. Xaero's World Map's right-click menu uses it |
+| `/earth go <place>` | Go to a place by name: a town, a mountain, a landmark, an address (`/earth go Kyoto`, `/earth go Matterhorn`). Found through OpenStreetMap's Nominatim, each name asked for once and remembered; needs `/earth tp`'s permission |
 | `/earth download <radius> [<lat> <lon>]` | Download an area's data in advance, around you or a place: elevation, map water, land cover, and the coarser data distant terrain uses. Up to 50 km radius / 20,000 elevation tiles. `/earth download cancel` stops it |
 | `/earth repair [all]` | Regenerate chunks that were generated from placeholders while offline (see below) |
 | `/earth cache` | Cache size per source, this session's downloads, network state, chunks waiting for repair |

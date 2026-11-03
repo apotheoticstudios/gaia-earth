@@ -3,6 +3,7 @@ package se.itssimple.realearth.command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import java.net.URI;
 import java.util.ArrayList;
@@ -22,6 +23,7 @@ import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.Vec3;
 import se.itssimple.realearth.RealEarth;
 import se.itssimple.realearth.data.DiskCache;
+import se.itssimple.realearth.data.PlaceSearch;
 import se.itssimple.realearth.world.DegradedChunks;
 import se.itssimple.realearth.geo.Mercator;
 import se.itssimple.realearth.terrain.TerrainField;
@@ -31,6 +33,7 @@ import se.itssimple.realearth.terrain.TerrainField;
  * /earth origin             -- where this world is anchored
  * /earth tp <lat> <lon>     -- go to a real place (permission level from the config)
  * /earth tp block <x> <z>   -- the same by block column, onto the ground there (Xaero's World Map uses it)
+ * /earth go <place name>    -- the same by name, found through OpenStreetMap's Nominatim
  * /earth download <radius> [<lat> <lon>] -- fetch an area's data ahead of time; /earth download cancel
  * /earth repair [all]       -- regenerate chunks that were generated offline from placeholder data
  * /earth cache [clear]      -- how big the download cache is; delete it
@@ -105,6 +108,10 @@ public final class EarthCommand {
 						.executes(ctx -> teleport(ctx.getSource(),
 							DoubleArgumentType.getDouble(ctx, "latitude"),
 							DoubleArgumentType.getDouble(ctx, "longitude"))))))
+			.then(Commands.literal("go")
+				.requires(Commands.hasPermission(permission(teleportPermissionLevel)))
+				.then(Commands.argument("place", StringArgumentType.greedyString())
+					.executes(ctx -> go(ctx.getSource(), StringArgumentType.getString(ctx, "place")))))
 			.then(Commands.literal("download")
 				.requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
 				.then(Commands.literal("cancel").executes(ctx -> cancelDownload(ctx.getSource())))
@@ -299,6 +306,30 @@ public final class EarthCommand {
 			return 0;
 		}
 		return teleport(source, lat, projection.longitudeAt(x + 0.5, lat));
+	}
+
+	/** A place by name: searched off the server thread, then on to it as {@code /earth tp} goes to coordinates. */
+	private static int go(CommandSourceStack source, String place) throws CommandSyntaxException {
+		source.getPlayerOrException();
+		source.sendSuccess(() -> Component.literal("Looking for " + place + "...").withStyle(ChatFormatting.GRAY), false);
+		PlaceSearch.find(place).whenComplete((hit, error) -> source.getServer().execute(() -> {
+			if (error != null) {
+				Throwable why = error.getCause() != null ? error.getCause() : error;
+				source.sendFailure(Component.literal("Place search is unavailable right now (" + why.getMessage() + "); try /earth tp <lat> <lon>."));
+			} else if (hit.isEmpty()) {
+				source.sendFailure(Component.literal("No place called \"" + place + "\" found."));
+			} else if (Math.abs(hit.get().latitude()) > Mercator.MAX_LATITUDE) {
+				source.sendFailure(Component.literal(hit.get().name() + " is beyond the map, which ends at " + (int) Mercator.MAX_LATITUDE + "° north and south."));
+			} else {
+				source.sendSuccess(() -> Component.literal("Found " + hit.get().name() + ".").withStyle(ChatFormatting.GRAY), false);
+				try {
+					teleport(source, hit.get().latitude(), hit.get().longitude());
+				} catch (CommandSyntaxException e) {
+					source.sendFailure(Component.literal(e.getMessage()));
+				}
+			}
+		}));
+		return 1;
 	}
 
 	private static int teleport(CommandSourceStack source, double lat, double lon) throws CommandSyntaxException {

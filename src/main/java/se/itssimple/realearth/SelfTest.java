@@ -397,6 +397,18 @@ final class SelfTest {
 				int mid = 128 * 256 + 128;
 				check((lit[mid] & 0xFF) > (sahara[mid] & 0xFF) && (dark[mid] & 0xFF) < (sahara[mid] & 0xFF)
 					&& java.util.Arrays.stream(seaShaded).allMatch(c -> c == water), "map picture: slopes lit from the north-west, water unshaded");
+				// /earth go: Stockholm found where it is, the second time from the cache; an empty answer is no place.
+				try {
+					var found = se.itssimple.realearth.data.PlaceSearch.find("Stockholm").get(30, java.util.concurrent.TimeUnit.SECONDS);
+					long t0 = System.nanoTime();
+					var again = se.itssimple.realearth.data.PlaceSearch.find("  stockholm ").get(1, java.util.concurrent.TimeUnit.SECONDS);
+					long cachedMs = (System.nanoTime() - t0) / 1_000_000;
+					check(found.isPresent() && Math.abs(found.get().latitude() - 59.33) < 0.2 && Math.abs(found.get().longitude() - 18.07) < 0.3
+						&& again.equals(found) && se.itssimple.realearth.data.PlaceSearch.parse("x", "{\"query\":\"x\",\"results\":[]}").isEmpty(),
+						"place search: %s, again in %d ms", found.map(h -> String.format(java.util.Locale.ROOT, "%.3f, %.3f", h.latitude(), h.longitude())).orElse("nothing"), cachedMs);
+				} catch (Exception e) {
+					check(false, "place search: %s", e.toString());
+				}
 				// Place names: Stockholm, the capital, first in its zoom-10 tile.
 				var names = se.itssimple.realearth.osm.MapPainter.places(field.map().raw(10, 563, 301), 10, 10, 563, 301);
 				var stockholm = names.stream().filter(n -> n.name().equals("Stockholm")).findFirst();

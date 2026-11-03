@@ -15,8 +15,9 @@ Accuracy and detail work, with new public data sources, is planned in `docs/ACCU
    (Lantmäteriet, Kartverket, USGS 3DEP, IGN, swisstopo, GSI and some 60 more), replace the Terrarium tiles
    at zoom 15 wherever they exist, decoded by our own lossless WebP reader. Next: lidar in distant terrain
    too (it reads coarser Terrarium tiles), and smoothing the step where lidar coverage ends.
-3. **`/earth go <place name>`.** Place search through OpenStreetMap's Nominatim: cached, at most one request
-   per second, with a User-Agent, as its usage policy requires. The car game has a client for it.
+3. **`/earth go <place name>`.** Done: place search through OpenStreetMap's Nominatim, cached, at most one
+   request per second, with a User-Agent, as its usage policy requires. Next: search from Xaero's World Map,
+   and a list to pick from when a name has several places.
 4. **Real day length and sun.** Sunrise and sunset from latitude and today's date: midnight sun in Kiruna in
    June, six-hour days in Stockholm in December. Optionally seasonal snow cover.
 5. **Spawn safety.** Done: a start point in the sea or a lake spawns on the nearest dry land.

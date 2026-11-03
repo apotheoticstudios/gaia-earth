@@ -52,6 +52,9 @@
   that appear as you zoom in, like a web map (capitals first, villages close up), in English. The right-click
   menu shows the spot's latitude and longitude, which open it on OpenStreetMap.
 - `/earth tp block <x> <z>`: `/earth tp` by block column.
+- **`/earth go <place>`**: go anywhere by name, a town, a mountain or a landmark (`/earth go Kyoto`), found through
+  OpenStreetMap's Nominatim. Each name is looked up once and remembered, at most one lookup a second, as Nominatim
+  asks. Same permission as `/earth tp`.
 
 ## 0.2.0 (2026-10-23)
 
