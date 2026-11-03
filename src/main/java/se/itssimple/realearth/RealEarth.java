@@ -225,7 +225,7 @@ public class RealEarth implements ModInitializer {
 		WorldCover cover = config.useLandCover ? new WorldCover(config.landCoverUrl, cacheRoot.resolve("worldcover"), auxDownloads) : null;
 		Projection projection = world.toProjection();
 		terrain = new TerrainField(store, config, projection,
-			new VerticalScale(config.compressAboveMeters, config.compressBelowMeters), map, cover);
+			new VerticalScale(config.compressAboveMeters, config.compressBelowMeters), map, cover, world.waterSurfaceVersion);
 		terrain.setStart(world.startLatitude, world.startLongitude);
 		se.itssimple.realearth.world.ClimateLink.serve(projection, config.compressAboveMeters, config.compressBelowMeters);
 		PortalTravel.load(worldDir.resolve("realearth-portals.json"));

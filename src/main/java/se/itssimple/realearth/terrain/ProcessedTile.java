@@ -53,6 +53,8 @@ public final class ProcessedTile {
 	 * the map was unavailable and water comes from elevation alone.
 	 */
 	public final byte[] mapWater;
+	/** Coarse water types for fitted terrain. The fine mask then uses the same codes. */
+	final byte[] waterKinds;
 
 	/**
 	 * Built from stand-ins because some data could not be downloaded (see {@link TileStore#isDegraded}).
@@ -64,18 +66,22 @@ public final class ProcessedTile {
 	public static final int FINE = 4;
 	public static final int FINE_SIZE = SIZE * FINE;
 
-	private ProcessedTile(float[] height, float[] lakeLevel, float[] lakeDepth, byte[] mapWater) {
+	private ProcessedTile(float[] height, float[] lakeLevel, float[] lakeDepth, byte[] mapWater, byte[] waterKinds) {
 		this.height = height;
 		this.lakeLevel = lakeLevel;
 		this.lakeDepth = lakeDepth;
 		this.mapWater = mapWater;
+		this.waterKinds = waterKinds;
 	}
 
 	/**
 	 * @param neighbours raw tiles in row-major 3x3 order, [4] being the tile itself
 	 * @param tileY      the tile's row, which sets the latitude and so the sample spacing
 	 */
-	public static ProcessedTile build(float[][] neighbours, int tileX, int tileY, EarthConfig config, List<OsmWater.Shapes> map) {
+	public static ProcessedTile build(float[][] neighbours, int tileX, int tileY, EarthConfig config, List<OsmWater.Shapes> map,
+		int waterSurfaceVersion) {
+		boolean fittedWater = waterSurfaceVersion >= 1;
+		boolean directedWater = waterSurfaceVersion >= 2;
 		float[] raw = new float[SPAN * SPAN];
 		for (int j = 0; j < SPAN; j++) {
 			int gy = j - MARGIN;
@@ -96,26 +102,36 @@ public final class ProcessedTile {
 		boolean[] water;
 		byte[] coarse = null;
 		byte[] fine = null;
+		byte[] kinds = null;
 		if (useMap) {
 			coarse = new byte[SPAN * SPAN];
 			fine = new byte[FINE_SIZE * FINE_SIZE];
-			double originX = (double) tileX * SIZE - MARGIN;
+			double tileOriginX = (double) tileX * SIZE;
+			double originX = tileOriginX - MARGIN;
 			double originY = (double) tileY * SIZE - MARGIN;
 			for (OsmWater.Shapes shapes : map) {
 				for (OsmWater.Area area : shapes.areas()) {
-					byte v = area.sea() ? (byte) 2 : (byte) 1;
-					Rasterizer.fill(area.rings(), originX, originY, SPAN, 1, coarse, v);
-					Rasterizer.fill(area.rings(), (double) tileX * SIZE, (double) tileY * SIZE, FINE_SIZE, FINE, fine, v);
+					byte v = fittedWater ? WaterSurfaceProfiles.kind(area) : area.sea() ? (byte) 2 : (byte) 1;
+					double shift = directedWater ? WaterSurfaceProfiles.longitudeShift(originX, area.minX()) : 0;
+					Rasterizer.fill(area.rings(), originX + shift, originY, SPAN, 1, coarse, v);
+					Rasterizer.fill(area.rings(), tileOriginX + shift, (double) tileY * SIZE, FINE_SIZE, FINE, fine, v);
 				}
 				for (OsmWater.Line line : shapes.lines()) {
 					double radius = line.widthMeters() / 2.0 / spacing;
-					Rasterizer.stroke(line.points(), radius, originX, originY, SPAN, 1, coarse, (byte) 1);
-					Rasterizer.stroke(line.points(), radius, (double) tileX * SIZE, (double) tileY * SIZE, FINE_SIZE, FINE, fine, (byte) 1);
+					double shift = directedWater && line.points().length >= 2
+						? WaterSurfaceProfiles.longitudeShift(originX, line.points()[0]) : 0;
+					Rasterizer.stroke(line.points(), fittedWater ? Math.max(0.75, radius) : radius, originX + shift, originY, SPAN, 1, coarse, (byte) 1);
+					Rasterizer.stroke(line.points(), radius, tileOriginX + shift, (double) tileY * SIZE, FINE_SIZE, FINE, fine, (byte) 1);
 				}
 			}
 			water = new boolean[SPAN * SPAN];
 			for (int k = 0; k < water.length; k++) {
 				water[k] = coarse[k] != 0;
+			}
+			if (fittedWater) {
+				kinds = coarse;
+				coarse = new byte[kinds.length];
+				for (int k = 0; k < kinds.length; k++) coarse[k] = WaterSurfaceProfiles.wetMask(kinds[k]);
 			}
 		} else {
 			water = config.detectLakes ? findLakes(raw, config.lakeWindowSamples, config.lakeFlatnessMeters) : new boolean[SPAN * SPAN];
@@ -126,7 +142,11 @@ public final class ProcessedTile {
 
 		float[] despiked = despike(raw, (float) config.despikeMeters);
 		float[] shoreDistance = distanceToShore(water, Math.max((float) (config.maxLakeDepthMeters / 0.4 / spacing) + 2, useMap ? 40f : 0f));
-		float[] mapLevel = useMap ? waterLevels(raw, despiked, coarse, shoreDistance) : null;
+		float[] mapLevel = useMap ? waterLevels(raw, despiked, coarse, shoreDistance, kinds) : null;
+		if (kinds != null) {
+			WaterSurfaceProfiles.fit(raw, mapLevel, kinds, map, SPAN,
+				(double) tileX * SIZE - MARGIN, (double) tileY * SIZE - MARGIN, waterSurfaceVersion);
+		}
 
 		double sigma = config.smoothingMeters / spacing;
 		float[] smoothed = sigma > 0.25 ? gaussian(despiked, sigma) : despiked;
@@ -134,10 +154,12 @@ public final class ProcessedTile {
 		float[] height = new float[SIZE * SIZE];
 		float[] level = new float[SIZE * SIZE];
 		float[] depth = new float[SIZE * SIZE];
+		byte[] croppedKinds = kinds == null ? null : new byte[SIZE * SIZE];
 		for (int j = 0; j < SIZE; j++) {
 			for (int i = 0; i < SIZE; i++) {
 				int src = (j + MARGIN) * SPAN + (i + MARGIN);
 				int dst = j * SIZE + i;
+				if (croppedKinds != null) croppedKinds[dst] = kinds[src];
 				height[dst] = smoothed[src];
 				if (water[src]) {
 					level[dst] = useMap ? mapLevel[src] : raw[src];
@@ -148,7 +170,7 @@ public final class ProcessedTile {
 				}
 			}
 		}
-		return new ProcessedTile(height, level, depth, fine);
+		return new ProcessedTile(height, level, depth, fine, croppedKinds);
 	}
 
 	/**
@@ -163,12 +185,13 @@ public final class ProcessedTile {
 	 *    see, where a sample sees as far as it is from the shore.
 	 *  - And no water stands more than half a metre above the lowest shore it can see.
 	 */
-	private static float[] waterLevels(float[] raw, float[] ground, byte[] water, float[] shoreDistance) {
+	private static float[] waterLevels(float[] raw, float[] ground, byte[] water, float[] shoreDistance, byte[] kinds) {
 		int n = SPAN * SPAN;
 		float[] level = new float[n];
 		Arrays.fill(level, Float.POSITIVE_INFINITY);
 
 		int[] queue = new int[n];
+		byte[] travel = kinds == null ? null : new byte[n];
 		int head = 0;
 		int tail = 0;
 		for (int j = 2; j < SPAN - 2; j++) {
@@ -179,14 +202,17 @@ public final class ProcessedTile {
 				}
 				float lo = raw[k];
 				float hi = raw[k];
+				boolean insideWater = true;
 				for (int dy = -2; dy <= 2; dy++) {
 					for (int dx = -2; dx <= 2; dx++) {
-						float v = raw[k + dy * SPAN + dx];
+						int sample = k + dy * SPAN + dx;
+						float v = raw[sample];
 						lo = Math.min(lo, v);
 						hi = Math.max(hi, v);
+						if (kinds != null && !WaterSurfaceProfiles.sameSurface(kinds[k], kinds[sample])) insideWater = false;
 					}
 				}
-				if (hi - lo <= 0.05f) {
+				if (insideWater && hi - lo <= 0.05f) {
 					level[k] = raw[k];
 					queue[tail++] = k;
 				}
@@ -199,6 +225,11 @@ public final class ProcessedTile {
 			int[] around = {i > 0 ? k - 1 : -1, i < SPAN - 1 ? k + 1 : -1, k - SPAN, k + SPAN};
 			for (int nb : around) {
 				if (nb >= 0 && nb < n && water[nb] == 1 && Float.isInfinite(level[nb])) {
+					if (kinds != null) {
+						boolean standing = kinds[k] == WaterSurfaceProfiles.STANDING;
+						if (standing != (kinds[nb] == WaterSurfaceProfiles.STANDING) || !standing && travel[k] >= 12) continue;
+						if (!standing) travel[nb] = (byte) (travel[k] + 1);
+					}
 					level[nb] = level[k];
 					queue[tail++] = nb;
 				}
@@ -232,7 +263,7 @@ public final class ProcessedTile {
 				}
 			}
 		}
-		float[] fromShore = propagateShore(shore, water, shoreDistance);
+		float[] fromShore = propagateShore(shore, water, shoreDistance, kinds == null ? 40 : 20);
 		for (int k = 0; k < n; k++) {
 			if (water[k] == 2) {
 				level[k] = 0f;
@@ -249,11 +280,11 @@ public final class ProcessedTile {
 		return level;
 	}
 
-	private static float[] propagateShore(float[] start, byte[] water, float[] shoreDistance) {
+	private static float[] propagateShore(float[] start, byte[] water, float[] shoreDistance, int reach) {
 		int n = SPAN * SPAN;
 		float[] level = start.clone();
 		float[] next = level.clone();
-		for (int pass = 1; pass <= 40; pass++) {
+		for (int pass = 1; pass <= reach; pass++) {
 			boolean changed = false;
 			for (int j = 1; j < SPAN - 1; j++) {
 				for (int i = 1; i < SPAN - 1; i++) {

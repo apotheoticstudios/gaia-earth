@@ -90,8 +90,10 @@ final class SelfTest {
 
 	private static void run(MinecraftServer server) {
 		try {
-			if ("Mapped waterways".equals(System.getProperty("realearth.selftestOnly"))) {
-				testMappedWaterways(server);
+			String focused = System.getProperty("realearth.selftestOnly");
+			if ("Mapped waterways".equals(focused) || "Water surfaces".equals(focused)) {
+				if ("Mapped waterways".equals(focused)) testMappedWaterways(server);
+				else testWaterSurfaces(RealEarth.terrain());
 				log(FAILURES.isEmpty() ? "PASS" : "FAIL (%d): %s", FAILURES.size(), FAILURES);
 				server.execute(() -> server.halt(false));
 				return;
@@ -548,6 +550,153 @@ final class SelfTest {
 
 		log(FAILURES.isEmpty() ? "PASS" : "FAIL (%d): %s", FAILURES.size(), FAILURES);
 		server.execute(() -> server.halt(false));
+	}
+
+	private static void testWaterSurfaces(TerrainField field) throws Exception {
+		int tileX = 120, tileY = 16384;
+		int size = TileStore.SIZE;
+		int originX = tileX * size, originY = tileY * size;
+		float[][] elevation = new float[9][size * size];
+		for (float[] tile : elevation) java.util.Arrays.fill(tile, 30);
+		for (int y = 36; y <= 44; y++) {
+			for (int x = 28; x <= 82; x++) {
+				elevation[4][y * size + x] = (float) (13 - 0.05 * (x - 30) + Math.abs(y - 40));
+			}
+		}
+		for (int y = 35; y <= 45; y++) {
+			for (int x = 105; x <= 115; x++) elevation[4][y * size + x] = -8;
+		}
+		elevation[4][40 * size + 110] = -2;
+		var river = waterArea(originX + 28, originY + 35, originX + 82, originY + 45, true);
+		var lake = waterArea(originX + 105, originY + 35, originX + 115, originY + 45, false);
+		var line = new se.itssimple.realearth.osm.OsmWater.Line(
+			new double[] {originX + 29, originY + 40, originX + 81, originY + 40}, 10);
+		var overlap = new se.itssimple.realearth.osm.OsmWater.Line(
+			new double[] {originX + 106, originY + 40, originX + 114, originY + 40}, 10);
+		var shapes = new se.itssimple.realearth.osm.OsmWater.Shapes(List.of(river, lake), List.of(line, overlap), true,
+			List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of());
+		var legacy = se.itssimple.realearth.terrain.ProcessedTile.build(elevation, tileX, tileY, RealEarth.config(), List.of(shapes), 0);
+		var fitted = se.itssimple.realearth.terrain.ProcessedTile.build(elevation, tileX, tileY, RealEarth.config(), List.of(shapes), 2);
+		float oldDifference = Math.abs(legacy.lakeLevel[37 * size + 50] - legacy.lakeLevel[40 * size + 50]);
+		float difference = Math.abs(fitted.lakeLevel[37 * size + 50] - fitted.lakeLevel[40 * size + 50]);
+		check(oldDifference > 0.5f && difference < 0.01f,
+			"river centre and bank share a surface (legacy difference %.2f m, fitted %.2f m)", oldDifference, difference);
+		check(fitted.lakeLevel[40 * size + 40] > fitted.lakeLevel[40 * size + 70], "river keeps its real downstream drop");
+		check(fitted.lakeLevel[40 * size + 110] == -8 && fitted.lakeLevel[38 * size + 109] == -8,
+			"flat DEM evidence keeps a below-sea-level lake level despite an overlapping waterway line");
+		testDirectedReach(elevation, tileX, tileY);
+		testSegmentedRiver(tileX, tileY);
+		testWrappedWater(tileY);
+
+		float riverHeight = waterHeight(field, 59.328334, 18.067459);
+		float siljanA = waterHeight(field, 60.88, 14.75);
+		float siljanB = waterHeight(field, 60.89, 14.77);
+		float coast = waterHeight(field, 59.3205, 18.1100);
+		check(Float.isFinite(riverHeight), "the real Norrstrom centreline stays wet (%.2f m)", riverHeight);
+		check(siljanA > 140 && siljanA < 180 && Math.abs(siljanA - siljanB) < 1,
+			"real Lake Siljan agrees across tiles (%.2f and %.2f m)", siljanA, siljanB);
+		check(coast == 0, "the mapped Baltic coast stays at sea level");
+	}
+
+	private static void testDirectedReach(float[][] elevation, int tileX, int tileY) {
+		int size = TileStore.SIZE;
+		int x0 = tileX * size, y0 = tileY * size;
+		for (int y = 86; y <= 94; y++) {
+			for (int x = 34; x <= 56; x++) {
+				double bump = (x - 44) / 3.0;
+				elevation[4][y * size + x] = (float) (16 - 0.12 * (x - 35) + 1.5 * Math.exp(-bump * bump) + Math.abs(y - 90));
+			}
+		}
+		var area = waterArea(x0 + 34, y0 + 85, x0 + 56, y0 + 95, true);
+		var natural = new se.itssimple.realearth.osm.OsmWater.Line(new double[] {x0 + 35, y0 + 90, x0 + 55, y0 + 90}, 10);
+		var canal = new se.itssimple.realearth.osm.OsmWater.Line(natural.points(), 10, false);
+		var fitted = se.itssimple.realearth.terrain.ProcessedTile.build(elevation, tileX, tileY, RealEarth.config(),
+			List.of(waterShapes(area, natural)), 2);
+		var engineered = se.itssimple.realearth.terrain.ProcessedTile.build(elevation, tileX, tileY, RealEarth.config(),
+			List.of(waterShapes(area, canal)), 2);
+		float naturalRise = 0, canalRise = 0;
+		for (int x = 36; x <= 55; x++) {
+			int at = 90 * size + x;
+			naturalRise = Math.max(naturalRise, fitted.lakeLevel[at] - fitted.lakeLevel[at - 1]);
+			canalRise = Math.max(canalRise, engineered.lakeLevel[at] - engineered.lakeLevel[at - 1]);
+		}
+		check(naturalRise < 0.01f && canalRise > 0.1f && fitted.lakeLevel[90 * size + 35] > fitted.lakeLevel[90 * size + 55],
+			"short natural reach removes a false uphill step (%.2f m to %.2f m) and retains its overall drop", canalRise, naturalRise);
+	}
+
+	private static void testSegmentedRiver(int tileX, int tileY) {
+		int size = TileStore.SIZE;
+		int seam = (tileX + 1) * size, y0 = tileY * size;
+		float[] flat = new float[size * size], west = new float[flat.length], east = new float[flat.length];
+		java.util.Arrays.fill(flat, 30);
+		java.util.Arrays.fill(west, 30);
+		java.util.Arrays.fill(east, 30);
+		for (int x = -36; x <= 36; x++) {
+			float level = 16 - 0.1f * x + (x == -1 ? 1.4f : 0) - (x >= 20 ? 4f : 0);
+			for (int y = 76; y <= 84; y++) {
+				(x < 0 ? west : east)[y * size + Math.floorMod(x, size)] = level + Math.abs(y - 80);
+			}
+		}
+		float[][] westTiles = {flat, flat, flat, flat, west, east, flat, flat, flat};
+		float[][] eastTiles = {flat, flat, flat, west, east, flat, flat, flat, flat};
+		var area = waterArea(seam - 36, y0 + 75, seam + 36, y0 + 85, true);
+		// Two mapped ways meet at the terrain seam. Neither fit has useful context within one segment.
+		var left = new se.itssimple.realearth.osm.OsmWater.Line(
+			new double[] {seam - 35, y0 + 80, seam - 2, y0 + 80, seam, y0 + 80}, 10);
+		var right = new se.itssimple.realearth.osm.OsmWater.Line(
+			new double[] {seam, y0 + 80, seam + 2, y0 + 80, seam + 35, y0 + 80}, 10);
+		var map = List.of(waterShapes(area, left), waterShapes(area, right));
+		var old = se.itssimple.realearth.terrain.ProcessedTile.build(westTiles, tileX, tileY, RealEarth.config(), map, 2);
+		var a = se.itssimple.realearth.terrain.ProcessedTile.build(westTiles, tileX, tileY, RealEarth.config(), map, 3);
+		var b = se.itssimple.realearth.terrain.ProcessedTile.build(eastTiles, tileX + 1, tileY, RealEarth.config(), map, 3);
+		int edge = 81 * size - 1;
+		float oldRise = old.lakeLevel[edge] - old.lakeLevel[edge - 1];
+		float rise = a.lakeLevel[edge] - a.lakeLevel[edge - 1];
+		check(oldRise > 1 && rise < 0.01f && Math.abs(a.lakeLevel[edge] - b.lakeLevel[80 * size]) < 0.15f,
+			"connected long river removes a seam spike (rise %.2f m to %.2f m)", oldRise, Math.max(0, rise));
+		check(b.lakeLevel[80 * size + 19] - b.lakeLevel[80 * size + 20] > 3,
+			"local river fitting preserves a large downstream drop");
+		var tributary = new se.itssimple.realearth.osm.OsmWater.Line(
+			new double[] {seam, y0 + 84, seam, y0 + 80}, 3);
+		var fork = se.itssimple.realearth.terrain.ProcessedTile.build(westTiles, tileX, tileY, RealEarth.config(),
+			List.of(map.get(0), map.get(1), waterShapes(area, tributary)), 3);
+		check(fork.lakeLevel[edge] == old.lakeLevel[edge], "local river fitting does not carry slope evidence across a confluence");
+	}
+
+	private static void testWrappedWater(int tileY) {
+		int size = TileStore.SIZE;
+		double end = Mercator.SAMPLES_PER_AXIS;
+		int y0 = tileY * size;
+		float[][] elevation = new float[9][size * size];
+		for (float[] tile : elevation) java.util.Arrays.fill(tile, 10f);
+		var area = waterArea(end - 6, y0 + 77, end + 6, y0 + 83, true);
+		var line = new se.itssimple.realearth.osm.OsmWater.Line(new double[] {end - 5, y0 + 80, end + 5, y0 + 80}, 3);
+		var map = List.of(waterShapes(area, line));
+		var east = se.itssimple.realearth.terrain.ProcessedTile.build(elevation, Mercator.TILES_PER_AXIS - 1, tileY, RealEarth.config(), map, 2);
+		var west = se.itssimple.realearth.terrain.ProcessedTile.build(elevation, 0, tileY, RealEarth.config(), map, 2);
+		int fine = se.itssimple.realearth.terrain.ProcessedTile.FINE_SIZE;
+		int row = 320 * fine;
+		check(east.mapWater[row + fine - 1] == 3 && west.mapWater[row] == 3
+			&& east.lakeLevel[80 * size + size - 1] == 10f && west.lakeLevel[80 * size] == 10f,
+			"mapped channel footprint and elevation continue across the antimeridian");
+	}
+
+	private static se.itssimple.realearth.osm.OsmWater.Shapes waterShapes(se.itssimple.realearth.osm.OsmWater.Area area,
+		se.itssimple.realearth.osm.OsmWater.Line line) {
+		return new se.itssimple.realearth.osm.OsmWater.Shapes(List.of(area), List.of(line), true,
+			List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of());
+	}
+
+	private static se.itssimple.realearth.osm.OsmWater.Area waterArea(double x0, double y0, double x1, double y1, boolean river) {
+		return new se.itssimple.realearth.osm.OsmWater.Area(List.of(new double[] {x0, y0, x1, y0, x1, y1, x0, y1}),
+			false, river, x0, y0, x1, y1);
+	}
+
+	private static float waterHeight(TerrainField field, double latitude, double longitude) throws Exception {
+		int x = (int) Math.floor(field.projection().blockX(latitude, longitude));
+		int z = (int) Math.floor(field.projection().blockZ(latitude));
+		var terrain = field.chunkBlocking(x >> 4, z >> 4, 120);
+		return terrain.waterMeters[ChunkTerrain.index(x & 15, z & 15)];
 	}
 
 	/**

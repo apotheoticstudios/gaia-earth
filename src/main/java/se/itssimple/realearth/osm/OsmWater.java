@@ -57,7 +57,10 @@ public final class OsmWater {
 	}
 
 	/** A waterway centreline, and how wide to draw it. */
-	public record Line(double[] points, double widthMeters) {
+	public record Line(double[] points, double widthMeters, boolean naturalFlow) {
+		public Line(double[] points, double widthMeters) {
+			this(points, widthMeters, true);
+		}
 	}
 
 	/**
@@ -456,7 +459,7 @@ public final class OsmWater {
 				};
 				if (width > 0) {
 					for (double[] part : parts) {
-						lines.add(new Line(part, width));
+						lines.add(new Line(part, width, "river".equals(cls) || "stream".equals(cls)));
 					}
 				}
 			}

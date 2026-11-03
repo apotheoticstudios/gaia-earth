@@ -32,6 +32,8 @@ public final class WorldSettings {
 	public Double scaleLatitude;
 	/** Lidar elevation tiles over the Terrarium ones (EarthConfig.lidarUrl); empty for none. */
 	public String lidarUrl;
+	/** 0 is original terrain, 1 fits water surfaces, and 2 adds directed profiles and wrap fixes. */
+	public int waterSurfaceVersion;
 
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 	/** Beyond this the rest of the world would come out very small. */
@@ -65,6 +67,7 @@ public final class WorldSettings {
 		settings.startLatitude = defaults.startLatitude;
 		settings.startLongitude = defaults.startLongitude;
 		settings.lidarUrl = defaults.lidarUrl == null ? "" : defaults.lidarUrl;
+		settings.waterSurfaceVersion = 3;
 		if (settings.projection.equals("sinusoidal")) {
 			settings.originLatitude = defaults.startLatitude;
 			settings.originLongitude = defaults.startLongitude;

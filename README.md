@@ -399,6 +399,13 @@ the first time the world is opened, because changing them later would tear new t
 somewhere else, set it in the config *before* creating the world. (The Mercator map itself is the same in every
 world; only the start point and scale differ.)
 
+New worlds fit water surfaces using mapped river centre lines, lake outlines and elevation tiles.
+Small uphill errors are smoothed along natural reaches, including where pieces of a long river join.
+Water geometry follows the map across the antimeridian. Existing worlds keep their saved generation
+version. To try the latest water generation in unexplored chunks of an existing test world, set
+`"waterSurfaceVersion": 3` in that world's `realearth.json` while the world is closed. Previously
+generated blocks stay as saved.
+
 ## Limits worth knowing
 
 - **Scale is only exact at one latitude** (see *The map*). Places far from the start's latitude are bigger or

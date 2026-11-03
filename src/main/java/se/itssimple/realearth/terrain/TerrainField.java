@@ -39,6 +39,7 @@ public final class TerrainField implements AutoCloseable {
 	private final EarthConfig config;
 	private final Projection projection;
 	private final VerticalScale scale;
+	private final int waterSurfaceVersion;
 	private final ExecutorService workers;
 	private final Map<Long, CompletableFuture<ProcessedTile>> processed;
 	private final Map<Long, CompletableFuture<ChunkTerrain>> chunks;
@@ -54,12 +55,18 @@ public final class TerrainField implements AutoCloseable {
 	 * @param cover ESA land cover, or null to leave the ground cover to climate alone
 	 */
 	public TerrainField(TileStore store, EarthConfig config, Projection projection, VerticalScale scale, OsmWater map, WorldCover cover) {
+		this(store, config, projection, scale, map, cover, 0);
+	}
+
+	public TerrainField(TileStore store, EarthConfig config, Projection projection, VerticalScale scale, OsmWater map, WorldCover cover,
+		int waterSurfaceVersion) {
 		this.map = map;
 		this.cover = cover;
 		this.store = store;
 		this.config = config;
 		this.projection = projection;
 		this.scale = scale;
+		this.waterSurfaceVersion = waterSurfaceVersion;
 		AtomicInteger n = new AtomicInteger();
 		int threads = Math.max(2, Runtime.getRuntime().availableProcessors() / 2);
 		this.workers = Executors.newFixedThreadPool(threads, r -> {
@@ -164,7 +171,7 @@ public final class TerrainField implements AutoCloseable {
 						tiles[i] = raw[i].join();
 					}
 					List<OsmWater.Shapes> water = shapes.stream().map(CompletableFuture::join).toList();
-					ProcessedTile tile = ProcessedTile.build(tiles, x, y, config, map == null ? null : water);
+					ProcessedTile tile = ProcessedTile.build(tiles, x, y, config, map == null ? null : water, waterSurfaceVersion);
 					tile.degraded = water.stream().anyMatch(OsmWater.Shapes::failed);
 					for (float[] t : tiles) {
 						tile.degraded |= store.isDegraded(t);
@@ -524,9 +531,14 @@ public final class TerrainField implements AutoCloseable {
 	}
 
 	private static byte mappedWaterAt(Map<Long, ProcessedTile> tiles, double sx, double sy) {
+		ProcessedTile tile = tileFor(tiles, (long) Math.floor(sx + 0.5), (long) Math.floor(sy + 0.5));
+		byte kind = mappedKindAt(tile, sx, sy);
+		return kind >= 0 && tile.waterKinds != null ? WaterSurfaceProfiles.wetMask(kind) : kind;
+	}
+
+	private static byte mappedKindAt(ProcessedTile tile, double sx, double sy) {
 		double x = sx + 0.5, y = sy + 0.5;
 		long ix = (long) Math.floor(x), iy = (long) Math.floor(y);
-		ProcessedTile tile = tileFor(tiles, ix, iy);
 		if (tile == null || tile.mapWater == null) return -1;
 		long localX = Math.floorMod(ix, Mercator.TILE_SIZE);
 		long localY = Math.clamp(iy, 0, Mercator.SAMPLES_PER_AXIS - 1) % Mercator.TILE_SIZE;
@@ -960,6 +972,10 @@ public final class TerrainField implements AutoCloseable {
 
 	/** Ground (out[0]) and water surface (out[1], NaN where dry) in metres, and out[2] 1 for a lake. */
 	private static void sample(Map<Long, ProcessedTile> tiles, double sx, double sy, float[] out) {
+		ProcessedTile own = tileFor(tiles, (long) Math.floor(sx + 0.5), (long) Math.floor(sy + 0.5));
+		byte kind = mappedKindAt(own, sx, sy);
+		boolean fitted = kind >= 0 && own.waterKinds != null;
+		int mapped = fitted ? WaterSurfaceProfiles.wetMask(kind) : kind;
 		long x0 = (long) Math.floor(sx);
 		long y0 = (long) Math.floor(sy);
 		double[] wx = new double[4];
@@ -991,6 +1007,7 @@ public final class TerrainField implements AutoCloseable {
 				long gy = y0 + b;
 				ProcessedTile tile = tileFor(tiles, gx, gy);
 				int idx = indexIn(gx, gy);
+				if (fitted && (tile.waterKinds == null || !WaterSurfaceProfiles.sameSurface(kind, tile.waterKinds[idx]))) continue;
 				float l = tile.lakeLevel[idx];
 				if (!Float.isNaN(l)) {
 					double w = (a == 0 ? 1 - fx : fx) * (b == 0 ? 1 - fy : fy);
@@ -1003,7 +1020,6 @@ public final class TerrainField implements AutoCloseable {
 		}
 
 		// With OpenStreetMap water: the map decides, block by block, from its 4x-resolution raster.
-		int mapped = mappedWaterAt(tiles, sx, sy);
 		if (mapped >= 0) {
 			if (mapped == 0) {
 				out[1] = Float.NaN;
@@ -1013,7 +1029,7 @@ public final class TerrainField implements AutoCloseable {
 			double surface = mapped == 2 ? 0.0 : wet > 0 ? levelSum / wet : height;
 			double below = wet > 0 ? Math.max(1.0, depth / wet) : 1.0;
 			if (out.length > 3) out[3] = (float) below;
-			if (mapped == 2 || surface <= 0.5) {
+			if (mapped == 2 || !fitted && surface <= 0.5) {
 				out[1] = 0f;
 				out[0] = (float) Math.min(height, -below);
 			} else {
