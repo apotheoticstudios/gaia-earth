@@ -25,6 +25,10 @@ Accuracy comes before coverage and before speed.
   - German state LoD2 for a German town;
   - lidar for heights.
   Each check cites its source. Nothing ships on looks alone.
+- **One building at a time if that is what accuracy takes.** The first milestone is a single real house in Delft
+  built exactly: its footprint, walls, eaves, ridge and roof faces from 3DBAG's LoD2.2 model, its windows and door
+  from street imagery, its materials from photographs, each checked against the source. Only then a street, then
+  the town. Buildings that can't be made exact yet are marked as such, never passed off as accurate.
 - **One pilot area first, then widen.** Delft first: it has everything open, footprints (BAG), LoD2.2 roofs
   (3DBAG and the PDOK 3D Basisvoorziening), lidar (AHN), surveyed streets (BGT) and street imagery. Each step is
   made right there before it goes anywhere else.
