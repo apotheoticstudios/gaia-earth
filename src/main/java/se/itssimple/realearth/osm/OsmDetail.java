@@ -37,10 +37,10 @@ public final class OsmDetail {
 	/** Roof shapes, as OSM's roof:shape values are grouped here. */
 	public enum Roof { NONE, FLAT, GABLED, HIPPED, PYRAMIDAL, SKILLION, DOME, ONION, CONE, ROUND, MANSARD }
 
-	/** A tile's detail. */
-	public record Tile(List<Shape> shapes, boolean failed) {
-		public static final Tile EMPTY = new Tile(List.of(), false);
-		public static final Tile FAILED = new Tile(List.of(), true);
+	/** A tile's detail, and the buildings measured in it by the overlays (see EarthConfig.buildingOverlays). */
+	public record Tile(List<Shape> shapes, List<Shape> measured, boolean failed) {
+		public static final Tile EMPTY = new Tile(List.of(), List.of(), false);
+		public static final Tile FAILED = new Tile(List.of(), List.of(), true);
 	}
 
 	private static final Set<String> LAYERS = Set.of("building", "building_part");
@@ -52,6 +52,7 @@ public final class OsmDetail {
 	private final ExecutorService downloads;
 	private volatile PmTiles archive;
 	private volatile String releaseName;
+	private volatile List<PmTiles> overlays = List.of();
 	private final Map<Long, CompletableFuture<Tile>> cache = new LinkedHashMap<>(64, 0.75f, true) {
 		@Override
 		protected boolean removeEldestEntry(Map.Entry<Long, CompletableFuture<Tile>> eldest) {
@@ -93,7 +94,60 @@ public final class OsmDetail {
 		return root.resolve(Integer.toString(OsmWater.ZOOM)).resolve(Integer.toString(x)).resolve(y + ".mvt");
 	}
 
+	/** Reads measured buildings too, from Gaia overlays (comma-separated URLs; see tools/overlay). */
+	public void useOverlays(String urls) {
+		List<PmTiles> list = new ArrayList<>();
+		for (String url : urls == null ? new String[0] : urls.split(",")) {
+			if (!url.isBlank()) {
+				list.add(new PmTiles(url.strip()));
+			}
+		}
+		overlays = List.copyOf(list);
+	}
+
 	private Tile load(int x, int y) {
+		Tile overture = loadOverture(x, y);
+		List<Shape> measured = new ArrayList<>();
+		for (PmTiles overlay : overlays) {
+			try {
+				byte[] data = overlay.tile(OsmWater.ZOOM, x, y);
+				if (data != null) {
+					measured.addAll(parseMeasured(VectorTile.decode(data, Set.of("buildings")), x, y));
+				}
+			} catch (IOException | RuntimeException e) {
+				RealEarth.LOGGER.warn("Building overlay {} unreadable for map tile {}/{}/{}: {}", overlay.url(), OsmWater.ZOOM, x, y, e.toString());
+			}
+		}
+		return measured.isEmpty() ? overture : new Tile(overture.shapes(), List.copyOf(measured), overture.failed());
+	}
+
+	/** An overlay's buildings: footprints with measured heights (metres), roof heights and "slanted" or "flat" roofs. */
+	static List<Shape> parseMeasured(List<VectorTile.Feature> features, int tileX, int tileY) {
+		double samplesPerTile = (double) Mercator.TILE_SIZE * (1 << (Mercator.ZOOM - OsmWater.ZOOM));
+		List<Shape> shapes = new ArrayList<>();
+		for (VectorTile.Feature f : features) {
+			double height = f.number("height");
+			if (f.type() != VectorTile.POLYGON || !(height > 0)) {
+				continue;
+			}
+			double scale = samplesPerTile / f.extent();
+			boolean slanted = "slanted".equals(f.string("roof"));
+			List<double[]> rings = new ArrayList<>();
+			for (int[] p : f.parts()) {
+				double[] ring = new double[p.length];
+				for (int i = 0; i < p.length; i += 2) {
+					ring[i] = tileX * samplesPerTile + p[i] * scale - 0.5;
+					ring[i + 1] = tileY * samplesPerTile + p[i + 1] * scale - 0.5;
+				}
+				rings.add(ring);
+			}
+			shapes.add(shape(rings, false, slanted ? Roof.GABLED : Roof.FLAT, slanted ? f.number("roof_height") : 0, Colours.NONE, Colours.NONE,
+				height, 0));
+		}
+		return shapes;
+	}
+
+	private Tile loadOverture(int x, int y) {
 		Path file = file(x, y);
 		byte[] data = Http.readCache(file);
 		if (data == null) {
@@ -228,7 +282,7 @@ public final class OsmDetail {
 				shapes.add(shape(current, part, roof, roofMeters, roofColour, colour, height, min));
 			}
 		}
-		return new Tile(List.copyOf(shapes), false);
+		return new Tile(List.copyOf(shapes), List.of(), false);
 	}
 
 	private static Shape shape(List<double[]> rings, boolean part, Roof roof, double roofMeters, int roofColour, int colour, double height, double min) {

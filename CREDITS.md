@@ -29,6 +29,13 @@ mostly from OpenStreetMap, **© OpenStreetMap contributors**, with other sources
 Single trees (street and park trees, OpenStreetMap's `natural=tree`), from the land layer of the same release's
 base theme, also ODbL 1.0, **© OpenStreetMap contributors**.
 
+## Measured buildings: 3D Basisvoorziening (overlay, Netherlands)
+
+Where the Netherlands building overlay is installed (`buildingOverlays`, made by `tools/overlay/buildings_nl.py`),
+building heights and roof heights from the **3D Basisvoorziening** of the **Kadaster**, reconstructed from AHN lidar
+and aerial imagery with 3DBAG's methods, available under CC BY 4.0
+(<https://www.kadaster.nl/zakelijk/producten/geo-informatie/3d-producten>).
+
 ## Elevation: Terrain Tiles
 
 Ground and sea-floor heights, from the **Terrain Tiles** dataset on the Registry of Open Data on AWS

@@ -124,6 +124,11 @@ public final class EarthConfig {
 	/** Overture's release catalogue, for "latest". */
 	public String buildingDetailCatalog = "https://stac.overturemaps.org/catalog.json";
 	/**
+	 * Gaia overlays of measured buildings (PMTiles made by tools/overlay, http(s): or file: URLs, comma-separated): their
+	 * heights and roof heights win over OpenStreetMap's and Overture's wherever a footprint matches. Empty for none.
+	 */
+	public String buildingOverlays = "";
+	/**
 	 * Real-species trees where OpenStreetMap maps single trees (street trees, park trees) and the land cover shows
 	 * no forest: from the Overture Maps base tiles, in the building detail's release. Needs building detail on.
 	 */

@@ -26,6 +26,9 @@ public final class Credits {
 		new Source("Roof shapes, colours and building parts; single trees",
 			"Overture Maps Foundation, buildings and base themes (from OpenStreetMap and others), ODbL 1.0. © OpenStreetMap contributors.",
 			"https://docs.overturemaps.org/attribution/"),
+		new Source("Measured building heights in the Netherlands, where that overlay is installed",
+			"Kadaster, 3D Basisvoorziening (heights reconstructed from AHN and aerial imagery by 3DBAG), CC BY 4.0.",
+			"https://www.kadaster.nl/zakelijk/producten/geo-informatie/3d-producten"),
 		new Source("Elevation",
 			"Terrain Tiles on AWS (Mapzen): USGS 3DEP, SRTM and GMTED2010; NOAA ETOPO1; Copernicus EU-DEM; Geoscience Australia; "
 				+ "Kartverket; Environment Agency (UK); LINZ; INEGI; Natural Resources Canada; DGM Österreich; ArcticDEM.",

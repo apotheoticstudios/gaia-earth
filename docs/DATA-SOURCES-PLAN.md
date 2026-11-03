@@ -99,6 +99,18 @@ effort.
 
 ### Phase 1: the overlay, proven on one block in Delft
 
+**Built so far (2026-11-03): measured building heights for Delft.** 3DBAG's own servers didn't answer, so the
+pilot uses the same reconstruction as the Kadaster publishes it on PDOK: the 3D Basisvoorziening's building
+height statistics (CC BY 4.0), with each BAG building's ground, eaves, ridge, height percentiles and roof type.
+`tools/overlay/buildings_nl.py` turns a map sheet into a PMTiles overlay of z14 vector tiles: footprints with
+height, roof height and roof type. Sheet 37EN1 (Delft) gives 72,438 buildings, 20 tiles, 3.8 MB, in 3 seconds.
+The mod reads overlays listed in `buildingOverlays` (http(s): or file: URLs). A matched measured height and roof
+height beat OpenStreetMap's and Overture's; a sloped roof keeps OSM's roof shape where it has one. In central
+Delft, 143 of 161 planned buildings on measured footprints have storeys within one of their measured walls.
+Still to do for phase 1: BGT pavement polygons (the `surface` layer), AHN bare earth (`ground`), the bridge deck,
+and hosting, so that players get the overlay without configuring a file.
+
+
 Build the format, the converter core and the mod's reader with the smallest real case, as the handoff proposes:
 one Delft canal block with a bridge.
 

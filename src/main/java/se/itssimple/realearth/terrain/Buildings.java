@@ -109,16 +109,37 @@ final class Buildings {
 		return tile == null ? List.of() : tile.shapes();
 	}
 
-	/** What OpenStreetMap says of the candidate beyond its outline, or NONE. */
+	/** The overlays' measured building that is the candidate, or null. */
+	private static OsmDetail.Shape measured(Map<Long, OsmDetail.Tile> details, Candidate c) {
+		OsmDetail.Tile tile = details.get(((long) c.tileX() << 32) | c.tileY());
+		OsmWater.Building outline = c.building();
+		return tile == null || tile.measured().isEmpty() ? null
+			: match(tile.measured(), outline.rings(), outline.minX(), outline.minY(), outline.maxX(), outline.maxY());
+	}
+
+	/**
+	 * What OpenStreetMap says of the candidate beyond its outline, or NONE; with a measured roof height where an overlay
+	 * has the building (a sloped roof keeps OpenStreetMap's shape where it has one).
+	 */
 	static BuildingPlan.Detail detail(Map<Long, OsmDetail.Tile> details, Candidate c) {
 		OsmWater.Building outline = c.building();
 		OsmDetail.Shape s = match(shapes(details, c), outline.rings(), outline.minX(), outline.minY(), outline.maxX(), outline.maxY());
-		return s == null ? BuildingPlan.Detail.NONE : detail(s);
+		OsmDetail.Shape m = measured(details, c);
+		if (m == null) {
+			return s == null ? BuildingPlan.Detail.NONE : detail(s);
+		}
+		boolean shaped = s != null && s.roof() != OsmDetail.Roof.NONE && s.roof() != OsmDetail.Roof.FLAT;
+		return new BuildingPlan.Detail(m.roof() == OsmDetail.Roof.FLAT || !shaped ? m.roof() : s.roof(), m.roofMeters(),
+			s == null ? se.itssimple.realearth.osm.Colours.NONE : s.roofColour(), s == null ? se.itssimple.realearth.osm.Colours.NONE : s.colour());
 	}
 
-	/** The candidate's height in metres: OpenFreeMap's where mapped, else Overture's, which adds heights from other sources. */
+	/** The candidate's height in metres: an overlay's measurement, else OpenFreeMap's where mapped, else Overture's. */
 	static double heightMeters(Map<Long, OsmDetail.Tile> details, Candidate c) {
 		OsmWater.Building outline = c.building();
+		OsmDetail.Shape m = measured(details, c);
+		if (m != null) {
+			return m.heightMeters();
+		}
 		if (BuildingPlan.mapped(outline.heightMeters())) {
 			return outline.heightMeters();
 		}

@@ -1737,6 +1737,60 @@ final class SelfTest {
 			}));
 		}
 
+		phases.add(Map.entry("Buildings: Delft's measured heights", () -> {
+			// Measured heights from an overlay (tools/overlay/buildings_nl.py), where one is installed: each building's
+			// storeys follow its measured walls, about 3 m a storey, not OpenStreetMap's guess.
+			TerrainField field = RealEarth.terrain();
+			var detail = field.map() == null ? null : field.map().detail();
+			if (RealEarth.config().buildingOverlays.isBlank() || detail == null) {
+				log("no building overlay installed; Delft's measured heights not checked");
+				return;
+			}
+			try {
+				var tile = detail.tile(8390, 5411).get(120, java.util.concurrent.TimeUnit.SECONDS);
+				check(tile.measured().size() > 1000, "the overlay has central Delft's buildings (%d)", tile.measured().size());
+				int cx0 = (int) field.projection().blockX(52.0115, 4.3583) >> 4;
+				int cz0 = (int) field.projection().blockZ(52.0115) >> 4;
+				int paired = 0;
+				int close = 0;
+				for (int cx = cx0 - 2; cx <= cx0 + 2; cx++) {
+					for (int cz = cz0 - 2; cz <= cz0 + 2; cz++) {
+						for (var plan : field.chunk(cx, cz).get(120, java.util.concurrent.TimeUnit.SECONDS).plans) {
+							double[] ring = plan.rings.get(0);
+							double bx = 0;
+							double bz = 0;
+							for (int i = 0; i < ring.length; i += 2) {
+								bx += ring[i] / (ring.length / 2);
+								bz += ring[i + 1] / (ring.length / 2);
+							}
+							double lat = field.projection().latitudeAt(bz);
+							double sx = se.itssimple.realearth.geo.Mercator.sampleX(field.projection().longitudeAt(bx, lat));
+							double sy = se.itssimple.realearth.geo.Mercator.sampleY(lat);
+							for (var m : tile.measured()) {
+								double[] r = m.rings().get(0);
+								boolean inside = false;
+								for (int i = 0, j = r.length - 2; i < r.length; j = i, i += 2) {
+									if ((r[i + 1] > sy) != (r[j + 1] > sy) && sx < (r[j] - r[i]) * (sy - r[i + 1]) / (r[j + 1] - r[i + 1]) + r[i]) {
+										inside = !inside;
+									}
+								}
+								if (inside) {
+									double walls = m.heightMeters() - (m.roof() == se.itssimple.realearth.osm.OsmDetail.Roof.FLAT ? 0 : m.roofMeters());
+									paired++;
+									close += Math.abs(plan.floors - Math.max(1, Math.round(Math.max(3, walls) / 3.0))) <= 1 ? 1 : 0;
+									break;
+								}
+							}
+						}
+					}
+				}
+				log("Delft: %d planned buildings on measured footprints, %d with storeys within one of their measured walls", paired, close);
+				check(paired >= 50 && close * 10 >= paired * 8, "Delft's buildings are as tall as measured (%d of %d)", close, paired);
+			} catch (Exception e) {
+				check(false, "Delft's measured buildings: %s", e);
+			}
+		}));
+
 		phases.add(Map.entry("Real trees: Paris's mapped street trees", () -> {
 			// Les Halles and the Marais: built-up land cover, so every tree here is one the map has (Paris mapped its street trees).
 			TerrainField field = RealEarth.terrain();

@@ -7,7 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Reads single tiles out of a remote PMTiles (v3) archive with HTTP range requests: the header, then
+ * Reads single tiles out of a remote PMTiles (v3) archive with HTTP range requests (or a local one, by a file: URL): the header, then
  * the directories down to the tile (kept in memory, they are shared by the tiles near each other), then
  * the tile. Blocking: call it from a download thread.
  */
@@ -54,14 +54,14 @@ public final class PmTiles {
 				return null;
 			}
 			if (e.runLength() > 0) {
-				return Http.get(url, dataOffset + e.offset(), e.length()); // gzip is undone by Http
+				return read(dataOffset + e.offset(), e.length());
 			}
 			Dir[] leaf;
 			synchronized (leaves) {
 				leaf = leaves.get(e.offset());
 			}
 			if (leaf == null) {
-				leaf = directory(Http.get(url, leafOffset + e.offset(), e.length()));
+				leaf = directory(read(leafOffset + e.offset(), e.length()));
 				synchronized (leaves) {
 					leaves.put(e.offset(), leaf);
 				}
@@ -73,7 +73,7 @@ public final class PmTiles {
 
 	private synchronized Dir[] root() throws IOException {
 		if (root == null) {
-			byte[] h = Http.get(url, 0, HEADER);
+			byte[] h = read(0, HEADER);
 			if (h.length < HEADER || h[0] != 'P' || h[1] != 'M' || h[7] != 3) {
 				throw new IOException("not a PMTiles v3 archive: " + url);
 			}
@@ -88,9 +88,27 @@ public final class PmTiles {
 				throw new IOException("unsupported PMTiles compression in " + url);
 			}
 			maxZoom = h[101];
-			root = directory(Http.get(url, rootOffset, (int) rootLength));
+			root = directory(read(rootOffset, (int) rootLength));
 		}
 		return root;
+	}
+
+	/** Bytes of the archive, gunzipped where gzipped: over HTTP (Http undoes gzip), or from a local file. */
+	private byte[] read(long offset, int length) throws IOException {
+		if (!url.startsWith("file:")) {
+			return Http.get(url, offset, length);
+		}
+		byte[] b = new byte[length];
+		try (java.io.RandomAccessFile f = new java.io.RandomAccessFile(java.nio.file.Path.of(java.net.URI.create(url)).toFile(), "r")) {
+			f.seek(offset);
+			f.readFully(b, 0, (int) Math.min(length, Math.max(0, f.length() - offset)));
+		}
+		if (b.length > 2 && (b[0] & 0xFF) == 0x1F && (b[1] & 0xFF) == 0x8B) {
+			try (var in = new java.util.zip.GZIPInputStream(new java.io.ByteArrayInputStream(b))) {
+				return in.readAllBytes();
+			}
+		}
+		return b;
 	}
 
 	/** The entry covering a tile id: the last starting at or before it, if its run (or leaf) reaches it. */
