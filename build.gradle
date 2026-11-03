@@ -75,6 +75,10 @@ repositories {
 }
 
 configurations {
+	clientPerformance {
+		transitive = false
+		canBeConsumed = false
+	}
 	xaero {
 		transitive = false
 	}
@@ -94,10 +98,20 @@ dependencies {
 	xaero "maven.modrinth:xaeros-world-map:fabric-26.1.2-1.47.2"
 	// xaerolib is published only inside Xaero's mods (META-INF/jars): the minimap's copy.
 	compileOnly files(zipTree(configurations.xaero.find { it.name.startsWith("xaeros-minimap") }).matching { include "META-INF/jars/*.jar" })
+
+	// Development client only. The Modrinth releases below support Fabric on Minecraft 26.1.
+	clientPerformance "maven.modrinth:sodium:mc26.1.1-0.8.9-fabric"
+	clientPerformance "maven.modrinth:lithium:mc26.1.2-0.24.7-fabric"
+	clientPerformance "maven.modrinth:ferrite-core:9.0.0-fabric"
 }
 
-// runClient with Xaero's Minimap and World Map (each brings its own xaerolib).
-loom.runs.client.vmArg "-Dfabric.addMods=${configurations.xaero.asPath}"
+// Keep the clean client and dedicated-server runs as comparison baselines.
+def performanceMods = providers.gradleProperty("noPerformanceMods").isPresent() ? [] : configurations.clientPerformance.files.toList()
+def clientMods = configurations.xaero.files.toList() + performanceMods
+loom.runs.client.vmArg "-Dfabric.addMods=${clientMods.join(File.pathSeparator)}"
+if (!performanceMods.isEmpty()) {
+	loom.runs.playtest.vmArg "-Dfabric.addMods=${performanceMods.join(File.pathSeparator)}"
+}
 
 processResources {
 	def version = project.version
