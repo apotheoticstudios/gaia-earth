@@ -223,7 +223,7 @@ public final class MapPainter {
 		int parts = 1 << (zoom - dataZoom);
 		List<Place> out = new ArrayList<>();
 		for (VectorTile.Feature f : VectorTile.decode(data, Set.of("place"))) {
-			String name = english(f);
+			String name = f.english();
 			String cls = f.string("class");
 			if (f.type() != VectorTile.POINT || name == null || name.isEmpty() || cls == null) {
 				continue;
@@ -287,16 +287,6 @@ public final class MapPainter {
 			return 0xFF7FA466;
 		}
 		return COLOURS[LAND];
-	}
-
-	private static String english(VectorTile.Feature f) {
-		for (String key : new String[] {"name:en", "name_en", "name_int", "name"}) {
-			String name = f.string(key);
-			if (name != null && !name.isEmpty()) {
-				return name;
-			}
-		}
-		return null;
 	}
 
 	private static byte area(String layer, String cls) {

@@ -30,6 +30,17 @@ public final class VectorTile {
 			return v instanceof Number n ? n.doubleValue() : Double.NaN;
 		}
 
+		/** The name in English where the data has one, else its international one (in Latin letters), else its own; null for none. */
+		public String english() {
+			for (String key : new String[] {"name:en", "name_en", "name_int", "name"}) {
+				String name = string(key);
+				if (name != null && !name.isEmpty()) {
+					return name;
+				}
+			}
+			return null;
+		}
+
 		public boolean flag(String key) {
 			Object v = tags.get(key);
 			return v instanceof Number n ? n.longValue() != 0 : v instanceof Boolean b ? b : v != null && "1".equals(v.toString());

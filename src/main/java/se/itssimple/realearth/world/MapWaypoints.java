@@ -149,9 +149,11 @@ public final class MapWaypoints {
 				}
 			}
 			double d = Math.hypot(p.x() - sx, p.y() - sy) * spacing;
-			Near old = p.name() == null ? null : towns.get(p.name());
-			if (d < reach && p.name() != null && !p.name().isEmpty() && (old == null || d < old.meters())) {
-				towns.put(p.name(), new Near(mark(field, kind, p.name(), p.x(), p.y(), blockX), d));
+			// In English, for players everywhere; the map's own name where it has no other.
+			String name = p.english();
+			Near old = name == null ? null : towns.get(name);
+			if (d < reach && name != null && (old == null || d < old.meters())) {
+				towns.put(name, new Near(mark(field, kind, name, p.x(), p.y(), blockX), d));
 			}
 		}
 		// Stations from the full-detail tiles: the player's and the eight round it.
@@ -167,14 +169,14 @@ public final class MapWaypoints {
 				}
 				for (OsmWater.Poi poi : f.getNow(OsmWater.Shapes.UNKNOWN).pois()) {
 					if (!"railway".equals(poi.cls()) || !("station".equals(poi.subclass()) || "halt".equals(poi.subclass()))
-						|| poi.name() == null || poi.name().isEmpty()) {
+						|| poi.english() == null) {
 						continue;
 					}
 					double d = Math.hypot(poi.x() - sx, poi.y() - sy) * spacing;
-					Near old = stations.get(poi.name());
+					Near old = stations.get(poi.english());
 					if (d < STATION_REACH && (old == null || d < old.meters())) {
 						// A station is often several points (platforms, entrances): the nearest, once.
-						stations.put(poi.name(), new Near(mark(field, STATION, poi.name(), poi.x(), poi.y(), blockX), d));
+						stations.put(poi.english(), new Near(mark(field, STATION, poi.english(), poi.x(), poi.y(), blockX), d));
 					}
 				}
 			}

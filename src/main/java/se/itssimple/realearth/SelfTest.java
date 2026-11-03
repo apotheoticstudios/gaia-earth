@@ -409,6 +409,12 @@ final class SelfTest {
 				} catch (Exception e) {
 					check(false, "place search: %s", e.toString());
 				}
+				// Waypoint and map names in English: the English name first, then the international one, then the map's own.
+				java.util.function.Function<java.util.Map<String, Object>, String> named = tags ->
+					new se.itssimple.realearth.osm.VectorTile.Feature("place", tags, se.itssimple.realearth.osm.VectorTile.POINT, List.of(), 4096).english();
+				check("Kyoto".equals(named.apply(Map.of("name", "京都市", "name:en", "Kyoto", "name_int", "Kyōto")))
+					&& "Moskva".equals(named.apply(Map.of("name", "Москва", "name_int", "Moskva")))
+					&& "Fagersjö".equals(named.apply(Map.of("name", "Fagersjö"))), "names in English where the data has them");
 				// Place names: Stockholm, the capital, first in its zoom-10 tile.
 				var names = se.itssimple.realearth.osm.MapPainter.places(field.map().raw(10, 563, 301), 10, 10, 563, 301);
 				var stockholm = names.stream().filter(n -> n.name().equals("Stockholm")).findFirst();
