@@ -45,11 +45,15 @@ public abstract class GuiMapMixin {
 	@Shadow
 	private double scale;
 	@Shadow
+	private double cameraX;
+	@Shadow
+	private double cameraZ;
+	@Shadow
 	private MapProcessor mapProcessor;
 
 	@Inject(method = "getRightClickOptions", at = @At("RETURN"))
 	private void realearth$teleport(CallbackInfoReturnable<ArrayList<RightClickOption>> cir) {
-		XaeroWorldMapCompat.addTeleport(cir.getReturnValue(), (IRightClickableElement) this, rightClickX, rightClickZ, rightClickDim);
+		XaeroWorldMapCompat.addOptions(cir.getReturnValue(), (IRightClickableElement) this, rightClickX, rightClickZ, rightClickDim);
 	}
 
 	/** Just before the map adds its regions to the batch, after it has cleared its frame and set up the batch. */
@@ -86,6 +90,6 @@ public abstract class GuiMapMixin {
 	@Inject(method = "renderPreDropdown", at = @At("HEAD"))
 	private void realearth$credit(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks, CallbackInfo ci) {
 		Screen screen = (Screen) (Object) this;
-		XaeroMapBackground.credit(graphics, screen.width, screen.height);
+		XaeroMapBackground.overlay(graphics, screen.width, screen.height, cameraX, cameraZ, scale);
 	}
 }

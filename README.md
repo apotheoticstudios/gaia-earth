@@ -435,6 +435,11 @@ Planned features and known issues: see [ROADMAP.md](ROADMAP.md).
   with Project Gaia: Earth. For worlds in the Mercator projection (every new world); `mapBackground: false` in the config
   turns it off. Zoomed out, squares the map saved before this version may keep a black edge round what you
   explored until the map redraws them.
+  The real map is shaded by the ground's relief, lit from the north-west, so mountains and valleys show before
+  you have been there; the shading comes from the same elevation tiles as the terrain. Place names appear as you
+  zoom in, as on web maps: capitals when a continent is in view, then cities, towns, villages and suburbs nearer
+  in, in English where the map has an English name, and never over one another. Right-clicking the Earth also
+  shows the spot's latitude and longitude; clicking them opens the place on OpenStreetMap.
 - **Lootr** and **Distant Horizons**: see above.
 
 **For mod authors.** `se.itssimple.realearth.api` (compile against the Project Gaia: Earth jar, `modCompileOnly`):

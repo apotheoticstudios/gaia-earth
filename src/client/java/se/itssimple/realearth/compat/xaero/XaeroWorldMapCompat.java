@@ -11,13 +11,16 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.ConfirmLinkScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.MultiBufferSource.BufferSource;
+import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import se.itssimple.realearth.RealEarth;
 import se.itssimple.realearth.client.ClientHere;
+import se.itssimple.realearth.world.ClimateLink;
 import se.itssimple.realearth.world.MapWaypoints;
 import xaero.lib.XaeroLib;
 import xaero.map.WorldMap;
@@ -70,16 +73,15 @@ public final class XaeroWorldMapCompat {
 		});
 	}
 
-	/** For the world map's right-click menu: the teleport, after the map's own. */
-	public static void addTeleport(List<RightClickOption> options, IRightClickableElement map, int x, int z, ResourceKey<Level> dimension) {
+	/**
+	 * For the world map's right-click menu on the Earth, after the map's own teleport: the clicked spot's
+	 * latitude and longitude, which opens it on OpenStreetMap, and for players allowed {@code /earth tp},
+	 * the teleport onto the ground there.
+	 */
+	public static void addOptions(List<RightClickOption> options, IRightClickableElement map, int x, int z, ResourceKey<Level> dimension) {
 		Minecraft mc = Minecraft.getInstance();
 		if (options == null || mc.level == null || mc.getConnection() == null
 			|| !(dimension == RealEarth.EARTH || dimension == mc.level.dimension() && RealEarth.isEarth(mc.level))) {
-			return;
-		}
-		CommandNode<?> earth = mc.getConnection().getCommands().getRoot().getChild("earth");
-		CommandNode<?> tp = earth == null ? null : earth.getChild("tp");
-		if (tp == null || tp.getChild("block") == null) {
 			return;
 		}
 		int after = options.size();
@@ -87,6 +89,26 @@ public final class XaeroWorldMapCompat {
 			if (options.get(i).getDisplayName().getContents() instanceof TranslatableContents t && t.getKey().contains("teleport")) {
 				after = i + 1;
 			}
+		}
+		ClimateLink.Shape shape = ClimateLink.current();
+		if (shape != null) {
+			double lat = shape.projection().latitudeAt(z + 0.5);
+			double lon = shape.projection().longitudeAt(x + 0.5, lat);
+			if (Math.abs(lat) <= 90 && !Double.isNaN(lon)) {
+				String url = String.format(Locale.ROOT, "https://www.openstreetmap.org/?mlat=%.6f&mlon=%.6f#map=15/%.6f/%.6f", lat, lon, lat, lon);
+				options.add(after, new RightClickOption(ClientHere.latLon(lat, lon), Style.EMPTY.withColor(ChatFormatting.AQUA), after, map) {
+					@Override
+					public void onAction(Screen screen) {
+						ConfirmLinkScreen.confirmLinkNow(screen, url);
+					}
+				});
+				after++;
+			}
+		}
+		CommandNode<?> earth = mc.getConnection().getCommands().getRoot().getChild("earth");
+		CommandNode<?> tp = earth == null ? null : earth.getChild("tp");
+		if (tp == null || tp.getChild("block") == null) {
+			return;
 		}
 		options.add(after, new RightClickOption("gui.realearth.xaero.teleport", after, map) {
 			@Override

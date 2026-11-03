@@ -48,6 +48,9 @@
   globe. The client downloads OpenStreetMap tiles from OpenFreeMap as you look (cached with the terrain's tiles,
   under the same limit), so it works in multiplayer too. Mercator worlds only; `mapBackground: false` turns it
   off.
+- **Relief and names on that map**: hills and mountains shaded from the terrain's elevation tiles, and place names
+  that appear as you zoom in, like a web map (capitals first, villages close up), in English. The right-click
+  menu shows the spot's latitude and longitude, which open it on OpenStreetMap.
 - `/earth tp block <x> <z>`: `/earth tp` by block column.
 
 ## 0.2.0 (2026-10-23)

@@ -17,6 +17,10 @@ import se.itssimple.realearth.geo.Mercator;
  * Each pixel gets the kind of the highest thing drawn over it ({@link Rasterizer}'s rule), then that
  * kind's colour, or for bare land its climate's ({@link #land}); roads are at least a pixel wide, else
  * they would vanish when zoomed out. Intermittent water is left out, as the terrain leaves it out.
+ *
+ * Given the elevation under the tile, land is hill-shaded, lit from the north-west as maps are, with
+ * the relief exaggerated where a pixel spans kilometres and slopes would otherwise average away. The
+ * tile's place names ({@link #places}) are read apart, to be written over the picture at screen size.
  */
 public final class MapPainter {
 	/** Pixels on a side. */
@@ -49,6 +53,32 @@ public final class MapPainter {
 		0xFFB8B0A2, 0xFFC4ADA4, 0xFFAAA49E, 0xFF4470D8, 0xFF8F8173, 0xFF8A5AA0, 0xFFC8B89A, 0xFFF2F0EA,
 		0xFFF4DC8C, 0xFFE89A4A, 0xFF4A4A4A};
 
+	/** A place name in a tile: its priority (lower first), its kind, and where in the picture, 0..1 from the north-west corner. */
+	public record Place(String name, int priority, int kind, float u, float v) {
+		public static final int STATE = 2;
+		public static final int CITY = 3;
+		public static final int TOWN = 4;
+		public static final int VILLAGE = 5;
+		public static final int SUBURB = 6;
+		public static final int HAMLET = 7;
+
+		/**
+		 * Whether the name shows on a map at web-map zoom {@code zoom}, appearing as one gets close, as on web
+		 * maps: capitals from a continent's view, cities from a country's, then towns, villages and the rest
+		 * nearer still. States' names never: they crowd the view without telling where one is.
+		 */
+		public boolean showsAt(int zoom) {
+			return switch (kind) {
+				case STATE -> false;
+				case CITY -> zoom >= (priority < CITY * 1000 ? 4 : 7);
+				case TOWN -> zoom >= 10;
+				case VILLAGE -> zoom >= 12;
+				case SUBURB -> zoom >= 13;
+				default -> zoom >= 15;
+			};
+		}
+	}
+
 	private MapPainter() {
 	}
 
@@ -62,6 +92,11 @@ public final class MapPainter {
 	 * {@code zoom}) that holds it. ARGB, row by row from the north-west corner.
 	 */
 	public static int[] paint(byte[] data, int dataZoom, int zoom, int x, int y) throws IOException {
+		return paint(data, dataZoom, zoom, x, y, null);
+	}
+
+	/** The same, hill-shaded from {@code metres}, the ground's height under each pixel (null for none). */
+	public static int[] paint(byte[] data, int dataZoom, int zoom, int x, int y, float[] metres) throws IOException {
 		int levels = zoom - dataZoom;
 		int parts = 1 << levels;
 		double lat = Mercator.latitudeOfSampleY(Math.scalb((y + 0.5) * Mercator.TILE_SIZE, Mercator.ZOOM - zoom) - 0.5);
@@ -145,7 +180,86 @@ public final class MapPainter {
 				}
 			}
 		}
+		if (metres != null) {
+			shade(argb, kinds, metres, metersPerPixel);
+		}
 		return argb;
+	}
+
+	private static void shade(int[] argb, byte[] kinds, float[] m, double metersPerPixel) {
+		double exaggeration = Math.max(1, Math.sqrt(metersPerPixel / 10));
+		double flat = Math.sqrt(0.5);
+		for (int row = 0; row < SIZE; row++) {
+			int up = Math.max(row - 1, 0);
+			int down = Math.min(row + 1, SIZE - 1);
+			for (int col = 0; col < SIZE; col++) {
+				int i = row * SIZE + col;
+				if (kinds[i] == WATER || Float.isNaN(m[i])) {
+					continue;
+				}
+				// shortcut: neighbours stop at the tile's edge, so slopes there are one-sided; fine for shading.
+				int left = Math.max(col - 1, 0);
+				int right = Math.min(col + 1, SIZE - 1);
+				double dx = (m[row * SIZE + right] - m[row * SIZE + left]) / ((right - left) * metersPerPixel) * exaggeration;
+				double dy = (m[down * SIZE + col] - m[up * SIZE + col]) / ((down - up) * metersPerPixel) * exaggeration;
+				// The ground's normal (-dx, -dy, 1) against light from the north-west, 45 degrees up; flat ground keeps its colour.
+				double lit = (dx + dy + Math.sqrt(2)) / (2 * Math.sqrt(dx * dx + dy * dy + 1)) / flat;
+				double f = Math.clamp(lit, 0.55, 1.3);
+				int c = argb[i];
+				argb[i] = c & 0xFF000000 | channel(c >> 16, f) << 16 | channel(c >> 8, f) << 8 | channel(c, f);
+			}
+		}
+	}
+
+	private static int channel(int c, double f) {
+		return (int) Math.min(255, (c & 0xFF) * f);
+	}
+
+	/**
+	 * The place names in tile {@code zoom/x/y}, from the vector tile at {@code dataZoom} that holds it
+	 * (as for {@link #paint}): states, and towns down to hamlets, which the data's own zooms already thin
+	 * out to what fits. In English: the English name, else the data's international one, which is in
+	 * Latin letters; only a place with neither keeps its own.
+	 */
+	public static List<Place> places(byte[] data, int dataZoom, int zoom, int x, int y) throws IOException {
+		int parts = 1 << (zoom - dataZoom);
+		List<Place> out = new ArrayList<>();
+		for (VectorTile.Feature f : VectorTile.decode(data, Set.of("place"))) {
+			String name = english(f);
+			String cls = f.string("class");
+			if (f.type() != VectorTile.POINT || name == null || name.isEmpty() || cls == null) {
+				continue;
+			}
+			int kind = switch (cls) {
+				case "state", "province" -> Place.STATE;
+				case "city" -> Place.CITY;
+				case "town" -> Place.TOWN;
+				case "village" -> Place.VILLAGE;
+				case "suburb", "quarter" -> Place.SUBURB;
+				case "hamlet", "neighbourhood" -> Place.HAMLET;
+				default -> -1;
+			};
+			if (kind < 0) {
+				continue;
+			}
+			double rank = f.number("rank");
+			// A country's capital among the countries' names; the rest by kind, then the data's own rank.
+			int priority = (f.number("capital") == 2 ? Place.STATE : kind) * 1000 + (Double.isNaN(rank) ? 999 : (int) rank);
+			double side = (double) f.extent() / parts;
+			double originX = (x & (parts - 1)) * side;
+			double originY = (y & (parts - 1)) * side;
+			for (int[] p : f.parts()) {
+				for (int i = 0; i + 1 < p.length; i += 2) {
+					double u = (p[i] - originX) / side;
+					double v = (p[i + 1] - originY) / side;
+					// Only this picture's part; the data's buffer repeats its neighbours' names.
+					if (u >= 0 && u < 1 && v >= 0 && v < 1) {
+						out.add(new Place(name, priority, kind, (float) u, (float) v));
+					}
+				}
+			}
+		}
+		return out;
 	}
 
 	/**
@@ -175,6 +289,16 @@ public final class MapPainter {
 			return 0xFF7FA466;
 		}
 		return COLOURS[LAND];
+	}
+
+	private static String english(VectorTile.Feature f) {
+		for (String key : new String[] {"name:en", "name_en", "name_int", "name"}) {
+			String name = f.string(key);
+			if (name != null && !name.isEmpty()) {
+				return name;
+			}
+		}
+		return null;
 	}
 
 	private static byte area(String layer, String cls) {

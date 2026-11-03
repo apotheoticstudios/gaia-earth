@@ -384,6 +384,24 @@ final class SelfTest {
 				check(wet > city.length / 20 && wet < city.length * 19 / 20 && java.util.Arrays.stream(sea).allMatch(c -> c == water)
 					&& dry > sahara.length / 2, "map picture: Stockholm %d%% water, the open Atlantic all water, the Sahara %d%% sand",
 					100 * wet / city.length, 100 * dry / sahara.length);
+				// Hill shading, on a gentle slope: ground facing the north-west is lit, facing south-east in shadow; water is not shaded.
+				float[] eastUp = new float[256 * 256];
+				float[] westUp = new float[256 * 256];
+				for (int i = 0; i < eastUp.length; i++) {
+					eastUp[i] = (i % 256) * 20f;
+					westUp[i] = (255 - i % 256) * 20f;
+				}
+				int[] lit = se.itssimple.realearth.osm.MapPainter.paint(field.map().raw(6, 33, 27), 6, 6, 33, 27, eastUp);
+				int[] dark = se.itssimple.realearth.osm.MapPainter.paint(field.map().raw(6, 33, 27), 6, 6, 33, 27, westUp);
+				int[] seaShaded = se.itssimple.realearth.osm.MapPainter.paint(field.map().raw(10, 300, 400), 10, 12, 1201, 1602, eastUp);
+				int mid = 128 * 256 + 128;
+				check((lit[mid] & 0xFF) > (sahara[mid] & 0xFF) && (dark[mid] & 0xFF) < (sahara[mid] & 0xFF)
+					&& java.util.Arrays.stream(seaShaded).allMatch(c -> c == water), "map picture: slopes lit from the north-west, water unshaded");
+				// Place names: Stockholm, the capital, first in its zoom-10 tile.
+				var names = se.itssimple.realearth.osm.MapPainter.places(field.map().raw(10, 563, 301), 10, 10, 563, 301);
+				var stockholm = names.stream().filter(n -> n.name().equals("Stockholm")).findFirst();
+				check(stockholm.isPresent() && names.stream().allMatch(n -> n.priority() >= stockholm.get().priority()),
+					"map names: Stockholm first of %d in its tile", names.size());
 			}
 
 			offlineAndCache(server, field);

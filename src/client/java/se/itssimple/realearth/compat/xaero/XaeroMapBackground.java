@@ -26,6 +26,7 @@ import se.itssimple.realearth.EarthConfig;
 import se.itssimple.realearth.RealEarth;
 import se.itssimple.realearth.data.DiskCache;
 import se.itssimple.realearth.data.Http;
+import se.itssimple.realearth.data.TerrariumPng;
 import se.itssimple.realearth.geo.Projection;
 import se.itssimple.realearth.osm.MapPainter;
 import se.itssimple.realearth.osm.OsmWater;
@@ -46,6 +47,12 @@ import xaero.map.gui.GuiMap;
  * same cache as the server's map data (in single player they are shared), under the same size limit,
  * and only for tiles on the screen, a few at a time. Leaving the world frees the textures.
  *
+ * <p>Land is hill-shaded from the same elevation tiles the terrain is made from (and the same cache),
+ * fetched with each picture. The tiles' place names in English appear as one zooms in, as on web maps
+ * ({@link MapPainter.Place#showsAt}),
+ * are written over the map at screen size after it is drawn, the most important first, and none over
+ * another.
+ *
  * <p>Only for the Mercator projection, where web-map tiles are squares of blocks; called from
  * {@code GuiMapMixin}. The map data's credit is shown in the corner while a picture is.
  */
@@ -53,6 +60,10 @@ public final class XaeroMapBackground {
 	/** The map data's last zoom; beyond it its tiles are painted bigger, down to about a block a pixel. */
 	private static final int DATA_ZOOM = 14;
 	private static final int MAX_ZOOM = 16;
+	/** The elevation tiles' last zoom; deeper pictures are shaded from a part of one, stretched. */
+	private static final int ELEVATION_ZOOM = 15;
+	/** Most names written on the screen at once. */
+	private static final int MAX_NAMES = 120;
 	/** How many zooms out the stand-in fetched first for a view with nothing in it is. */
 	private static final int COARSE_STEPS = 3;
 	/** Pictures kept on the GPU, a quarter of a megabyte each; a screen at most zoom levels needs under a hundred. */
@@ -84,10 +95,23 @@ public final class XaeroMapBackground {
 			if (eldest.getValue() != null) {
 				retired.add(eldest.getValue());
 			}
+			names.remove(eldest.getKey());
 			return true;
 		}
 	};
-	private static final Map<Long, CompletableFuture<int[]>> loading = new HashMap<>();
+	/** A painted tile: its picture and its place names. */
+	private record Painted(int[] argb, List<MapPainter.Place> places) {
+	}
+
+	/** A place name on the map, at its block position. */
+	private record Name(MapPainter.Place place, double x, double z) {
+	}
+
+	private static final Map<Long, CompletableFuture<Painted>> loading = new HashMap<>();
+	/** Place names by tile, for the tiles in {@link #textures}. */
+	private static final Map<Long, List<MapPainter.Place>> names = new HashMap<>();
+	/** The names under the pictures drawn this frame. */
+	private static final List<Name> onScreen = new ArrayList<>();
 	private static final Map<Long, Long> failedUntil = new HashMap<>();
 	private static OsmWater source;
 	private static boolean warned;
@@ -109,6 +133,8 @@ public final class XaeroMapBackground {
 			}
 		});
 		textures.clear();
+		names.clear();
+		onScreen.clear();
 		retired.forEach(DynamicTexture::close);
 		retired.clear();
 		// Pictures still being painted finish on their own and are dropped.
@@ -124,6 +150,7 @@ public final class XaeroMapBackground {
 	public static void draw(Matrix4f matrix, MultiTextureRenderTypeRenderer renderer, int cameraX, int cameraZ, double left, double right, double top,
 		double bottom, double scale, ResourceKey<Level> dimension, boolean caves) {
 		shown = false;
+		onScreen.clear();
 		retired.forEach(DynamicTexture::close);
 		retired.clear();
 		Projection.WebMercator mercator = earth(dimension);
@@ -173,6 +200,14 @@ public final class XaeroMapBackground {
 					GuiMap.buildTexturedModalSubRectWithLighting(matrix, renderer.begin(texture.getTextureView()), px, pz, u, v, u + 1.0F / parts,
 						v + 1.0F / parts, px1 - px, pz1 - pz);
 					shown = true;
+					if (up == 0) {
+						for (MapPainter.Place p : names.getOrDefault(key(zoom, wx, ty), List.of())) {
+							if (!p.showsAt(zoom)) {
+								continue;
+							}
+							onScreen.add(new Name(p, tx * side - world / 2 + p.u() * side, ty * side - world / 2 + p.v() * side));
+						}
+					}
 				}
 			}
 		}
@@ -218,14 +253,54 @@ public final class XaeroMapBackground {
 		return Math.min(limit, 0.9 * side / (multiplier * mercator.periodX()));
 	}
 
-	/** The map data's credit, at the bottom right above the map's zoom, while the map shows a picture. */
-	public static void credit(GuiGraphicsExtractor graphics, int width, int height) {
+	/**
+	 * Over the drawn map: the place names, most important first and none over another, and the map
+	 * data's credit at the bottom right above the map's zoom, while the map shows a picture. The camera
+	 * is in blocks, {@code scale} screen pixels per block, as the map has them.
+	 */
+	public static void overlay(GuiGraphicsExtractor graphics, int width, int height, double cameraX, double cameraZ, double scale) {
+		var font = Minecraft.getInstance().font;
+		var window = Minecraft.getInstance().getWindow();
+		double gui = window.getGuiScale();
+		// Names at two screen pixels a font pixel, smaller than the map's buttons at a big GUI scale.
+		float k = (float) Math.min(1, 2 / gui);
+		onScreen.sort(Comparator.comparingInt(n -> n.place().priority()));
+		List<int[]> taken = new ArrayList<>();
+		for (Name n : onScreen) {
+			if (taken.size() >= MAX_NAMES) {
+				break;
+			}
+			int kind = n.place().kind();
+			String text = n.place().name();
+			int w = (int) Math.ceil(font.width(text) * k);
+			int x = (int) (((n.x() - cameraX) * scale + window.getWidth() / 2.0) / gui) - w / 2;
+			int y = (int) (((n.z() - cameraZ) * scale + window.getHeight() / 2.0) / gui) - (int) (4 * k);
+			int[] box = {x - 2, y - 1, x + w + 2, y + (int) Math.ceil(9 * k) + 1};
+			if (box[2] < 0 || box[0] > width || box[3] < 0 || box[1] > height || taken.stream().anyMatch(t -> t[0] < box[2] && box[0] < t[2] && t[1] < box[3] && box[1] < t[3])) {
+				continue;
+			}
+			taken.add(box);
+			int colour = switch (kind) {
+				case MapPainter.Place.STATE -> 0xFFC8C8C8;
+				case MapPainter.Place.CITY, MapPainter.Place.TOWN -> 0xFFFFFFFF;
+				default -> 0xFFDADADA;
+			};
+			graphics.pose().pushMatrix();
+			graphics.pose().translate(x, y);
+			graphics.pose().scale(k, k);
+			graphics.text(font, text, 0, 0, colour, true);
+			graphics.pose().popMatrix();
+		}
 		if (shown) {
-			var font = Minecraft.getInstance().font;
-			graphics.text(font, CREDIT, width - 26 - font.width(CREDIT), height - 22, 0xFFC0C0C0);
+			graphics.pose().pushMatrix();
+			graphics.pose().translate(width - 26 - font.width(CREDIT) * k, height - 12 - 9 * k);
+			graphics.pose().scale(k, k);
+			graphics.text(font, CREDIT, 0, 0, 0xFFC0C0C0);
+			graphics.pose().popMatrix();
 		}
 		// Until the map draws again: not on its loading screen.
 		shown = false;
+		onScreen.clear();
 	}
 
 	private static long key(int zoom, int x, int y) {
@@ -241,7 +316,8 @@ public final class XaeroMapBackground {
 		OsmWater map = source();
 		loading.put(key, CompletableFuture.supplyAsync(() -> {
 			try {
-				return MapPainter.paint(map.raw(dataZoom, x >> shift, y >> shift), dataZoom, zoom, x, y);
+				byte[] data = map.raw(dataZoom, x >> shift, y >> shift);
+				return new Painted(MapPainter.paint(data, dataZoom, zoom, x, y, relief(zoom, x, y)), MapPainter.places(data, dataZoom, zoom, x, y));
 			} catch (Http.Missing e) {
 				return null;
 			} catch (IOException e) {
@@ -253,15 +329,15 @@ public final class XaeroMapBackground {
 	/** Puts the pictures painted since the last frame on the GPU, a few a frame. */
 	private static void upload() {
 		int uploaded = 0;
-		for (Iterator<Map.Entry<Long, CompletableFuture<int[]>>> it = loading.entrySet().iterator(); it.hasNext() && uploaded < UPLOADS_PER_FRAME;) {
-			Map.Entry<Long, CompletableFuture<int[]>> e = it.next();
+		for (Iterator<Map.Entry<Long, CompletableFuture<Painted>>> it = loading.entrySet().iterator(); it.hasNext() && uploaded < UPLOADS_PER_FRAME;) {
+			Map.Entry<Long, CompletableFuture<Painted>> e = it.next();
 			if (!e.getValue().isDone()) {
 				continue;
 			}
 			it.remove();
-			int[] argb;
+			Painted painted;
 			try {
-				argb = e.getValue().join();
+				painted = e.getValue().join();
 			} catch (RuntimeException failure) {
 				failedUntil.put(e.getKey(), System.currentTimeMillis() + RETRY_MS);
 				if (!warned) {
@@ -271,7 +347,9 @@ public final class XaeroMapBackground {
 				continue;
 			}
 			DynamicTexture texture = null;
-			if (argb != null) {
+			if (painted != null) {
+				int[] argb = painted.argb();
+				names.put(e.getKey(), painted.places());
 				NativeImage image = new NativeImage(MapPainter.SIZE, MapPainter.SIZE, false);
 				for (int y = 0; y < MapPainter.SIZE; y++) {
 					for (int x = 0; x < MapPainter.SIZE; x++) {
@@ -287,9 +365,49 @@ public final class XaeroMapBackground {
 		}
 	}
 
+	/**
+	 * The ground's height under each pixel of picture {@code zoom/x/y}, from the terrain's elevation tiles
+	 * and cache; null when they can't be had, and the picture goes unshaded.
+	 */
+	private static float[] relief(int zoom, int x, int y) {
+		int ez = Math.min(zoom, ELEVATION_ZOOM);
+		int shift = zoom - ez;
+		int tx = x >> shift;
+		int ty = y >> shift;
+		Path file = cache().resolve("terrarium").resolve(Integer.toString(ez)).resolve(Integer.toString(tx)).resolve(ty + ".png");
+		try {
+			byte[] png = Http.readCache(file);
+			if (png == null) {
+				png = Http.get(RealEarth.config().tileUrl.replace("{z}", Integer.toString(ez)).replace("{x}", Integer.toString(tx))
+					.replace("{y}", Integer.toString(ty)), 0, 0);
+				Http.writeCache(file, png);
+			}
+			float[] m = TerrariumPng.decode(png, MapPainter.SIZE);
+			if (shift == 0) {
+				return m;
+			}
+			int part = MapPainter.SIZE >> shift;
+			int ox = (x & (1 << shift) - 1) * part;
+			int oy = (y & (1 << shift) - 1) * part;
+			float[] out = new float[MapPainter.SIZE * MapPainter.SIZE];
+			for (int r = 0; r < MapPainter.SIZE; r++) {
+				for (int c = 0; c < MapPainter.SIZE; c++) {
+					out[r * MapPainter.SIZE + c] = m[(oy + (r >> shift)) * MapPainter.SIZE + ox + (c >> shift)];
+				}
+			}
+			return out;
+		} catch (IOException | RuntimeException e) {
+			return null;
+		}
+	}
+
+	private static Path cache() {
+		return FabricLoader.getInstance().getGameDir().resolve(RealEarth.config().cacheDirectory);
+	}
+
 	private static OsmWater source() {
 		EarthConfig config = RealEarth.config();
-		Path cache = FabricLoader.getInstance().getGameDir().resolve(config.cacheDirectory);
+		Path cache = cache();
 		if (DiskCache.current() == null) {
 			// In multiplayer no server here keeps the cache under its limit.
 			DiskCache.install(cache, config.cacheLimitMegabytes << 20);
