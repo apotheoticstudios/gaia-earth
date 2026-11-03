@@ -27,3 +27,16 @@ python3 buildings_nl.py --self-test
 ```
 
 Sheet 37EN1 (Delft and round it): 72,438 buildings, 20 tiles, 3.8 MB, in 3 seconds.
+
+## Netherlands: surveyed roads and pavements
+
+The BGT's road parts (`wegdeel`, CC0) for a box, fetched from PDOK's API page by page: carriageways, pavements,
+cycle paths, squares, steps and parking spaces, with what they are paved with. List the archive in
+`buildingOverlays` beside the buildings one.
+
+```bash
+python3 surfaces_nl.py <min lon> <min lat> <max lon> <max lat> data/<name>.pmtiles
+python3 surfaces_nl.py --self-test
+```
+
+`overlay.py` holds what the converters share: Web Mercator, vector tiles and PMTiles (`python3 overlay.py` tests it).

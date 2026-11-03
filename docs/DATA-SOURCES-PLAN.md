@@ -107,8 +107,15 @@ height, roof height and roof type. Sheet 37EN1 (Delft) gives 72,438 buildings, 2
 The mod reads overlays listed in `buildingOverlays` (http(s): or file: URLs). A matched measured height and roof
 height beat OpenStreetMap's and Overture's; a sloped roof keeps OSM's roof shape where it has one. In central
 Delft, 143 of 161 planned buildings on measured footprints have storeys within one of their measured walls.
-Still to do for phase 1: BGT pavement polygons (the `surface` layer), AHN bare earth (`ground`), the bridge deck,
-and hosting, so that players get the overlay without configuring a file.
+**Built next: surveyed pavements for Delft.** `tools/overlay/surfaces_nl.py` fetches the BGT's road parts (CC0) in
+a box from PDOK and writes a "surfaces" layer: carriageways, pavements, cycle paths, squares, steps and parking spaces
+with what they are paved with. Round the Markt (4.352-4.364 E, 52.008-52.015 N): 2,962 current road parts on the
+ground out of 9,589 fetched, 0.8 MB, mostly brick (`gebakken klinkers`), as the old town really is. The mod
+(`terrain/Surfaces.java`) draws each column inside a surveyed surface with its material (asphalt, red asphalt for
+cycle paths, bricks, pavers, tiles, concrete, gravel), and a column the map's road reached into a pavement becomes
+pavement, so roads are as wide as surveyed. In central Delft all 2,957 columns on surveyed pavements are drawn so,
+and none lies under a road. Still to do for phase 1: AHN bare earth (`ground`), the bridge deck, and hosting, so
+that players get the overlays without configuring files.
 
 
 Build the format, the converter core and the mod's reader with the smallest real case, as the handoff proposes:

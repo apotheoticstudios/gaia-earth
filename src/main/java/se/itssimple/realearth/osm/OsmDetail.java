@@ -34,6 +34,18 @@ public final class OsmDetail {
 		double minMeters, double minX, double minY, double maxX, double maxY) {
 	}
 
+	/**
+	 * A surveyed surface from an overlay (see tools/overlay/surfaces_nl.py): a carriageway, pavement, cycle path, square,
+	 * step or parking space, in global z15 sample coordinates; {@code code} its kind * 8 + its material.
+	 */
+	public record Surface(List<double[]> rings, byte code, double minX, double minY, double maxX, double maxY) {
+	}
+
+	/** Surface kinds. */
+	public static final int ROAD = 1, FOOTWAY = 2, CYCLEWAY = 3, PARKING = 4, STEPS = 5;
+	/** Surface materials. */
+	public static final int ASPHALT = 1, CONCRETE = 2, BRICKS = 3, PAVERS = 4, TILES = 5, GRAVEL = 6, UNPAVED = 7;
+
 	/** Roof shapes, as OSM's roof:shape values are grouped here. */
 	public enum Roof { NONE, FLAT, GABLED, HIPPED, PYRAMIDAL, SKILLION, DOME, ONION, CONE, ROUND, MANSARD }
 
@@ -53,6 +65,12 @@ public final class OsmDetail {
 	private volatile PmTiles archive;
 	private volatile String releaseName;
 	private volatile List<PmTiles> overlays = List.of();
+	private final Map<Long, CompletableFuture<List<Surface>>> surfaceCache = new LinkedHashMap<>(32, 0.75f, true) {
+		@Override
+		protected boolean removeEldestEntry(Map.Entry<Long, CompletableFuture<List<Surface>>> eldest) {
+			return size() > 32;
+		}
+	};
 	private final Map<Long, CompletableFuture<Tile>> cache = new LinkedHashMap<>(64, 0.75f, true) {
 		@Override
 		protected boolean removeEldestEntry(Map.Entry<Long, CompletableFuture<Tile>> eldest) {
@@ -105,6 +123,90 @@ public final class OsmDetail {
 		overlays = List.copyOf(list);
 	}
 
+	/** The overlays' surveyed surfaces in a z14 map tile; none, at once, without overlays. */
+	public CompletableFuture<List<Surface>> surfaces(int x, int y) {
+		List<PmTiles> list = overlays;
+		if (list.isEmpty()) {
+			return CompletableFuture.completedFuture(List.of());
+		}
+		int n = 1 << OsmWater.ZOOM;
+		int wx = Math.floorMod(x, n);
+		int wy = Math.max(0, Math.min(n - 1, y));
+		synchronized (surfaceCache) {
+			return surfaceCache.computeIfAbsent(((long) wx << 32) | wy, k -> CompletableFuture.supplyAsync(() -> {
+				List<Surface> out = new ArrayList<>();
+				// shortcut: every overlay is asked for every layer, so a buildings-only archive is read twice a tile; fine
+				// while overlays are local files or few, split archives by layer in the manifest if hosting makes it costly.
+				for (PmTiles overlay : list) {
+					try {
+						byte[] data = overlay.tile(OsmWater.ZOOM, wx, wy);
+						if (data != null) {
+							out.addAll(parseSurfaces(VectorTile.decode(data, Set.of("surfaces")), wx, wy));
+						}
+					} catch (IOException | RuntimeException e) {
+						RealEarth.LOGGER.warn("Surface overlay {} unreadable for map tile {}/{}/{}: {}", overlay.url(), OsmWater.ZOOM, wx, wy, e.toString());
+					}
+				}
+				return List.copyOf(out);
+			}, downloads));
+		}
+	}
+
+	/** An overlay's surfaces, by their kind and material names. */
+	static List<Surface> parseSurfaces(List<VectorTile.Feature> features, int tileX, int tileY) {
+		List<Surface> out = new ArrayList<>();
+		for (VectorTile.Feature f : features) {
+			int kind = switch (String.valueOf(f.string("kind"))) {
+				case "road" -> ROAD;
+				case "footway" -> FOOTWAY;
+				case "cycleway" -> CYCLEWAY;
+				case "parking" -> PARKING;
+				case "steps" -> STEPS;
+				default -> 0;
+			};
+			int material = switch (String.valueOf(f.string("material"))) {
+				case "asphalt" -> ASPHALT;
+				case "concrete" -> CONCRETE;
+				case "bricks" -> BRICKS;
+				case "pavers" -> PAVERS;
+				case "tiles" -> TILES;
+				case "gravel" -> GRAVEL;
+				default -> UNPAVED;
+			};
+			if (f.type() != VectorTile.POLYGON || kind == 0) {
+				continue;
+			}
+			List<double[]> rings = rings(f, tileX, tileY);
+			double[] box = {Double.MAX_VALUE, Double.MAX_VALUE, -Double.MAX_VALUE, -Double.MAX_VALUE};
+			for (double[] r : rings) {
+				for (int i = 0; i < r.length; i += 2) {
+					box[0] = Math.min(box[0], r[i]);
+					box[1] = Math.min(box[1], r[i + 1]);
+					box[2] = Math.max(box[2], r[i]);
+					box[3] = Math.max(box[3], r[i + 1]);
+				}
+			}
+			out.add(new Surface(rings, (byte) (kind * 8 + material), box[0], box[1], box[2], box[3]));
+		}
+		return out;
+	}
+
+	/** A feature's rings in global z15 sample coordinates, from a z14 tile's. */
+	private static List<double[]> rings(VectorTile.Feature f, int tileX, int tileY) {
+		double samplesPerTile = (double) Mercator.TILE_SIZE * (1 << (Mercator.ZOOM - OsmWater.ZOOM));
+		double scale = samplesPerTile / f.extent();
+		List<double[]> rings = new ArrayList<>();
+		for (int[] p : f.parts()) {
+			double[] ring = new double[p.length];
+			for (int i = 0; i < p.length; i += 2) {
+				ring[i] = tileX * samplesPerTile + p[i] * scale - 0.5;
+				ring[i + 1] = tileY * samplesPerTile + p[i + 1] * scale - 0.5;
+			}
+			rings.add(ring);
+		}
+		return rings;
+	}
+
 	private Tile load(int x, int y) {
 		Tile overture = loadOverture(x, y);
 		List<Shape> measured = new ArrayList<>();
@@ -123,25 +225,14 @@ public final class OsmDetail {
 
 	/** An overlay's buildings: footprints with measured heights (metres), roof heights and "slanted" or "flat" roofs. */
 	static List<Shape> parseMeasured(List<VectorTile.Feature> features, int tileX, int tileY) {
-		double samplesPerTile = (double) Mercator.TILE_SIZE * (1 << (Mercator.ZOOM - OsmWater.ZOOM));
 		List<Shape> shapes = new ArrayList<>();
 		for (VectorTile.Feature f : features) {
 			double height = f.number("height");
 			if (f.type() != VectorTile.POLYGON || !(height > 0)) {
 				continue;
 			}
-			double scale = samplesPerTile / f.extent();
 			boolean slanted = "slanted".equals(f.string("roof"));
-			List<double[]> rings = new ArrayList<>();
-			for (int[] p : f.parts()) {
-				double[] ring = new double[p.length];
-				for (int i = 0; i < p.length; i += 2) {
-					ring[i] = tileX * samplesPerTile + p[i] * scale - 0.5;
-					ring[i + 1] = tileY * samplesPerTile + p[i + 1] * scale - 0.5;
-				}
-				rings.add(ring);
-			}
-			shapes.add(shape(rings, false, slanted ? Roof.GABLED : Roof.FLAT, slanted ? f.number("roof_height") : 0, Colours.NONE, Colours.NONE,
+			shapes.add(shape(rings(f, tileX, tileY), false, slanted ? Roof.GABLED : Roof.FLAT, slanted ? f.number("roof_height") : 0, Colours.NONE, Colours.NONE,
 				height, 0));
 		}
 		return shapes;

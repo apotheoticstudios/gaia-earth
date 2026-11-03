@@ -36,6 +36,11 @@ building heights and roof heights from the **3D Basisvoorziening** of the **Kada
 and aerial imagery with 3DBAG's methods, available under CC BY 4.0
 (<https://www.kadaster.nl/zakelijk/producten/geo-informatie/3d-producten>).
 
+Where the Netherlands surface overlay is installed (made by `tools/overlay/surfaces_nl.py`), carriageways,
+pavements, cycle paths, squares, steps and parking spaces as surveyed, with what they are paved with, from the
+**Basisregistratie Grootschalige Topografie (BGT)** of the **Kadaster**, served by PDOK, public domain (CC0)
+(<https://www.pdok.nl/introductie/-/article/basisregistratie-grootschalige-topografie-bgt->).
+
 ## Elevation: Terrain Tiles
 
 Ground and sea-floor heights, from the **Terrain Tiles** dataset on the Registry of Open Data on AWS

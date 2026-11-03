@@ -482,6 +482,23 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 		return b.defaultBlockState();
 	}
 
+	/** What a surveyed surface is paved with (see Surfaces): asphalt, red for Dutch cycle paths, bricks, pavers, tiles. */
+	private static BlockState surveyed(byte code) {
+		if (code / 8 == se.itssimple.realearth.osm.OsmDetail.STEPS) {
+			return block(Blocks.STONE_BRICKS);
+		}
+		return switch (code % 8) {
+			case se.itssimple.realearth.osm.OsmDetail.ASPHALT -> block(code / 8 == se.itssimple.realearth.osm.OsmDetail.CYCLEWAY ? Blocks.RED_TERRACOTTA
+				: Blocks.GRAY_CONCRETE);
+			case se.itssimple.realearth.osm.OsmDetail.CONCRETE -> block(Blocks.LIGHT_GRAY_CONCRETE);
+			case se.itssimple.realearth.osm.OsmDetail.BRICKS -> block(Blocks.BRICKS);
+			case se.itssimple.realearth.osm.OsmDetail.PAVERS -> block(Blocks.STONE_BRICKS);
+			case se.itssimple.realearth.osm.OsmDetail.TILES -> block(Blocks.SMOOTH_STONE);
+			case se.itssimple.realearth.osm.OsmDetail.GRAVEL -> block(Blocks.GRAVEL);
+			default -> block(Blocks.DIRT_PATH);
+		};
+	}
+
 	/** What a way is paved with: asphalt for roads, dirt and gravel for tracks, trodden paths, ballast. */
 	private static BlockState waySurface(byte way, int worldX, int worldZ) {
 		return switch (way) {
@@ -663,7 +680,7 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 
 		byte way = t.way[k];
 		if (way != Ways.NONE) {
-			BlockState surface = waySurface(way, worldX, worldZ);
+			BlockState surface = t.surface[k] != 0 ? surveyed(t.surface[k]) : waySurface(way, worldX, worldZ);
 			BlockState under = Ways.isPaved(way) ? STONE : Ways.isRail(way) ? block(Blocks.GRAVEL) : dirt;
 			return new Column(top, waterTop, surface, under, 2, STONE, shore, way == Ways.RAIL ? railShape(t, x, z, false) : null);
 		}

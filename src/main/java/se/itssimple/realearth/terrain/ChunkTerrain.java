@@ -89,6 +89,8 @@ public final class ChunkTerrain {
 
 	/** The single trees the map has in this chunk: street trees, park trees. */
 	public volatile java.util.List<MappedTree> mappedTrees = java.util.List.of();
+	/** A column's surveyed surface from an overlay, as OsmDetail.Surface's code (kind * 8 + material), or 0 (see Surfaces). */
+	public final byte[] surface = new byte[SPAN * SPAN];
 	/** Columns in a park, garden or playground. */
 	public final boolean[] park = new boolean[SPAN * SPAN];
 	/** What else the ground of a column is laid out as: {@link #CEMETERY}, {@link #ALLOTMENT}, {@link #FLOWERBED}, {@link #PITCH}, or 0. */

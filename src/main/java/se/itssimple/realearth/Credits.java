@@ -29,6 +29,8 @@ public final class Credits {
 		new Source("Measured building heights in the Netherlands, where that overlay is installed",
 			"Kadaster, 3D Basisvoorziening (heights reconstructed from AHN and aerial imagery by 3DBAG), CC BY 4.0.",
 			"https://www.kadaster.nl/zakelijk/producten/geo-informatie/3d-producten"),
+		new Source("Surveyed roads, pavements and cycle paths in the Netherlands, where that overlay is installed",
+			"Kadaster, Basisregistratie Grootschalige Topografie (BGT) via PDOK, CC0.", "https://www.pdok.nl/introductie/-/article/basisregistratie-grootschalige-topografie-bgt-"),
 		new Source("Elevation",
 			"Terrain Tiles on AWS (Mapzen): USGS 3DEP, SRTM and GMTED2010; NOAA ETOPO1; Copernicus EU-DEM; Geoscience Australia; "
 				+ "Kartverket; Environment Agency (UK); LINZ; INEGI; Natural Resources Canada; DGM Österreich; ArcticDEM.",

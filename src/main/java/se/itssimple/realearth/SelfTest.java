@@ -1886,6 +1886,74 @@ final class SelfTest {
 			}));
 		}
 
+		phases.add(Map.entry("Buildings: Delft's pavements", () -> {
+			// Surveyed surfaces from an overlay (tools/overlay/surfaces_nl.py), where one is installed: pavements, cycle
+			// paths and squares drawn where the BGT has them, and roads no wider than their surveyed carriageways.
+			TerrainField field = RealEarth.terrain();
+			var detail = field.map() == null ? null : field.map().detail();
+			if (RealEarth.config().buildingOverlays.isBlank() || detail == null) {
+				log("no surface overlay installed; Delft's pavements not checked");
+				return;
+			}
+			try {
+				var surfaces = detail.surfaces(8390, 5411).get(120, java.util.concurrent.TimeUnit.SECONDS);
+				check(surfaces.size() > 500, "the overlay has central Delft's road surfaces (%d)", surfaces.size());
+				int cx0 = (int) field.projection().blockX(52.0115, 4.3583) >> 4;
+				int cz0 = (int) field.projection().blockZ(52.0115) >> 4;
+				int walks = 0;
+				int drawn = 0;
+				int spilled = 0;
+				int red = 0;
+				for (int cx = cx0 - 2; cx <= cx0 + 2; cx++) {
+					for (int cz = cz0 - 2; cz <= cz0 + 2; cz++) {
+						var t = field.chunk(cx, cz).get(120, java.util.concurrent.TimeUnit.SECONDS);
+						for (int x = 0; x < 16; x++) {
+							for (int z = 0; z < 16; z++) {
+								int k = se.itssimple.realearth.terrain.ChunkTerrain.index(x, z);
+								if (t.building[k] != 0 || !Float.isNaN(t.waterMeters[k]) || t.deckWay[k] != 0 || t.tunnel[k] != 0) {
+									continue;
+								}
+								double sx = se.itssimple.realearth.geo.Mercator.sampleX(t.longitude[k]);
+								double sy = se.itssimple.realearth.geo.Mercator.sampleY(t.latitude[k]);
+								se.itssimple.realearth.osm.OsmDetail.Surface in = null;
+								for (var s : surfaces) {
+									if (sx < s.minX() || sx > s.maxX() || sy < s.minY() || sy > s.maxY()) {
+										continue;
+									}
+									boolean inside = false;
+									for (double[] r : s.rings()) {
+										for (int i = 0, j = r.length - 2; i < r.length; j = i, i += 2) {
+											if ((r[i + 1] > sy) != (r[j + 1] > sy) && sx < (r[j] - r[i]) * (sy - r[i + 1]) / (r[j + 1] - r[i + 1]) + r[i]) {
+												inside = !inside;
+											}
+										}
+									}
+									if (inside) {
+										in = s;
+										break;
+									}
+								}
+								int kind = in == null ? 0 : in.code() / 8;
+								if (kind != se.itssimple.realearth.osm.OsmDetail.FOOTWAY && kind != se.itssimple.realearth.osm.OsmDetail.CYCLEWAY) {
+									continue;
+								}
+								walks++;
+								drawn += t.surface[k] == in.code() && t.way[k] == se.itssimple.realearth.osm.Ways.PATH ? 1 : 0;
+								spilled += se.itssimple.realearth.osm.Ways.isPaved(t.way[k]) ? 1 : 0;
+								red += kind == se.itssimple.realearth.osm.OsmDetail.CYCLEWAY && in.code() % 8 == se.itssimple.realearth.osm.OsmDetail.ASPHALT ? 1 : 0;
+							}
+						}
+					}
+				}
+				log("Delft: %d columns on surveyed pavements and cycle paths, %d drawn as surveyed, %d under a road, %d red cycle path",
+					walks, drawn, spilled, red);
+				check(walks >= 200 && drawn * 10 >= walks * 9, "Delft's pavements are drawn where surveyed (%d of %d)", drawn, walks);
+				check(spilled == 0, "Delft's roads are no wider than their surveyed carriageways (%d columns of pavement under a road)", spilled);
+			} catch (Exception e) {
+				check(false, "Delft's surveyed surfaces: %s", e);
+			}
+		}));
+
 		phases.add(Map.entry("Buildings: Delft's measured heights", () -> {
 			// Measured heights from an overlay (tools/overlay/buildings_nl.py), where one is installed: each building's
 			// storeys follow its measured walls, about 3 m a storey, not OpenStreetMap's guess.
