@@ -24,6 +24,7 @@ import net.minecraft.world.level.Level;
 import org.joml.Matrix4f;
 import se.itssimple.realearth.EarthConfig;
 import se.itssimple.realearth.RealEarth;
+import se.itssimple.realearth.client.ClientHere;
 import se.itssimple.realearth.data.DiskCache;
 import se.itssimple.realearth.data.Http;
 import se.itssimple.realearth.data.TerrariumPng;
@@ -31,6 +32,7 @@ import se.itssimple.realearth.geo.Projection;
 import se.itssimple.realearth.osm.MapPainter;
 import se.itssimple.realearth.osm.OsmWater;
 import se.itssimple.realearth.world.ClimateLink;
+import se.itssimple.realearth.world.MapWaypoints;
 import xaero.map.graphics.renderer.multitexture.MultiTextureRenderTypeRenderer;
 import xaero.map.gui.GuiMap;
 
@@ -66,6 +68,10 @@ public final class XaeroMapBackground {
 	private static final int MAX_NAMES = 40;
 	/** Clear space kept round each name, in GUI pixels, so the map stays readable between them. */
 	private static final int NAME_SPACE = 24;
+	/** The map's own buttons down each side, and its readouts along the top and bottom, in GUI pixels: no names there. */
+	private static final int SIDE_MARGIN = 24;
+	private static final int TOP_MARGIN = 26;
+	private static final int BOTTOM_MARGIN = 20;
 	/** How many zooms out the stand-in fetched first for a view with nothing in it is. */
 	private static final int COARSE_STEPS = 3;
 	/** Pictures kept on the GPU, a quarter of a megabyte each; a screen at most zoom levels needs under a hundred. */
@@ -117,6 +123,8 @@ public final class XaeroMapBackground {
 	private static final Map<Long, Long> failedUntil = new HashMap<>();
 	private static OsmWater source;
 	private static boolean warned;
+	/** Whether the map shows the player's own dimension, where Project Gaia: Earth's waypoint marks are. */
+	private static boolean marksShown;
 	/** Whether the last frame drew a picture, for the credit. */
 	private static boolean shown;
 
@@ -159,6 +167,7 @@ public final class XaeroMapBackground {
 		if (mercator == null || caves) {
 			return;
 		}
+		marksShown = dimension == Minecraft.getInstance().level.dimension();
 		upload();
 		double world = mercator.periodX();
 		// The zoom whose tiles come out 256 to 512 pixels wide on the screen.
@@ -268,8 +277,17 @@ public final class XaeroMapBackground {
 		float k = (float) Math.min(1, 2 / gui);
 		onScreen.sort(Comparator.comparingInt(n -> n.place().priority()));
 		List<int[]> taken = new ArrayList<>();
+		if (!onScreen.isEmpty() && marksShown) {
+			// The waypoint marks first: a name must not cover one (a waypoint's flag stands above its spot).
+			for (MapWaypoints.Mark m : ClientHere.marks()) {
+				int mx = (int) (((m.x() + 0.5 - cameraX) * scale + window.getWidth() / 2.0) / gui);
+				int my = (int) (((m.z() + 0.5 - cameraZ) * scale + window.getHeight() / 2.0) / gui);
+				taken.add(new int[] {mx - 8, my - 16, mx + 8, my + 6});
+			}
+		}
+		int written = 0;
 		for (Name n : onScreen) {
-			if (taken.size() >= MAX_NAMES) {
+			if (written >= MAX_NAMES) {
 				break;
 			}
 			int kind = n.place().kind();
@@ -278,10 +296,12 @@ public final class XaeroMapBackground {
 			int x = (int) (((n.x() - cameraX) * scale + window.getWidth() / 2.0) / gui) - w / 2;
 			int y = (int) (((n.z() - cameraZ) * scale + window.getHeight() / 2.0) / gui) - (int) (4 * k);
 			int[] box = {x - NAME_SPACE, y - NAME_SPACE / 2, x + w + NAME_SPACE, y + (int) Math.ceil(9 * k) + NAME_SPACE / 2};
-			if (box[2] < 0 || box[0] > width || box[3] < 0 || box[1] > height || taken.stream().anyMatch(t -> t[0] < box[2] && box[0] < t[2] && t[1] < box[3] && box[1] < t[3])) {
+			int h = (int) Math.ceil(9 * k);
+			if (x < SIDE_MARGIN || x + w > width - SIDE_MARGIN || y < TOP_MARGIN || y + h > height - BOTTOM_MARGIN || taken.stream().anyMatch(t -> t[0] < box[2] && box[0] < t[2] && t[1] < box[3] && box[1] < t[3])) {
 				continue;
 			}
 			taken.add(box);
+			written++;
 			int colour = switch (kind) {
 				case MapPainter.Place.STATE -> 0xFFC8C8C8;
 				case MapPainter.Place.CITY, MapPainter.Place.TOWN -> 0xFFFFFFFF;
@@ -388,13 +408,25 @@ public final class XaeroMapBackground {
 			if (shift == 0) {
 				return m;
 			}
-			int part = MapPainter.SIZE >> shift;
+			int n = MapPainter.SIZE;
+			int part = n >> shift;
 			int ox = (x & (1 << shift) - 1) * part;
 			int oy = (y & (1 << shift) - 1) * part;
-			float[] out = new float[MapPainter.SIZE * MapPainter.SIZE];
-			for (int r = 0; r < MapPainter.SIZE; r++) {
-				for (int c = 0; c < MapPainter.SIZE; c++) {
-					out[r * MapPainter.SIZE + c] = m[(oy + (r >> shift)) * MapPainter.SIZE + ox + (c >> shift)];
+			float[] out = new float[n * n];
+			// Bilinear, between the coarser tile's pixel centres: stretched pixel by pixel, the shading would come out in steps.
+			for (int r = 0; r < n; r++) {
+				double sy = Math.clamp(oy + (r + 0.5) / (1 << shift) - 0.5, 0, n - 1);
+				int y0 = (int) sy;
+				int y1 = Math.min(y0 + 1, n - 1);
+				double fy = sy - y0;
+				for (int c = 0; c < n; c++) {
+					double sx = Math.clamp(ox + (c + 0.5) / (1 << shift) - 0.5, 0, n - 1);
+					int x0 = (int) sx;
+					int x1 = Math.min(x0 + 1, n - 1);
+					double fx = sx - x0;
+					double top = m[y0 * n + x0] * (1 - fx) + m[y0 * n + x1] * fx;
+					double bottom = m[y1 * n + x0] * (1 - fx) + m[y1 * n + x1] * fx;
+					out[r * n + c] = (float) (top * (1 - fy) + bottom * fy);
 				}
 			}
 			return out;
