@@ -57,9 +57,10 @@
   asks. Same permission as `/earth tp`.
 - **Place search on Xaero's World Map**: on the Earth, the map's coordinate box takes a place name too, and the
   map glides there.
-- **Waypoints in English**: the town and station waypoints in Xaero's Minimap and World Map use English names
-  where the map has them, else the international one in Latin letters (Kyoto's stations as Tofukuji and
-  Kiyomizu-gojo, not in kanji).
+- **Names in English**: town and district titles, street and shop signs, Jade, the town and station waypoints in
+  Xaero's Minimap and World Map, and town maps use English names where the map has them, else the international
+  one in Latin letters (Kyoto's stations as Tofukuji and Kiyomizu-gojo, not in kanji). Places whose English
+  name is their own, like Stockholm's Södermalm, keep it. Signs already placed keep their old names.
 
 ## 0.2.0 (2026-10-23)
 

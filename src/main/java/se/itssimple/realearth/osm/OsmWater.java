@@ -87,9 +87,11 @@ public final class OsmWater {
 
 	/**
 	 * A point of interest -- a shop, café, church, school -- in global z15 sample coordinates, with its
-	 * OpenMapTiles class and subclass, name (or null), and floor (0 for the ground floor or unknown).
+	 * OpenMapTiles class and subclass, name (or null), and floor (0 for the ground floor or unknown). Names
+	 * here, a place's and a street's too, are in English where the map has an English one, else its
+	 * international one in Latin letters, else its own ({@link VectorTile.Feature#english}).
 	 */
-	public record Poi(double x, double y, String cls, String subclass, String name, int level, String english) {
+	public record Poi(double x, double y, String cls, String subclass, String name, int level) {
 	}
 
 	/**
@@ -97,7 +99,7 @@ public final class OsmWater {
 	 * global z15 sample coordinates. Lower rank is more important. {@code capital} is the admin level the
 	 * place is the capital of (2 a country's), or 0.
 	 */
-	public record Place(double x, double y, String cls, String name, int rank, int capital, String english) {
+	public record Place(double x, double y, String cls, String name, int rank, int capital) {
 	}
 
 	/** A named street or path: its centreline in global z15 sample coordinates, its name, and its class. */
@@ -334,7 +336,7 @@ public final class OsmWater {
 				addPlaces(places, f, parts);
 				continue;
 			}
-			if (f.layer().equals("transportation_name") && f.type() == VectorTile.LINE && f.string("name") != null) {
+			if (f.layer().equals("transportation_name") && f.type() == VectorTile.LINE && f.english() != null) {
 				for (double[] part : parts) {
 					if (part.length < 4) {
 						continue;
@@ -349,14 +351,14 @@ public final class OsmWater {
 						minY = Math.min(minY, part[i + 1]);
 						maxY = Math.max(maxY, part[i + 1]);
 					}
-					streets.add(new Street(part, f.string("name"), cls, minX, minY, maxX, maxY));
+					streets.add(new Street(part, f.english(), cls, minX, minY, maxX, maxY));
 				}
 				continue;
 			}
 			if (f.layer().equals("poi") && f.type() == VectorTile.POINT) {
 				double level = f.number("level");
 				for (double[] p : parts) {
-					pois.add(new Poi(p[0], p[1], cls, f.string("subclass"), f.string("name"), Double.isNaN(level) ? 0 : (int) level, f.english()));
+					pois.add(new Poi(p[0], p[1], cls, f.string("subclass"), f.english(), Double.isNaN(level) ? 0 : (int) level));
 				}
 				continue;
 			}
@@ -447,7 +449,7 @@ public final class OsmWater {
 	/** Cities, towns, villages and their districts; not islands, countries, states or lone farms. */
 	private static void addPlaces(List<Place> places, VectorTile.Feature f, List<double[]> parts) {
 		String cls = f.string("class");
-		String name = f.string("name");
+		String name = f.english();
 		if (name == null || cls == null) {
 			return;
 		}
@@ -456,7 +458,7 @@ public final class OsmWater {
 				double rank = f.number("rank");
 				double capital = f.number("capital");
 				for (double[] p : parts) {
-					places.add(new Place(p[0], p[1], cls, name, Double.isNaN(rank) ? 99 : (int) rank, Double.isNaN(capital) ? 0 : (int) capital, f.english()));
+					places.add(new Place(p[0], p[1], cls, name, Double.isNaN(rank) ? 99 : (int) rank, Double.isNaN(capital) ? 0 : (int) capital));
 				}
 			}
 			default -> {
