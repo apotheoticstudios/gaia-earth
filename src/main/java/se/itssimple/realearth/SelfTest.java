@@ -104,6 +104,19 @@ final class SelfTest {
 			check(scale.toY(8849) <= VerticalScale.MAX_Y && scale.toY(8849) > VerticalScale.MAX_Y - 20, "Everest fits under the build limit: Y %.1f", scale.toY(8849));
 			check(scale.toY(-10994) >= VerticalScale.MIN_Y, "Challenger Deep fits above the floor: Y %.1f", scale.toY(-10994));
 			check(Math.abs(scale.toElevation(scale.toY(4000)) - 4000) < 0.01, "vertical scale round-trips at 4000 m");
+			{
+				// A building's height: OpenFreeMap's 5 m stand-in, where nothing is mapped, gives way to Overture's.
+				var overture = new se.itssimple.realearth.osm.OsmDetail.Shape(List.of(), false, se.itssimple.realearth.osm.OsmDetail.Roof.NONE,
+					Double.NaN, 0, 0, 23, 0, 0, 0, 0, 0);
+				var part = new se.itssimple.realearth.osm.OsmDetail.Shape(List.of(), true, se.itssimple.realearth.osm.OsmDetail.Roof.NONE,
+					Double.NaN, 0, 0, 40, 10, 0, 0, 0, 0);
+				check(se.itssimple.realearth.terrain.BuildingPlan.heightMeters(5, overture) == 23
+						&& se.itssimple.realearth.terrain.BuildingPlan.heightMeters(Double.NaN, overture) == 23
+						&& se.itssimple.realearth.terrain.BuildingPlan.heightMeters(12, overture) == 12
+						&& se.itssimple.realearth.terrain.BuildingPlan.heightMeters(5, part) == 5
+						&& se.itssimple.realearth.terrain.BuildingPlan.heightMeters(5, null) == 5,
+					"a building with no mapped height takes Overture's, a mapped one keeps its own");
+			}
 
 			double lat = 59.3293;
 			double lon = 18.0686;

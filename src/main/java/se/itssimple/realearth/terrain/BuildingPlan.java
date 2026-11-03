@@ -373,6 +373,19 @@ public final class BuildingPlan {
 	}
 
 	/** Builds plans for a map tile's building, or null when it can't stand (too small, in the water). */
+	/** OpenFreeMap's height for a building with neither a height nor storeys mapped: in truth not known. */
+	static final double UNKNOWN_HEIGHT = 5;
+
+	/** Whether OpenFreeMap's height for a building was mapped, not its stand-in. */
+	static boolean mapped(double heightMeters) {
+		return !Double.isNaN(heightMeters) && heightMeters != UNKNOWN_HEIGHT;
+	}
+
+	/** A building's height: as mapped, else its Overture building's (not a part's) where that has one. */
+	public static double heightMeters(double mapped, OsmDetail.Shape overture) {
+		return mapped(mapped) || overture == null || overture.part() || !(overture.heightMeters() > 0) ? mapped : overture.heightMeters();
+	}
+
 	static BuildingPlan of(long id, List<double[]> rings, double floorMeters, double latitude, double heightMeters, int colour, Detail detail,
 		List<Raised> raised, double area, TerrainField field, Style style, List<int[]> doors, double storeyMeters, int maxFloors, Use use, Trade hall, List<Shop> shops, int tileX, int tileY) {
 		double perMeter = field.projection().blocksPerMeter(latitude);

@@ -116,6 +116,16 @@ final class Buildings {
 		return s == null ? BuildingPlan.Detail.NONE : detail(s);
 	}
 
+	/** The candidate's height in metres: OpenFreeMap's where mapped, else Overture's, which adds heights from other sources. */
+	static double heightMeters(Map<Long, OsmDetail.Tile> details, Candidate c) {
+		OsmWater.Building outline = c.building();
+		if (BuildingPlan.mapped(outline.heightMeters())) {
+			return outline.heightMeters();
+		}
+		return BuildingPlan.heightMeters(outline.heightMeters(), match(shapes(details, c), outline.rings(), outline.minX(), outline.minY(),
+			outline.maxX(), outline.maxY()));
+	}
+
 	private static BuildingPlan.Detail detail(OsmDetail.Shape s) {
 		return new BuildingPlan.Detail(s.roof(), s.roofMeters(), s.roofColour(), s.colour());
 	}
@@ -167,7 +177,8 @@ final class Buildings {
 	static List<BuildingPlan.Raised> raised(TerrainField field, Candidate c, Map<Long, OsmDetail.Tile> details) {
 		List<OsmDetail.Shape> shapes = shapes(details, c);
 		OsmWater.Building b = c.building();
-		double height = Double.isNaN(b.heightMeters()) ? 6 : b.heightMeters();
+		double known = heightMeters(details, c);
+		double height = Double.isNaN(known) ? 6 : known;
 		List<BuildingPlan.Raised> out = new ArrayList<>();
 		for (OsmWater.Part part : c.parts()) {
 			if (part.maxX() < b.minX() || part.minX() > b.maxX() || part.maxY() < b.minY() || part.minY() > b.maxY()
@@ -293,7 +304,7 @@ final class Buildings {
 			int climate = koppen == null ? 0 : koppen.classAt(lat, lon);
 			long id = BuildingPlan.idOf(c.tileX(), c.tileY(), c.building());
 			Use use = classify(field, c, centre, area);
-			BuildingPlan plan = BuildingPlan.of(id, c.blockRings(), floor, lat, c.building().heightMeters(), c.building().colour(), detail(details, c),
+			BuildingPlan plan = BuildingPlan.of(id, c.blockRings(), floor, lat, heightMeters(details, c), c.building().colour(), detail(details, c),
 				raised(field, c, details), area, field, style(climate),
 				doors(c, lat), storeyMeters, maxFloors, use.use(), use.hall(), use.shops(), c.tileX(), c.tileY());
 			if (!t.degraded) {
