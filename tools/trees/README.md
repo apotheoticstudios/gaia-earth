@@ -24,7 +24,8 @@ folder is ignored by git until the packs' permissions are settled. Each tree is 
 leaf blocks and leaf counts, plus every file skipped and why.
 
 Which species grows where is `src/main/resources/realearth/trees/species.tsv`: per species (its file names
-without the trailing number), the vanilla trees it stands in for (`spruce` for spruces and pines, `birch`,
+without the trailing number; a comma list, first named, joins trees named differently or from other packs
+into one species, like `pinus_pinaster,l_mar,m_mar,s_mar`), the vanilla trees it stands in for (`spruce` for spruces and pines, `birch`,
 `oak`, `swamp` for oaks in swamps, `dark_oak`, `acacia`, `jungle`, `mangrove`, `cherry`), the Köppen climates
 it grows in (by prefix: `Cs` is every Mediterranean climate), its heights (`low`, `mid` from half the treeline,
 `high` within 200 m of it), a latitude and longitude box, and a weight. Without trees installed, or where no

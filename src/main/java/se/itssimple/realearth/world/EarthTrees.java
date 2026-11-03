@@ -465,13 +465,24 @@ public final class EarthTrees {
 		try (InputStream raw = EarthTrees.class.getResourceAsStream("/realearth/trees/species.tsv");
 			 BufferedReader in = new BufferedReader(new InputStreamReader(raw, StandardCharsets.UTF_8))) {
 			in.readLine();
+			Set<String> joined = new java.util.HashSet<>();
 			for (String line; (line = in.readLine()) != null; ) {
 				String[] f = line.split("\t");
-				if (f.length < 8 || !trees.containsKey(f[0])) {
+				if (f.length < 8) {
+					continue;
+				}
+				// "picea_abies,norwayspruce": the first names the species, the others add their trees to it.
+				String[] names = f[0].split(",");
+				for (int k = 1; k < names.length; k++) {
+					if (joined.add(names[0] + "," + names[k]) && trees.containsKey(names[k])) {
+						trees.computeIfAbsent(names[0], s -> new ArrayList<>()).addAll(trees.get(names[k]));
+					}
+				}
+				if (!trees.containsKey(names[0])) {
 					continue;
 				}
 				String[] lat = f[4].split("\\.\\."), lon = f[5].split("\\.\\.");
-				rows.add(new Row(f[0], Set.of(f[1].split(",")), List.of(f[2].split(",")), Set.of(f[3].split(",")),
+				rows.add(new Row(names[0], Set.of(f[1].split(",")), List.of(f[2].split(",")), Set.of(f[3].split(",")),
 					Double.parseDouble(lat[0]), Double.parseDouble(lat[1]), Double.parseDouble(lon[0]), Double.parseDouble(lon[1]),
 					Integer.parseInt(f[6]), Double.parseDouble(f[7].split("\\.\\.")[0]), Double.parseDouble(f[7].split("\\.\\.")[1])));
 			}
