@@ -155,6 +155,10 @@ public final class OsmWater {
 		roadVersion = version;
 	}
 
+	public int roadVersion() {
+		return roadVersion;
+	}
+
 	public OsmWater(String tileJsonUrl, Path root, Executor downloads) {
 		this.tileJsonUrl = tileJsonUrl;
 		this.root = root;

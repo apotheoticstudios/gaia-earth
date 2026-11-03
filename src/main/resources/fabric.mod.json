@@ -41,7 +41,8 @@
     "minecraft": "~26.1",
     "java": ">=25",
     "fabric-api": "*",
-    "gaia-earth-client": "*"
+    "gaia-earth-client": "*",
+    "saros_road_blocks_mod": ">=5.12"
   },
   "suggests": {
     "distanthorizons": ">=3.3.0",

@@ -119,6 +119,9 @@ dependencies {
 	clientPerformance "maven.modrinth:lithium:mc26.1.2-0.24.7-fabric"
 	clientPerformance "maven.modrinth:ferrite-core:9.0.0-fabric"
 	clientMenu "maven.modrinth:modmenu:18.0.2"
+
+	// Saro's Road Blocks (a dependency, never shipped): asphalt and road markings. Its exact 5.12 build for Fabric 26.1.
+	runtimeOnly "maven.modrinth:saros-road-blocks:yUevnPQt"
 }
 
 // Keep the clean client free of optional mods.

@@ -90,6 +90,7 @@ final class WayRaster {
 		OsmWater.Way[] drawnFrom = new OsmWater.Way[n * n];
 		double[] across = new double[n * n];
 		double[] along = new double[n * n];
+		boolean[] alongX = new boolean[n * n];
 
 		for (OsmWater.Way way : ways) {
 			boolean rail = isRail(way);
@@ -154,6 +155,7 @@ final class WayRaster {
 					double side = (sx[k] - near[1]) * near[6] - (sy[k] - near[2]) * near[5];
 					across[k] = (side < 0 ? -near[0] : near[0]) * spacing;
 					along[k] = near[3] * spacing;
+					alongX[k] = Math.abs(near[5]) >= Math.abs(near[6]);
 				}
 			}
 			if (rail) {
@@ -183,7 +185,8 @@ final class WayRaster {
 		for (int k = 0; k < n * n; k++) {
 			OsmWater.Way w = drawnFrom[k];
 			if (w != null && w.markings() != 0 && t.way[k] == w.kind()) {
-				t.marking[k] = Markings.at(w.markings(), across[k], along[k], w.widthMeters(), perMeter);
+				byte paint = Markings.at(w.markings(), across[k], along[k], w.widthMeters(), perMeter);
+				t.marking[k] = paint != Markings.NONE && alongX[k] ? (byte) (paint | Markings.ALONG_X) : paint;
 			}
 		}
 

@@ -499,10 +499,47 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 		};
 	}
 
+	/**
+	 * Saro's Road Blocks (a dependency): its asphalt, plain or painted with a white or yellow line down the middle
+	 * (texture_variant straight or road_block_linie_yellow; along Z facing north, along X facing east). Looked up on
+	 * first use, after every mod has registered its blocks; vanilla blocks if a version of it renames them.
+	 */
+	private static final class RoadBlocks {
+		static final BlockState ASPHALT = net.minecraft.core.registries.BuiltInRegistries.BLOCK
+			.getOptional(net.minecraft.resources.Identifier.fromNamespaceAndPath("saros_road_blocks_mod", "asphalt")).map(Block::defaultBlockState)
+			.orElse(null);
+		static final BlockState WHITE = ASPHALT == null ? block(Blocks.WHITE_CONCRETE) : with(ASPHALT, "texture_variant", "straight");
+		static final BlockState YELLOW = ASPHALT == null ? block(Blocks.YELLOW_CONCRETE) : with(ASPHALT, "texture_variant", "road_block_linie_yellow");
+
+		/** The state with a property of the mod's set by name, unchanged where it has no such property or value. */
+		static BlockState with(BlockState state, String property, String value) {
+			var p = state.getBlock().getStateDefinition().getProperty(property);
+			return p == null ? state : set(state, p, value);
+		}
+
+		private static <T extends Comparable<T>> BlockState set(BlockState state, net.minecraft.world.level.block.state.properties.Property<T> p,
+			String value) {
+			return p.getValue(value).map(v -> state.setValue(p, v)).orElse(state);
+		}
+	}
+
+	/** Whether this world's roads are drawn as they are now (WorldSettings.roadVersion 1): asphalt and markings. */
+	private static boolean currentRoads() {
+		TerrainField field = RealEarth.terrain();
+		return field != null && field.map() != null && field.map().roadVersion() >= 1;
+	}
+
+	/** A road marking's block (see Markings): a white or yellow line, laid along the road. */
+	private static BlockState paint(byte marking) {
+		BlockState line = (marking & 3) == se.itssimple.realearth.terrain.Markings.YELLOW ? RoadBlocks.YELLOW : RoadBlocks.WHITE;
+		return RoadBlocks.with(line, "facing", (marking & se.itssimple.realearth.terrain.Markings.ALONG_X) != 0 ? "east" : "north");
+	}
+
 	/** What a way is paved with: asphalt for roads, dirt and gravel for tracks, trodden paths, ballast. */
 	private static BlockState waySurface(byte way, int worldX, int worldZ) {
 		return switch (way) {
-			case Ways.MOTORWAY, Ways.MAJOR, Ways.MINOR, Ways.SERVICE -> block(Blocks.GRAY_CONCRETE);
+			case Ways.MOTORWAY, Ways.MAJOR, Ways.MINOR, Ways.SERVICE -> currentRoads() && RoadBlocks.ASPHALT != null ? RoadBlocks.ASPHALT
+				: block(Blocks.GRAY_CONCRETE);
 			case Ways.TRACK -> GeoNoise.hash(worldX, 3, worldZ) < 0.55 ? block(Blocks.COARSE_DIRT) : block(Blocks.GRAVEL);
 			case Ways.PATH -> block(Blocks.DIRT_PATH);
 			default -> block(Blocks.GRAVEL);
@@ -680,7 +717,8 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 
 		byte way = t.way[k];
 		if (way != Ways.NONE) {
-			BlockState surface = t.surface[k] != 0 ? surveyed(t.surface[k]) : waySurface(way, worldX, worldZ);
+			BlockState surface = t.marking[k] != 0 && Ways.isPaved(way) ? paint(t.marking[k])
+				: t.surface[k] != 0 ? surveyed(t.surface[k]) : waySurface(way, worldX, worldZ);
 			BlockState under = Ways.isPaved(way) ? STONE : Ways.isRail(way) ? block(Blocks.GRAVEL) : dirt;
 			return new Column(top, waterTop, surface, under, 2, STONE, shore, way == Ways.RAIL ? railShape(t, x, z, false) : null);
 		}

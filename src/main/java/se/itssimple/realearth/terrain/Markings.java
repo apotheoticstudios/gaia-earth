@@ -11,6 +11,8 @@ public final class Markings {
 	public static final byte NONE = 0;
 	public static final byte WHITE = 1;
 	public static final byte YELLOW = 2;
+	/** Added to a paint where the road runs east-west (more along X than Z), so a line is laid along it. */
+	public static final byte ALONG_X = 4;
 
 	/** A road's style, as bits: a centre line, dashed, yellow; edge lines; dashed lines between lanes. */
 	static final byte CENTRE = 1;
@@ -84,7 +86,7 @@ public final class Markings {
 	}
 
 	/** Norway's border with Sweden and Finland, roughly: latitude, and the longitude east of which Norway ends. */
-	private static final double[][] NORWAY_EAST = {{57.9, 11.0}, {59.1, 11.2}, {59.8, 11.8}, {61.0, 12.4}, {62.5, 12.2}, {63.5, 12.1},
+	private static final double[][] NORWAY_EAST = {{57.9, 9.0}, {58.9, 10.5}, {59.05, 11.2}, {59.8, 11.8}, {61.0, 12.4}, {62.5, 12.2}, {63.5, 12.1},
 		{64.5, 14.0}, {65.5, 14.5}, {66.5, 15.6}, {67.5, 16.6}, {68.3, 18.1}, {68.6, 20.2}, {69.0, 21.2}, {69.3, 28.5}, {71.3, 31.2}};
 
 	// shortcut: rough borders, not a border map; good enough for the colour of a centre line, worth a border map if more depends on country.

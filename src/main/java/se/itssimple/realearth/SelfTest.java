@@ -2058,6 +2058,10 @@ final class SelfTest {
 				int bestRails = 0;
 				int bestCx = 0;
 				int bestCz = 0;
+				int marked = 0;
+				int bestMarks = 0;
+				int markCx = 0;
+				int markCz = 0;
 				for (int cx = startCx - 20; cx <= startCx + 20; cx++) {
 					for (int cz = startCz - 20; cz <= startCz + 20; cz++) {
 						ChunkTerrain c;
@@ -2067,10 +2071,12 @@ final class SelfTest {
 							continue;
 						}
 						int rails = 0;
+						int marks = 0;
 						for (int x = 0; x < 16; x++) {
 							for (int z = 0; z < 16; z++) {
 								int k = ChunkTerrain.index(x, z);
 								byte w = c.way[k];
+								marks += c.marking[k] != 0 ? 1 : 0;
 								if (se.itssimple.realearth.osm.Ways.isPaved(w)) {
 									paved++;
 								} else if (w == se.itssimple.realearth.osm.Ways.PATH) {
@@ -2084,6 +2090,12 @@ final class SelfTest {
 							}
 						}
 						track += rails;
+						marked += marks;
+						if (marks > bestMarks) {
+							bestMarks = marks;
+							markCx = cx;
+							markCz = cz;
+						}
 						if (rails > bestRails) {
 							bestRails = rails;
 							bestCx = cx;
@@ -2094,6 +2106,39 @@ final class SelfTest {
 				log("ways in 41 x 41 chunks of central Stockholm: %d paved, %d path, %d rail, %d bridge deck columns", paved, paths, track, decks);
 				check(paved > 20_000 && paths > 2_000, "streets and paths are drawn in the city");
 				check(decks > 100, "bridges carry ways over the water");
+				// Markings on the main roads (centre, lane and edge lines), built in Saro's Road Blocks' line block.
+				{
+					ChunkTerrain c = field.chunkIfReady(markCx, markCz);
+					var chunk = earth.getChunk(markCx, markCz);
+					int painted = 0;
+					int lines = 0;
+					int asphalt = 0;
+					java.util.Map<String, Integer> built = new java.util.TreeMap<>();
+					for (int x = 0; c != null && x < 16; x++) {
+						for (int z = 0; z < 16; z++) {
+							int k = ChunkTerrain.index(x, z);
+							if (!se.itssimple.realearth.osm.Ways.isPaved(c.way[k]) || c.building[k] != 0) {
+								continue;
+							}
+							BlockState state = chunk.getBlockState(new BlockPos(markCx * 16 + x, c.topSolidY[k], markCz * 16 + z));
+							String block = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString();
+							if (c.marking[k] != 0) {
+								painted++;
+								lines += block.equals("saros_road_blocks_mod:asphalt") && state.toString().contains("texture_variant=straight") ? 1 : 0;
+								for (int dy = -1; dy <= 1; dy++) {
+									built.merge(dy + " " + net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(chunk.getBlockState(
+										new BlockPos(markCx * 16 + x, c.topSolidY[k] + dy, markCz * 16 + z)).getBlock()).getPath(), 1, Integer::sum);
+								}
+							} else {
+								asphalt += block.equals("saros_road_blocks_mod:asphalt") && state.toString().contains("texture_variant=default") ? 1 : 0;
+							}
+						}
+					}
+					log("road markings in central Stockholm: %d marked columns in 41 x 41 chunks; in chunk %d,%d %d marked, %d built as lines, %d asphalt; "
+						+ "built on marked columns (by Y from the surface): %s", marked, markCx, markCz, painted, lines, asphalt, built);
+					check(marked > 300, "main roads are marked (%d columns)", marked);
+					check(painted > 0 && lines * 10 >= painted * 9 && asphalt > 0, "markings are built as white lines on asphalt (%d of %d)", lines, painted);
+				}
 				// A surface railway from the map itself: the longest non-bridge line in the tile north of the city.
 				{
 					int mx = (int) Math.floor(Mercator.sampleX(18.0278) / (Mercator.TILE_SIZE * 2));
