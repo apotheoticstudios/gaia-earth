@@ -239,8 +239,14 @@ public final class EarthTrees {
 			Row row = pick(rows, random.nextDouble() < STAND ? new SplittableRandom(stand).nextDouble() : random.nextDouble());
 			double metres = row.height0 + random.nextDouble() * (row.height1 - row.height0);
 			int height = (int) Math.round(metres * blocksPerMeter * (zone.equals("high") ? TREELINE_HEIGHT : 1));
-			Tree tree = variant(trees.trees.get(row.species), spacing, height, random);
-			StructureTemplate template = region.getServer().getStructureManager().get(tree.id).orElse(null);
+			// World generation writes one chunk beyond this one: a crown may reach 16 blocks past the nearer edge.
+			int room = 16 + Math.min(Math.min(lx, 15 - lx), Math.min(lz, 15 - lz));
+			Tree tree = variant(trees.trees.get(row.species), spacing, height, room, random);
+			StructureTemplate template = tree == null ? null : region.getServer().getStructureManager().get(tree.id).orElse(null);
+			if (tree == null) {
+				count("too wide here");
+				return;
+			}
 			if (template != null) {
 				int grown = place(region, template, tree, pos, height, random);
 				count(grown > 0 ? row.species : "no room");
@@ -302,17 +308,21 @@ public final class EarthTrees {
 	}
 
 	/**
-	 * One of a species' trees whose crown suits the spacing (or its slimmest, if none does): one of the two nearest
-	 * the height wanted.
+	 * One of a species' trees whose crown suits the spacing (or its slimmest, if none does), and fits the room
+	 * world generation leaves round the spot: one of the two nearest the height wanted. Null if none fits the room,
+	 * as the widest trees only fit with their trunk mid-chunk.
 	 */
-	private static Tree variant(List<Tree> variants, double spacing, int height, RandomSource random) {
+	private static Tree variant(List<Tree> variants, double spacing, int height, int room, RandomSource random) {
 		List<Tree> fit = new ArrayList<>();
-		Tree slimmest = variants.get(0);
+		Tree slimmest = null;
 		for (Tree tree : variants) {
+			if (tree.reach > room) {
+				continue;
+			}
 			if (tree.reach <= REACH_PER_SPACING * spacing) {
 				fit.add(tree);
 			}
-			if (tree.reach < slimmest.reach) {
+			if (slimmest == null || tree.reach < slimmest.reach) {
 				slimmest = tree;
 			}
 		}

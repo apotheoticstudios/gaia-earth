@@ -12,8 +12,11 @@ vanilla structure template, made ready for world generation to grow:
    leaves in reach of a log decay once it is chopped, like a sapling's tree. Builders' leaves are saved as
    player-placed (persistent); leaves out of reach of every log stay persistent so they never decay, and are
    counted.
-4. Width: world generation writes at most one chunk beyond the chunk it decorates, so a tree reaching more
-   than 16 blocks from its trunk can't be grown; it is skipped and listed.
+4. Only the tree: blocks reached from the trunk through anything but ground -- soil, sand, gravel, paths, snow,
+   stone and bricks, ground plants -- so a builder's display plinth, paths and flowers stay behind.
+5. Width: world generation writes at most one chunk beyond the chunk it decorates, so a tree's crown can reach
+   23 blocks from its trunk only when the trunk stands mid-chunk (the mod grows such trees only there); a tree
+   reaching further is skipped and listed.
 
 Only packs whose terms allow it are converted (sources.tsv, status "ok"). --unapproved also converts packs
 waiting for permission ("ask"), for local testing only: their output must not be committed. Packs marked "no"
@@ -39,7 +42,7 @@ import tempfile
 from collections import Counter
 
 DATA_VERSION = 4786  # Minecraft 26.1
-MAX_REACH = 16
+MAX_REACH = 23  # a trunk mid-chunk has 23 blocks of room each way within world generation's reach
 MAX_ROOTS = 3  # layers of root flare at most
 ROOT_SCAN = 6  # bottom layers looked at for the trunk's width
 AIR = {"minecraft:air", "minecraft:cave_air", "minecraft:void_air", "minecraft:structure_void"}
@@ -181,8 +184,11 @@ def load(path):
     """A schematic's blocks, {(x, y, z): [name, properties, block entity or None]}, its paste origin if saved, and
     the data version of the Minecraft it was saved in."""
     root = read_nbt(path)
+    if isinstance(root.get("Regions"), dict):
+        return load_litematic(root), None, min(root.get("MinecraftDataVersion", DATA_VERSION), DATA_VERSION)
     s = root["Schematic"] if isinstance(root.get("Schematic"), dict) else root
-    version = s.get("DataVersion", DATA_VERSION)
+    # Saved in a newer Minecraft than ours: the game can't fix it down, so take it as ours (blocks it lacks are dropped).
+    version = min(s.get("DataVersion", DATA_VERSION), DATA_VERSION)
     if isinstance(s.get("Blocks"), dict):  # Sponge v3: the paster stands at -Offset from the minimum corner
         palette, data, entities = s["Blocks"]["Palette"], s["Blocks"]["Data"], s["Blocks"].get("BlockEntities", [])
         origin = tuple(-v for v in s["Offset"]) if "Offset" in s else None
@@ -194,7 +200,7 @@ def load(path):
     elif "palette" in s or "palettes" in s:
         return load_structure(s), None, version
     elif "Materials" in s:
-        raise ValueError("legacy MCEdit schematic with numeric block ids: not supported yet")
+        return load_legacy(s), None, DATA_VERSION
     else:
         raise ValueError("not a schematic")
     width, length = s["Width"] & 0xFFFF, s["Length"] & 0xFFFF
@@ -223,6 +229,69 @@ def load(path):
             nbt["id"] = e["Id"]
             blocks[pos][2] = nbt
     return blocks, origin, version
+
+
+# Pre-1.13 numeric block ids and data values, for the blocks trees are built of; anything else is reported.
+LEGACY_WOOD = {17: ("oak", "spruce", "birch", "jungle"), 162: ("acacia", "dark_oak")}
+LEGACY_LEAVES = {18: ("oak", "spruce", "birch", "jungle"), 161: ("acacia", "dark_oak")}
+LEGACY_FENCES = {85: "oak", 188: "spruce", 189: "birch", 190: "jungle", 191: "dark_oak", 192: "acacia"}
+COLOURS = ("white", "orange", "magenta", "light_blue", "yellow", "lime", "pink", "gray", "light_gray", "cyan", "purple", "blue",
+           "brown", "green", "red", "black")
+
+
+def legacy_block(block, data):
+    """A pre-1.13 block id and data value as today's name and properties."""
+    if block in LEGACY_WOOD and data & 3 < len(LEGACY_WOOD[block]):
+        wood, axis = LEGACY_WOOD[block][data & 3], data >> 2
+        return ("minecraft:%s_wood" % wood, {"axis": "y"}) if axis == 3 else ("minecraft:%s_log" % wood, {"axis": "yxz"[axis]})
+    if block in LEGACY_LEAVES and data & 3 < len(LEGACY_LEAVES[block]):
+        return "minecraft:%s_leaves" % LEGACY_LEAVES[block][data & 3], {}
+    if block in LEGACY_FENCES:
+        return "minecraft:%s_fence" % LEGACY_FENCES[block], {}
+    if block in (95, 160, 35):
+        return "minecraft:%s_%s" % (COLOURS[data & 15], {95: "stained_glass", 160: "stained_glass_pane", 35: "wool"}[block]), {}
+    if block in (2, 3):
+        return ("minecraft:grass_block" if block == 2 else "minecraft:dirt"), {}
+    if block == 106:
+        return "minecraft:vine", {}
+    raise ValueError("legacy MCEdit block id %d:%d isn't mapped yet" % (block, data))
+
+
+def load_legacy(s):
+    """An MCEdit schematic's blocks (pre-1.13, numeric ids), indexed like a Sponge schematic's."""
+    width, length = s["Width"] & 0xFFFF, s["Length"] & 0xFFFF
+    blocks = {}
+    for index, (block, data) in enumerate(zip(s["Blocks"], s["Data"])):
+        if block:
+            name, props = legacy_block(block, data & 15)
+            blocks[(index % width, index // (width * length), index // width % length)] = [name, props, None]
+    return blocks
+
+
+def load_litematic(root):
+    """A Litematica schematic's blocks: each region's states packed into longs, regions placed where they lie."""
+    regions = []
+    for r in root["Regions"].values():
+        size = [r["Size"][a] for a in "xyz"]
+        corner = [r["Position"][a] + min(0, size[i] + 1) for i, a in enumerate("xyz")]
+        regions.append((corner, [abs(v) for v in size], r))
+    low = [min(c[i] for c, _, _ in regions) for i in range(3)]
+    blocks = {}
+    for corner, (sx, sy, sz), r in regions:
+        palette = [(p["Name"], {k: str(v) for k, v in p.get("Properties", {}).items()}) for p in r["BlockStatePalette"]]
+        bits = max(2, (len(palette) - 1).bit_length())
+        longs = [v & 0xFFFFFFFFFFFFFFFF for v in r["BlockStates"]]
+        mask = (1 << bits) - 1
+        for i in range(sx * sy * sz):
+            at, shift = divmod(i * bits, 64)
+            value = longs[at] >> shift
+            if shift + bits > 64:
+                value |= longs[at + 1] << (64 - shift)
+            name, props = palette[value & mask]
+            if name not in AIR:
+                x, z, y = i % sx, i // sx % sz, i // (sx * sz)
+                blocks[(corner[0] - low[0] + x, corner[1] - low[1] + y, corner[2] - low[2] + z)] = [name, dict(props), None]
+    return blocks
 
 
 def load_structure(s):
@@ -314,10 +383,50 @@ def relink_leaves(blocks):
     return stuck
 
 
+GROUND_BLOCKS = SOIL | {"minecraft:sand", "minecraft:red_sand", "minecraft:gravel", "minecraft:dirt_path", "minecraft:farmland",
+                        "minecraft:snow_block", "minecraft:snow", "minecraft:clay", "minecraft:end_stone", "minecraft:brown_mushroom",
+                        "minecraft:red_mushroom"}
+GROUND_PLANTS = ("short_grass", "tall_grass", "dry_grass", "fern", "bush", "leaf_litter", "petals", "wildflowers", "moss_carpet",
+                 "dandelion", "poppy", "orchid", "allium", "bluet", "tulip", "daisy", "cornflower", "lily_of_the_valley",
+                 "torchflower", "sunflower", "lilac", "peony")
+
+
+def is_ground(name):
+    """Ground, paving, stone or a ground plant: never part of a tree, however close to its trunk."""
+    if name in GROUND_BLOCKS or any(name.endswith(plant) for plant in GROUND_PLANTS):
+        return True
+    path = name.split(":")[-1]
+    stonework = path.startswith(("polished_", "chiseled_", "cut_", "smooth_")) or "cobblestone" in path
+    return stonework or path.endswith(("stone", "_bricks", "tuff", "deepslate", "andesite", "diorite", "granite", "calcite",
+                                       "basalt", "terracotta", "concrete", "_tiles", "_slab", "_stairs"))
+
+
+def tree_only(blocks, base):
+    """The blocks reached from the trunk's foot through anything but ground, side, edge or corner on."""
+    near = [p for p, b in blocks.items() if not is_ground(b[0]) and abs(p[0] - base[0]) <= 2 and abs(p[2] - base[2]) <= 2
+            and base[1] - 1 <= p[1] <= base[1] + 2]
+    frontier = near or [p for p, b in blocks.items() if is_log(b[0])]
+    kept = set(frontier)
+    while frontier:
+        reached = []
+        for x, y, z in frontier:
+            for dx in (-1, 0, 1):
+                for dy in (-1, 0, 1):
+                    for dz in (-1, 0, 1):
+                        n = (x + dx, y + dy, z + dz)
+                        if n not in kept and n in blocks and not is_ground(blocks[n][0]):
+                            kept.add(n)
+                            reached.append(n)
+        frontier = reached
+    return {p: blocks[p] for p in kept}
+
+
 def convert(blocks, origin, ground="", version=DATA_VERSION):
     """A tree as a vanilla structure template, and what trees.json says about it."""
     base, how = find_base(blocks, origin, ground)
-    blocks = {p: b for p, b in blocks.items() if not (b[0] in SOIL and p[1] < base[1])}
+    blocks = tree_only(blocks, base)
+    if not blocks:
+        raise Skip("no tree left once its ground is gone")
     reach = max(max(abs(p[0] - base[0]), abs(p[2] - base[2])) for p in blocks)
     if reach > MAX_REACH:
         raise Skip("reaches %d blocks from its trunk" % reach)
@@ -367,7 +476,7 @@ def main(sources, pack, folder, out, unapproved=False):
     trees, skipped, written = [], [], set()
     for dirpath, _, files in sorted(os.walk(folder)):
         for filename in sorted(files):
-            if not filename.lower().endswith((".schem", ".schematic", ".nbt")):
+            if not filename.lower().endswith((".schem", ".schematic", ".nbt", ".litematic")):
                 continue
             src = os.path.join(dirpath, filename)
             rel = os.path.relpath(src, folder)
@@ -416,7 +525,8 @@ def self_test():
             for dz in range(-2, 3):
                 if (4 + dx, y, 4 + dz) not in tree and abs(dx) + abs(dz) <= 3:
                     tree[(4 + dx, y, 4 + dz)] = leaf
-    tree[(0, 11, 0)] = leaf  # out of reach of any log
+    for x in range(7, 13):
+        tree[(x, 9, 4)] = leaf  # an arm of leaves: its last three are out of reach of any log
     with_soil = dict(tree)
     for x in range(1, 8):
         for z in range(1, 8):
@@ -450,14 +560,15 @@ def self_test():
             s["Metadata"] = {"WEOffsetX": offset[0], "WEOffsetY": offset[1], "WEOffsetZ": offset[2]}
         return s
 
-    wide = {(0, 0, 0): log, (1, 0, 0): log, (20, 1, 0): leaf}
+    wide = {(0, 0, 0): log, (1, 0, 0): log}
+    wide.update({(x, 1, 0): leaf for x in range(0, 26)})
     with tempfile.TemporaryDirectory() as tmp:
         packs, out = os.path.join(tmp, "pack"), os.path.join(tmp, "out")
         os.makedirs(os.path.join(packs, "Oaks"))
-        write_nbt(os.path.join(packs, "Oaks", "Oak 1.schem"), sponge(tree, (9, 12, 9), 2, [-4, -2, -4], 3465))
-        write_nbt(os.path.join(packs, "Oaks", "oak_soil.schem"), sponge(with_soil, (9, 12, 9), 3))
-        write_nbt(os.path.join(packs, "oak_plain.schem"), sponge(tree, (9, 12, 9), 3))
-        write_nbt(os.path.join(packs, "wide.schem"), sponge(wide, (21, 2, 1), 3))
+        write_nbt(os.path.join(packs, "Oaks", "Oak 1.schem"), sponge(tree, (13, 12, 9), 2, [-4, -2, -4], 3465))
+        write_nbt(os.path.join(packs, "Oaks", "oak_soil.schem"), sponge(with_soil, (13, 12, 9), 3))
+        write_nbt(os.path.join(packs, "oak_plain.schem"), sponge(tree, (13, 12, 9), 3))
+        write_nbt(os.path.join(packs, "wide.schem"), sponge(wide, (26, 2, 1), 3))
         sources = os.path.join(tmp, "sources.tsv")
         with open(sources, "w", encoding="utf-8") as f:
             f.write('id\tstatus\tauthor\turl\tterms\tnote\tground\ntest\tok\t-\t-\tuse "freely"\t\t\n'
@@ -472,24 +583,54 @@ def self_test():
         trees, skipped = main(sources, "test", packs, out)
         by_file = {t["file"]: t for t in trees}
         assert sorted(by_file) == ["oak_plain.nbt", "oaks/oak_1.nbt", "oaks/oak_soil.nbt"], sorted(by_file)
-        assert [s["source"] for s in skipped] == ["wide.schem"] and "reaches 20" in skipped[0]["reason"], skipped
+        assert [s["source"] for s in skipped] == ["wide.schem"] and "reaches 25" in skipped[0]["reason"], skipped
         for file, how in (("oaks/oak_1.nbt", "origin"), ("oaks/oak_soil.nbt", "soil"), ("oak_plain.nbt", "roots")):
             t = by_file[file]
-            assert (t["ground"], t["base"], t["height"], t["depth"]) == (how, [4, 2, 4], 10, 2), (file, t)
-            assert (t["stuck_leaves"], t["log"], t["leaves"]) == (1, "minecraft:oak_log", "minecraft:oak_leaves"), t
+            assert (t["ground"], t["base"], t["height"], t["depth"]) == (how, [2, 2, 2], 8, 2), (file, t)
+            assert (t["stuck_leaves"], t["log"], t["leaves"]) == (3, "minecraft:oak_log", "minecraft:oak_leaves"), t
             template = read_nbt(os.path.join(out, "test", file))
             assert template["DataVersion"] == (3465 if file == "oaks/oak_1.nbt" else DATA_VERSION), template["DataVersion"]
-            assert template["size"] == [7, 12, 7], template["size"]
+            assert template["size"] == [11, 10, 5], template["size"]
             states = {tuple(b["pos"]): template["palette"][b["state"]] for b in template["blocks"]}
             assert len(states) == len(tree), (file, len(states))
-            assert states[(4, 9, 4)]["Properties"] == {"distance": "1", "persistent": "false", "waterlogged": "false"}
-            assert states[(6, 7, 4)]["Properties"]["distance"] == "2"
-            assert states[(0, 11, 0)]["Properties"]["persistent"] == "true"
-            assert states[(4, 0, 4)] == {"Name": "minecraft:oak_log", "Properties": {"axis": "y"}}
+            assert states[(2, 9, 2)]["Properties"] == {"distance": "1", "persistent": "false", "waterlogged": "false"}
+            assert states[(4, 7, 2)]["Properties"]["distance"] == "2"
+            assert states[(10, 9, 2)]["Properties"] == {"distance": "7", "persistent": "true", "waterlogged": "false"}
+            assert states[(2, 0, 2)] == {"Name": "minecraft:oak_log", "Properties": {"axis": "y"}}
         flat = {t["file"]: t for t in main(sources, "flat", packs, out)[0]}
         assert (flat["oak_plain.nbt"]["ground"], flat["oak_plain.nbt"]["depth"]) == ("bottom", 0), flat["oak_plain.nbt"]
         rooted = {t["file"]: t for t in main(sources, "rooted", packs, out)[0]}
         assert (rooted["oaks/oak_1.nbt"]["ground"], rooted["oaks/oak_1.nbt"]["depth"]) == ("roots", 2), rooted["oaks/oak_1.nbt"]
+
+    plinth = {(x, 0, z): ["minecraft:polished_tuff", {}, None] for x in range(-20, 21) for z in range(-20, 21)}
+    plinth.update({(x, 1, 0): ["minecraft:dirt_path", {}, None] for x in range(-20, 21)})
+    plinth.update({(15, 1, 15): ["minecraft:poppy", {}, None], (0, 1, 1): ["minecraft:short_grass", {}, None]})
+    plinth.update({(0, y, 0): ["minecraft:oak_log", {"axis": "y"}, None] for y in range(1, 6)})
+    plinth.update({(dx, 5, dz): ["minecraft:oak_leaves", {}, None] for dx in (-1, 0, 1) for dz in (-1, 0, 1) if dx or dz})
+    kept = tree_only(plinth, (0, 1, 0))
+    assert sorted({b[0] for b in kept.values()}) == ["minecraft:oak_leaves", "minecraft:oak_log"] and len(kept) == 13, kept
+
+    # MCEdit's numeric ids: a jungle log lying along x, acacia bark, persistent birch leaves, a spruce fence.
+    legacy = load_legacy({"Width": Short(4), "Height": Short(1), "Length": Short(1), "Blocks": bytes([17, 162, 18, 188]),
+                          "Data": bytes([3 | 4, 0 | 12, 2 | 4, 0])})
+    assert [legacy[(x, 0, 0)][:2] for x in range(4)] == [["minecraft:jungle_log", {"axis": "x"}], ["minecraft:acacia_wood", {"axis": "y"}],
+                                                       ["minecraft:birch_leaves", {}], ["minecraft:spruce_fence", {}]], legacy
+
+    # Litematica: states packed across longs, a region whose size runs negative from its position.
+    def packed(values, bits):
+        n = sum(v << (i * bits) for i, v in enumerate(values))
+        longs = [(n >> (64 * k)) & 0xFFFFFFFFFFFFFFFF for k in range(-(-len(values) * bits // 64))]
+        return LongArray(v - (1 << 64) if v >= 1 << 63 else v for v in longs)
+
+    palette = [{"Name": "minecraft:air"}, {"Name": "minecraft:oak_log", "Properties": {"axis": "y"}}, {"Name": "minecraft:oak_leaves"},
+               {"Name": "minecraft:birch_log", "Properties": {"axis": "x"}}, {"Name": "minecraft:vine"}]
+    values = [(i * 7) % 5 for i in range(25)]  # 3 bits each: the 22nd straddles two longs
+    region = {"Position": {"x": 3, "y": 4, "z": 0}, "Size": {"x": 5, "y": -5, "z": 1}, "BlockStatePalette": List(palette, 10),
+              "BlockStates": packed(values, 3)}
+    lite = load_litematic({"Regions": {"tree": region}})
+    for i, v in enumerate(values):
+        got = lite.get((i % 5, i // 5, 0))
+        assert (got[0] if got else "minecraft:air") == palette[v]["Name"], (i, v, got)
     print("self-test passed")
 
 
