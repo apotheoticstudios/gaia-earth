@@ -311,8 +311,9 @@ public final class EarthTrees {
 
 	/**
 	 * One of a species' trees whose crown suits the spacing (or its slimmest, if none does), and fits the room
-	 * world generation leaves round the spot: one of the two nearest the height wanted. Null if none fits the room,
-	 * as the widest trees only fit with their trunk mid-chunk.
+	 * world generation leaves round the spot: any about as near the height wanted as the nearest, at least the two
+	 * nearest, so a stand isn't one tree over and over. Null if none fits the room, as the widest trees only fit with
+	 * their trunk mid-chunk.
 	 */
 	private static Tree variant(List<Tree> variants, double spacing, int height, int room, RandomSource random) {
 		List<Tree> fit = new ArrayList<>();
@@ -332,7 +333,12 @@ public final class EarthTrees {
 			return slimmest;
 		}
 		fit.sort(java.util.Comparator.comparingInt(tree -> Math.abs(tree.height - height)));
-		return fit.get(random.nextInt(Math.min(2, fit.size())));
+		int near = Math.min(2, fit.size());
+		int within = Math.abs(fit.get(0).height - height) + Math.max(2, height / 6);
+		while (near < fit.size() && Math.abs(fit.get(near).height - height) <= within) {
+			near++;
+		}
+		return fit.get(random.nextInt(near));
 	}
 
 	/** A vanilla tree of the kind, where no species fits or none is installed. */

@@ -42,8 +42,8 @@ the foot of the trunk, `roots` ignores it for builders who always saved from the
 ## Generated trees
 
 Species no pack has are grown by `generate.py`: each is a few numbers in its `SPECIES` table (height, bare
-trunk, crown width and shape, stems and limbs, leaf clumps, bark and leaf blocks), grown at eight heights and
-saved through the converter's own steps. They are the project's own work, so they need no permission:
+trunk, crown width and shape, stems and limbs, leaf clumps, bark and leaf blocks), grown 24 times at scattered
+heights, each tree with its own proportions and a lopsided crown, and saved through the converter's own steps. They are the project's own work, so they need no permission:
 
 ```bash
 python3 generate.py ../../src/main/resources/data/gaia-earth/structure/tree

@@ -10,9 +10,13 @@ limbs, the size and look of its leaf clumps, and the blocks of its bark and leav
 - conifer: a spruce, fir or cypress, a trunk to the top with whorls of leafy branches narrowing to a spire.
 - grasstree: a Xanthorrhoea, a short black trunk under a tuft, sometimes forked, sometimes in flower.
 
-Each species grows VERSIONS trees, from young to full height, seeded by its name so every run makes the same trees,
-through convert.py's own steps (ground, leaf decay, reach), so the game loads them like any pack's trees. Leaves
-out of reach of every log are left out, so a whole tree decays once it is cut.
+Each species grows VERSIONS trees at heights scattered from young to full height, and no two alike: each tree takes
+its own proportions round its species' (width, bare trunk, clump size and spacing, lean), and its crown is lopsided,
+fuller on one side and higher-bottomed on another, its clumps uneven, now and then a branch dead or broken off, its
+limbs parting at different heights; a conifer's trunk sweeps a little and its whorls are uneven. Every run makes the
+same trees, as each is seeded by its species and version. They go through convert.py's own steps (ground, leaf
+decay, reach), so the game loads them like any pack's trees. Leaves out of reach of every log are left out, so a whole
+tree decays once it is cut.
 
     python3 generate.py <out folder>
     python3 generate.py --preview <folder> [species ...]   side views as PNG, to check the shapes by eye
@@ -32,15 +36,13 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import convert  # noqa: E402
 
 PACK = "gaia-generated"
-VERSIONS = 8
+VERSIONS = 24
 MAX_RADIUS = 20  # crown radius, inside convert.MAX_REACH with a clump's edge
 WOODS = {"oak", "spruce", "birch", "jungle", "acacia", "dark_oak", "mangrove", "cherry", "pale_oak"}
 LEAVES = WOODS | {"azalea"}
 DISCS = {1: [(0, 0)], 2: [(0, 0), (1, 0), (0, 1), (1, 1)], 3: [(x, z) for x in (-1, 0, 1) for z in (-1, 0, 1)],
          4: [(x, z) for x in range(-1, 3) for z in range(-1, 3) if (x, z) not in ((-1, -1), (-1, 2), (2, -1), (2, 2))]}
-AROUND = [(x, z) for x in (-1, 0, 1) for z in (-1, 0, 1)]
-NEAR = [(0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)]
-SPRAY = [(x, 0, z) for x, z in AROUND] + [(0, 1, 0)]  # leaves round a conifer branch
+SPRAY = [(x, 0, z) for x in (-1, 0, 1) for z in (-1, 0, 1)] + [(0, 1, 0)]  # leaves round a conifer branch
 SHAPES = {  # crown radius as a share of the widest, from the crown's bottom (0) to its top (1)
     "ellipsoid": lambda s: math.sqrt(max(0.0, 1 - (2 * s - 1) ** 2)),
     "dome": lambda s: math.sqrt(max(0.0, 1 - ((s - 0.3) / (0.7 if s > 0.3 else 0.5)) ** 2)),
@@ -211,6 +213,26 @@ def centroid(points):
     return tuple(sum(p[i] for p in points) / len(points) for i in range(3))
 
 
+def vary(rng, sp):
+    """This tree's own proportions, so no two of a species are built alike."""
+    v = dict(sp, width=sp["width"] * rng.uniform(0.8, 1.2), bole=min(0.85, max(0.03, sp["bole"] + rng.uniform(-0.08, 0.08))))
+    v["lean"] = sp.get("lean", 0.0) + rng.uniform(0.0, 0.05)
+    if "clump" in sp:
+        k = rng.uniform(0.85, 1.15)
+        v.update(clump=(sp["clump"][0] * k, sp["clump"][1] * k), spacing=sp["spacing"] * rng.uniform(0.85, 1.15))
+    if "taper" in sp:
+        v.update(taper=sp["taper"] * rng.uniform(0.85, 1.15), droop=sp["droop"] * rng.uniform(0.7, 1.3))
+    return v
+
+
+def lopsided(rng, strength=1.0):
+    """How far a crown reaches each way, as a share of its radius: fuller to one side and flatter to another, as light,
+    wind and neighbours shape real trees."""
+    a1, p1 = rng.uniform(0.1, 0.3) * strength, rng.uniform(0, 2 * math.pi)
+    a2, p2 = rng.uniform(0.0, 0.15) * strength, rng.uniform(0, 2 * math.pi)
+    return lambda a: 1 + a1 * math.cos(a - p1) + a2 * math.cos(2 * (a - p2))
+
+
 class Tree:
     def __init__(self, rng, sp, height):
         self.rng, self.sp, self.blocks = rng, sp, {}
@@ -276,6 +298,7 @@ class Tree:
 
 
 def crown(rng, height, sp):
+    sp = vary(rng, sp)
     tree = Tree(rng, sp, height)
     width = min(sp["width"] * height / 2, MAX_RADIUS)
     rh = max(1.5, min(sp["clump"][0], 0.6 * width))  # a small crown has smaller clumps
@@ -288,14 +311,21 @@ def crown(rng, height, sp):
     def axis(y):
         return lean * math.cos(phi) * y / height, lean * math.sin(phi) * y / height
 
-    # Clumps through the crown's outline, kept apart, more towards its skin than its middle.
+    # Clumps through the crown's outline, kept apart, more towards its skin than its middle. The outline is lopsided,
+    # and its bottom higher on one side, where lower branches died off in the shade.
     low, shape, gap = min(base + rv * 0.5, top - 1), SHAPES[sp["shape"]], sp["spacing"] * (rh + rv) * 0.8
-    tips = [(axis(top)[0], top, axis(top)[1])]
-    misses = 0
-    while misses < 300 and len(tips) < 200:
-        y = rng.uniform(low, top)
-        r = radius * shape((y - low) / max(1e-6, top - low)) * math.sqrt(rng.uniform(0.1, 1.0))
-        a, (ax, az) = rng.uniform(0, 2 * math.pi), axis(y)
+    side, shade, lift = lopsided(rng), rng.uniform(0, 2 * math.pi), rng.uniform(0, 0.3) * (top - low)
+    tips = [(axis(top)[0] + rng.uniform(-1, 1), top, axis(top)[1] + rng.uniform(-1, 1))]
+    misses, enough = 0, 2 if height < 8 else 5
+    while len(tips) < 200 and (misses < 300 or len(tips) < enough and gap > 1):
+        if misses >= 300:  # a thin crown: closer clumps, rather than a bare pole
+            misses, gap = 0, gap * 0.75
+        y, a = rng.uniform(low, top), rng.uniform(0, 2 * math.pi)
+        if y < low + lift * (1 + math.cos(a - shade)) / 2:
+            misses += 1
+            continue
+        r = min(radius * shape((y - low) / max(1e-6, top - low)) * side(a), MAX_RADIUS - rh) * math.sqrt(rng.uniform(0.1, 1.0))
+        ax, az = axis(y)
         p = (ax + r * math.cos(a), y, az + r * math.sin(a))
         if all(math.dist(p, q) >= gap for q in tips):
             tips.append(p)
@@ -322,52 +352,73 @@ def crown(rng, height, sp):
                 lx, lz = axis(q[1])
                 y = min(max(q[1] - 0.4 * math.hypot(q[0] - lx, q[2] - lz) - 1, fork[1]), top - 1)
                 tree.branch(min(leader, key=lambda p: abs(p[1] - y)), q)
-        else:
-            grow(tree, fork, group, sp["depth"], d0 >= 3, rng.randint(*sp["limbs"]))
+        else:  # the trunk runs on a little among its limbs, so they part at different heights
+            stem = line(fork, (fork[0], fork[1] + rng.uniform(0, 0.2) * (top - fork[1]), fork[2]))
+            tree.trunk(stem, d1, d1)
+            grow(tree, stem, group, sp["depth"], d0 >= 3, rng.randint(*sp["limbs"]))
     for q in tips:
-        tree.clump(q, rh, rv, sp["style"])
+        if sp["style"] != "star" and q is not tips[0] and rng.random() < 0.04:
+            continue  # a dead branch, bare
+        k = rng.uniform(0.75, 1.15)
+        tree.clump(q, max(1.2, rh * k), max(1.0, rv * k), sp["style"])
     return tree.blocks
 
 
-def grow(tree, start, tips, depth, thick, limbs):
-    """Branches from start reaching every tip: limbs towards groups of neighbouring tips, forking again."""
+def grow(tree, starts, tips, depth, thick, limbs):
+    """Branches from any of starts reaching every tip: limbs towards groups of neighbouring tips, forking again."""
     rng = tree.rng
     if depth <= 0 or len(tips) <= 1:
         for q in tips:
-            tree.branch(start, q)
+            tree.branch(rng.choice(starts), q)
         return
-    for group in by_azimuth(rng, start, tips, min(len(tips), limbs)):
-        c = centroid(group)
+    for group in by_azimuth(rng, starts[0], tips, min(len(tips), limbs)):
+        start, c = rng.choice(starts), centroid(group)
         f = rng.uniform(0.45, 0.65)
         end = (start[0] + (c[0] - start[0]) * f, max(start[1], start[1] + (c[1] - start[1]) * f),
                start[2] + (c[2] - start[2]) * f)
         tree.branch(start, end, thick)
-        grow(tree, end, group, depth - 1, False, rng.randint(2, 3))
+        grow(tree, [end], group, depth - 1, False, rng.randint(2, 3))
 
 
 def conifer(rng, height, sp):
+    sp = vary(rng, sp)
     tree = Tree(rng, sp, height)
     top = height - 2
-    tree.trunk(line((0, 0, 0), (0, top, 0)), max(1, int(height * sp["stout"] + 0.5)), 1)
+    lean, phi = sp["lean"] * height * 0.5, rng.uniform(0, 2 * math.pi)  # a slight sweep
+    trunk = path(rng, (0, 0, 0), (lean * math.cos(phi), top, lean * math.sin(phi)), 0.05)
+    tree.trunk(trunk, max(1, int(height * sp["stout"] + 0.5)), 1)
+    centre = {y: (x, z) for x, y, z in trunk}
     base = max(1, int(height * sp["bole"] + 0.5))
-    radius = min(sp["width"] * height / 2, MAX_RADIUS)
+    radius, side = min(sp["width"] * height / 2, MAX_RADIUS), lopsided(rng, 0.8)
+    whorl = base
     for y in range(base, top + 1):
+        cx, cz = centre[y]
         r = radius * (1 - (y - base) / max(1, top - base)) ** sp["taper"] * rng.uniform(0.85, 1.1)
-        if r < 1.5 or (y - base) % sp["whorl"]:  # between whorls and at the spire, foliage close round the trunk
-            for dx, dz in NEAR if r < 2.5 else AROUND:
-                tree.leaf((dx, y, dz))
+        near = max(1.0, r * 0.4)  # foliage close round the trunk, narrowing to the spire
+        for dx in range(-int(near), int(near) + 1):
+            for dz in range(-int(near), int(near) + 1):
+                if dx * dx + dz * dz <= near * near:
+                    tree.leaf((cx + dx, y, cz + dz))
+        if r < 1 or y < whorl:
             continue
+        whorl = y + sp["whorl"] + (rng.random() < 0.2)  # now and then a longer gap
         n = rng.randint(5, 8) if r >= 3 else 4
+        if rng.random() < 0.1:  # a thin whorl
+            n = max(2, n - 3)
         turn = rng.uniform(0, 2 * math.pi)
         for i in range(n):
-            a = turn + 2 * math.pi * i / n + rng.uniform(-0.3, 0.3)
-            length = r * rng.uniform(0.8, 1.05)
-            for x, by, z in line((0, y, 0), (length * math.cos(a), y - sp["droop"] * length / 2, length * math.sin(a)))[1:]:
+            if rng.random() < 0.08:
+                continue  # a branch broken off
+            a = turn + 2 * math.pi * i / n + rng.uniform(-0.4, 0.4)
+            length = min(max(1.0, r * side(a) * rng.uniform(0.65, 1.1)), MAX_RADIUS)
+            end = (cx + length * math.cos(a), y - sp["droop"] * length / 2, cz + length * math.sin(a))
+            for x, by, z in line((cx, y, cz), end)[1:]:
                 tree.bark((x, by, z))
                 for dx, dy, dz in SPRAY:
                     tree.leaf((x + dx, by + dy, z + dz))
+    cx, cz = centre[top]
     for dx, dy, dz in [(0, 1, 0), (0, 2, 0), (1, 0, 0), (-1, 0, 0), (0, 0, 1), (0, 0, -1)]:
-        tree.leaf((dx, top + dy, dz))
+        tree.leaf((cx + dx, top + dy, cz + dz))
     return tree.blocks
 
 
@@ -393,11 +444,13 @@ def grasstree(rng, height, sp):
 FORMS = {"crown": crown, "conifer": conifer, "grasstree": grasstree}
 
 
-def heights(sp):
-    """The heights its versions grow to, in blocks at a block a metre: from young to its tallest."""
+def heights(name):
+    """The heights its versions grow to, in blocks at a block a metre: scattered from young to its tallest, so a stand
+    finds several versions near any height."""
+    sp, rng = SPECIES[name], random.Random(name)
     lo, hi = sp["h"]
     lo = lo if sp["form"] == "grasstree" else max(3.0, lo / 2)
-    return [int(lo * (hi / lo) ** (i / (VERSIONS - 1)) + 0.5) for i in range(VERSIONS)]
+    return [int(lo * (hi / lo) ** ((i + rng.random()) / VERSIONS) + 0.5) for i in range(VERSIONS)]
 
 
 def grow_tree(name, n, height):
@@ -416,7 +469,7 @@ def main(out):
             os.remove(os.path.join(target, old))
     trees, skipped = [], []
     for name, sp in SPECIES.items():
-        for n, height in enumerate(heights(sp), 1):
+        for n, height in enumerate(heights(name), 1):
             file = "%s_%d.nbt" % (name, n)
             try:
                 template, info = convert.convert(grow_tree(name, n, height), None)
@@ -498,7 +551,7 @@ def write_png(path, rows):
 def preview(folder, names):
     os.makedirs(folder, exist_ok=True)
     for name in names or SPECIES:
-        trees = [grow_tree(name, n, h) for n, h in enumerate(heights(SPECIES[name]), 1)]
+        trees = [grow_tree(name, n, h) for n, h in enumerate(heights(name), 1)][::3]
         write_png(os.path.join(folder, name + ".png"), render(trees, 4 if max(SPECIES[name]["h"]) <= 40 else 3))
 
 
@@ -508,7 +561,7 @@ def self_test():
             for key in weights:
                 assert key.replace("stripped_", "", 1) in valid, (name, key)
     for name in ("eucalyptus_pauciflora", "pinus_resinosa", "abies_lasiocarpa", "cordyline_australis", "xanthorrhoea"):
-        for n, height in enumerate(heights(SPECIES[name]), 1):
+        for n, height in enumerate(heights(name), 1):
             template, info = convert.convert(grow_tree(name, n, height), None)
             assert info["ground"] == "soil" and info["stuck_leaves"] == 0 and info["leaf_count"] > 0, (name, height, info)
             assert info["depth"] == 0 and info["reach"] <= convert.MAX_REACH, (name, height, info)
