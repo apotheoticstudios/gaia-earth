@@ -7,6 +7,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.Consumer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
@@ -14,12 +15,15 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.ConfirmLinkScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.MultiBufferSource.BufferSource;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import se.itssimple.realearth.RealEarth;
 import se.itssimple.realearth.client.ClientHere;
+import se.itssimple.realearth.data.PlaceSearch;
+import se.itssimple.realearth.geo.Mercator;
 import se.itssimple.realearth.world.ClimateLink;
 import se.itssimple.realearth.world.MapWaypoints;
 import xaero.lib.XaeroLib;
@@ -117,6 +121,34 @@ public final class XaeroWorldMapCompat {
 				mc.getConnection().sendCommand("earth tp block " + x + " " + z);
 			}
 		});
+	}
+
+	/**
+	 * For the map's coordinate box ("hop") on the Earth: text with letters in it is a place name, searched
+	 * ({@link PlaceSearch}, by this client, so it works on any server) and handed to {@code go} as a block
+	 * column once found, on the render thread; {@code say} tells the player what happened. False, leaving
+	 * the box to the map, for coordinates, or off the Earth.
+	 */
+	public static boolean hopTo(String text, ResourceKey<Level> dimension, Consumer<int[]> go, Consumer<Component> say) {
+		Minecraft mc = Minecraft.getInstance();
+		ClimateLink.Shape shape = ClimateLink.current();
+		if (shape == null || mc.level == null || text.chars().noneMatch(Character::isLetter)
+			|| !(dimension == RealEarth.EARTH || dimension == mc.level.dimension() && RealEarth.isEarth(mc.level))) {
+			return false;
+		}
+		say.accept(Component.literal("Looking for " + text + "...").withStyle(ChatFormatting.GRAY));
+		PlaceSearch.find(text).whenComplete((hit, error) -> mc.execute(() -> {
+			if (error != null) {
+				say.accept(Component.literal("Place search is unavailable right now.").withStyle(ChatFormatting.DARK_RED));
+			} else if (hit.isEmpty()) {
+				say.accept(Component.literal("No place called \"" + text + "\" found.").withStyle(ChatFormatting.DARK_RED));
+			} else {
+				double lat = Math.clamp(hit.get().latitude(), -Mercator.MAX_LATITUDE, Mercator.MAX_LATITUDE);
+				say.accept(Component.literal(hit.get().name()));
+				go.accept(new int[] {(int) Math.floor(shape.projection().blockX(lat, hit.get().longitude())), (int) Math.floor(shape.projection().blockZ(lat))});
+			}
+		}));
+		return true;
 	}
 
 	/** Font pixels to the map element's units, which are a third of one at the world map's usual waypoint size. */

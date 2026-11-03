@@ -3,7 +3,9 @@ package se.itssimple.realearth.mixin;
 import com.llamalad7.mixinextras.sugar.Local;
 import java.util.ArrayList;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import org.joml.Matrix4f;
@@ -50,10 +52,37 @@ public abstract class GuiMapMixin {
 	private double cameraZ;
 	@Shadow
 	private MapProcessor mapProcessor;
+	@Shadow
+	private EditBox hopInputBox;
+	@Shadow
+	private boolean hopMenu;
+	@Shadow
+	private int[] cameraDestination;
+	@Shadow
+	private static boolean attachedCamera;
 
 	@Inject(method = "getRightClickOptions", at = @At("RETURN"))
 	private void realearth$teleport(CallbackInfoReturnable<ArrayList<RightClickOption>> cir) {
 		XaeroWorldMapCompat.addOptions(cir.getReturnValue(), (IRightClickableElement) this, rightClickX, rightClickZ, rightClickDim);
+	}
+
+	/** On the Earth, the map's coordinate box also takes a place name, and the map goes there once it is found. */
+	@Inject(method = "activateHopToCoords", at = @At("HEAD"), cancellable = true)
+	private void realearth$hopToPlace(CallbackInfo ci) {
+		MapDimension dimension = mapProcessor.getMapWorld().getCurrentDimension();
+		String text = hopInputBox == null ? "" : hopInputBox.getValue().trim();
+		Component source = Component.literal("Project Gaia: Earth");
+		if (dimension != null && XaeroWorldMapCompat.hopTo(text, dimension.getDimId(), column -> {
+			cameraDestination = column;
+			attachedCamera = false;
+		}, message -> mapProcessor.getMessageBox().addMessageWithSource(source, message))) {
+			ci.cancel();
+			hopInputBox.setValue("");
+			hopMenu = false;
+			attachedCamera = false;
+			Screen screen = (Screen) (Object) this;
+			screen.init(screen.width, screen.height);
+		}
 	}
 
 	/** Just before the map adds its regions to the batch, after it has cleared its frame and set up the batch. */

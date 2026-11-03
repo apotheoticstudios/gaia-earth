@@ -55,6 +55,8 @@
 - **`/earth go <place>`**: go anywhere by name, a town, a mountain or a landmark (`/earth go Kyoto`), found through
   OpenStreetMap's Nominatim. Each name is looked up once and remembered, at most one lookup a second, as Nominatim
   asks. Same permission as `/earth tp`.
+- **Place search on Xaero's World Map**: on the Earth, the map's coordinate box takes a place name too, and the
+  map glides there.
 
 ## 0.2.0 (2026-10-23)
 

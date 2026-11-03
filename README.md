@@ -453,7 +453,9 @@ Planned features and known issues: see [ROADMAP.md](ROADMAP.md).
   you have been there; the shading comes from the same elevation tiles as the terrain. Place names appear as you
   zoom in, as on web maps: capitals when a continent is in view, then cities, towns and villages nearer
   in, in English where the map has an English name, and never over one another. Right-clicking the Earth also
-  shows the spot's latitude and longitude; clicking them opens the place on OpenStreetMap.
+  shows the spot's latitude and longitude; clicking them opens the place on OpenStreetMap. The map's coordinate
+  box (its "hop" button) also takes a place name on the Earth: type `Kyoto` and the map goes there, found the
+  same way as `/earth go`, but by your own game, so it works on any server and needs no permission.
 - **Lootr** and **Distant Horizons**: see above.
 
 **For mod authors.** `se.itssimple.realearth.api` (compile against the Project Gaia: Earth jar, `modCompileOnly`):
