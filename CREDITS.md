@@ -26,6 +26,9 @@ PMTiles release. The buildings theme is available under the Open Database Licens
 mostly from OpenStreetMap, **© OpenStreetMap contributors**, with other sources as listed at
 <https://docs.overturemaps.org/attribution/>.
 
+Single trees (street and park trees, OpenStreetMap's `natural=tree`), from the land layer of the same release's
+base theme, also ODbL 1.0, **© OpenStreetMap contributors**.
+
 ## Elevation: Terrain Tiles
 
 Ground and sea-floor heights, from the **Terrain Tiles** dataset on the Registry of Open Data on AWS

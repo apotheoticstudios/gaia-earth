@@ -51,6 +51,7 @@ public final class OsmDetail {
 	private final Path root;
 	private final ExecutorService downloads;
 	private volatile PmTiles archive;
+	private volatile String releaseName;
 	private final Map<Long, CompletableFuture<Tile>> cache = new LinkedHashMap<>(64, 0.75f, true) {
 		@Override
 		protected boolean removeEldestEntry(Map.Entry<Long, CompletableFuture<Tile>> eldest) {
@@ -153,9 +154,16 @@ public final class OsmDetail {
 			}
 		}
 		a = new PmTiles(template.replace("{release}", name));
+		releaseName = name;
 		archive = a;
 		RealEarth.LOGGER.info("Building detail from Overture Maps release {}", name);
 		return a;
+	}
+
+	/** The release in use, found as the archive is. */
+	String release() throws IOException {
+		archive();
+		return releaseName;
 	}
 
 	/** The newest release a STAC catalogue links to: its child catalogues are named by release, which sort by date. */

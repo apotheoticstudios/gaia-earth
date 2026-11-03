@@ -1737,6 +1737,28 @@ final class SelfTest {
 			}));
 		}
 
+		phases.add(Map.entry("Real trees: Paris's mapped street trees", () -> {
+			// Les Halles and the Marais: built-up land cover, so every tree here is one the map has (Paris mapped its street trees).
+			TerrainField field = RealEarth.terrain();
+			Map<String, Long> before = se.itssimple.realearth.world.EarthTrees.placed();
+			int cx0 = (int) field.projection().blockX(48.8633, 2.3445) >> 4;
+			int cz0 = (int) field.projection().blockZ(48.8633) >> 4;
+			for (int cx = cx0 - 3; cx <= cx0 + 3; cx++) {
+				for (int cz = cz0 - 3; cz <= cz0 + 3; cz++) {
+					earth.getChunk(cx, cz);
+				}
+			}
+			java.util.Map<String, Long> grown = new java.util.TreeMap<>();
+			se.itssimple.realearth.world.EarthTrees.placed().forEach((k, v) -> {
+				if (v - before.getOrDefault(k, 0L) > 0) {
+					grown.put(k, v - before.getOrDefault(k, 0L));
+				}
+			});
+			log("trees round Les Halles: %s", grown);
+			check(grown.getOrDefault("spot mapped: grown", 0L) > 20, "Paris grows the street trees the map has (%d)",
+				grown.getOrDefault("spot mapped: grown", 0L));
+		}));
+
 		phases.add(Map.entry("Roads and railways", () -> {
 			// Roads and railways: central Stockholm, about 600 m square around the start.
 			{

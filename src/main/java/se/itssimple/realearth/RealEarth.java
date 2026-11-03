@@ -217,6 +217,9 @@ public class RealEarth implements ModInitializer {
 		OsmWater map = config.useMapWater ? new OsmWater(config.mapTileJson, cacheRoot.resolve("openfreemap"), auxDownloads) : null;
 		if (map != null && config.useBuildings && config.useBuildingDetail) {
 			map.enableDetail(config.buildingDetailUrl, config.buildingDetailRelease, config.buildingDetailCatalog, cacheRoot.resolve("overture"));
+			if (config.useMappedTrees) {
+				map.enableTrees(config.mappedTreesUrl, cacheRoot.resolve("overture-trees"));
+			}
 		}
 		WorldCover cover = config.useLandCover ? new WorldCover(config.landCoverUrl, cacheRoot.resolve("worldcover"), auxDownloads) : null;
 		Projection projection = world.toProjection();

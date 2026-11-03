@@ -157,11 +157,29 @@ public final class OsmWater {
 		return detail;
 	}
 
-	/** Stops asking for detail; for a server shutting down. */
+	private volatile OsmTrees trees;
+
+	/** Reads the single trees mapped too (see OsmTrees), in the building detail's release, kept under {@code treesRoot}. */
+	public void enableTrees(String template, Path treesRoot) {
+		if (detail != null) {
+			trees = new OsmTrees(template, detail, treesRoot);
+		}
+	}
+
+	/** The single trees mapped, or null when not asked for. */
+	public OsmTrees trees() {
+		return trees;
+	}
+
+	/** Stops asking for detail and trees; for a server shutting down. */
 	public void close() {
 		OsmDetail d = detail;
 		if (d != null) {
 			d.close();
+		}
+		OsmTrees t = trees;
+		if (t != null) {
+			t.close();
 		}
 	}
 

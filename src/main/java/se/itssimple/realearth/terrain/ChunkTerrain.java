@@ -83,6 +83,12 @@ public final class ChunkTerrain {
 
 	/** The map's points of interest in this chunk: benches, bins, bus stops, statues, markets, harbours. */
 	public volatile java.util.List<Poi> pois = java.util.List.of();
+	/** A single tree the map has in this chunk, at a world block column, with its leaf type (see OsmTrees). */
+	public record MappedTree(int x, int z, byte leaves) {
+	}
+
+	/** The single trees the map has in this chunk: street trees, park trees. */
+	public volatile java.util.List<MappedTree> mappedTrees = java.util.List.of();
 	/** Columns in a park, garden or playground. */
 	public final boolean[] park = new boolean[SPAN * SPAN];
 	/** What else the ground of a column is laid out as: {@link #CEMETERY}, {@link #ALLOTMENT}, {@link #FLOWERBED}, {@link #PITCH}, or 0. */

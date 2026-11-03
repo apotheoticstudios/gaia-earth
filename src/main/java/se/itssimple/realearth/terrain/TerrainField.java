@@ -14,6 +14,7 @@ import se.itssimple.realearth.EarthConfig;
 import se.itssimple.realearth.climate.Koppen;
 import se.itssimple.realearth.landcover.WorldCover;
 import se.itssimple.realearth.osm.OsmDetail;
+import se.itssimple.realearth.osm.OsmTrees;
 import se.itssimple.realearth.osm.OsmWater;
 import se.itssimple.realearth.data.TileStore;
 import se.itssimple.realearth.geo.Mercator;
@@ -683,16 +684,28 @@ public final class TerrainField implements AutoCloseable {
 					se.itssimple.realearth.data.Net.waited("building detail", System.nanoTime() - asked, e != null
 						|| detailTiles.values().stream().anyMatch(f -> f.join().failed())));
 			}
+			// The single trees mapped in the chunk's z13 tiles, waited for as the building detail is.
+			Map<Long, CompletableFuture<OsmTrees.Tile>> treeTiles = new HashMap<>();
+			OsmTrees mappedTrees = map == null ? null : map.trees();
+			int span = ChunkTerrain.SPAN;
+			for (int k : new int[] {0, span - 1, span * (span - 1), span * span - 1}) {
+				if (mappedTrees != null && onGlobe[k]) {
+					treeTiles.computeIfAbsent(OsmTrees.tileOf(sx[k], sy[k]),
+						key -> mappedTrees.tile(key).copy().completeOnTimeout(OsmTrees.Tile.FAILED, DETAIL_WAIT_S, TimeUnit.SECONDS));
+				}
+			}
 			List<CompletableFuture<?>> waits = new ArrayList<>(withBuildings.values());
 			waits.addAll(detailTiles.values());
+			waits.addAll(treeTiles.values());
 			return CompletableFuture.allOf(waits.toArray(CompletableFuture[]::new)).thenApplyAsync(w -> {
 				Map<Long, ProcessedTile> all2 = new HashMap<>();
 				withBuildings.forEach((key, f) -> all2.put(key, f.join()));
 				Map<Long, OsmDetail.Tile> details = new HashMap<>();
 				detailTiles.forEach((key, f) -> details.put(key, f.join()));
 				long started = se.itssimple.realearth.Perf.start();
-				ChunkTerrain built = build(terrain, all2, needed.keySet(), coverLookup.join(), shapes, candidates, details, chunkRuns, sx, sy, onGlobe, chunkX,
-					chunkZ);
+				List<OsmTrees.Tile> trees = treeTiles.values().stream().map(CompletableFuture::join).toList();
+				ChunkTerrain built = build(terrain, all2, needed.keySet(), coverLookup.join(), shapes, candidates, details, trees, chunkRuns, sx, sy, onGlobe,
+					chunkX, chunkZ);
 				se.itssimple.realearth.Perf.stop("terrain", started);
 				se.itssimple.realearth.data.Net.waited("everything (chunk ready)", System.nanoTime() - asked, built.degraded);
 				return built;
@@ -702,7 +715,8 @@ public final class TerrainField implements AutoCloseable {
 
 	/** The chunk's terrain from everything fetched for it. */
 	private ChunkTerrain build(ChunkTerrain terrain, Map<Long, ProcessedTile> tiles, java.util.Set<Long> own, WorldCover.Lookup landCover,
-		List<OsmWater.Shapes> shapes, List<Buildings.Candidate> candidates, Map<Long, OsmDetail.Tile> details, List<Bridges.Run> runs, double[] sx, double[] sy, boolean[] onGlobe,
+		List<OsmWater.Shapes> shapes, List<Buildings.Candidate> candidates, Map<Long, OsmDetail.Tile> details, List<OsmTrees.Tile> trees,
+		List<Bridges.Run> runs, double[] sx, double[] sy, boolean[] onGlobe,
 		int chunkX, int chunkZ) {
 		int n = ChunkTerrain.SPAN;
 		{
@@ -785,6 +799,21 @@ public final class TerrainField implements AutoCloseable {
 					}
 				}
 				terrain.pois = List.copyOf(pois);
+				List<ChunkTerrain.MappedTree> mapped = new ArrayList<>();
+				for (OsmTrees.Tile tile : trees) {
+					for (OsmTrees.Tree tree : tile.trees()) {
+						if (tree.x() < sx0 - 2 || tree.x() > sx1 + 2 || tree.y() < sy0 - 2 || tree.y() > sy1 + 2) {
+							continue;
+						}
+						double[] b = Buildings.toBlock(projection, tree.x(), tree.y(), baseX + 8);
+						int bx = (int) Math.floor(b[0]);
+						int bz = (int) Math.floor(b[1]);
+						if (bx >= baseX && bx < baseX + 16 && bz >= baseZ && bz < baseZ + 16) {
+							mapped.add(new ChunkTerrain.MappedTree(bx, bz, tree.leaves()));
+						}
+					}
+				}
+				terrain.mappedTrees = List.copyOf(mapped);
 				if (config.useRoads || config.useRailways) {
 					long started = se.itssimple.realearth.Perf.start();
 					long minX = Long.MAX_VALUE;

@@ -48,6 +48,7 @@ import se.itssimple.realearth.climate.Koppen;
 import se.itssimple.realearth.landcover.TreeDensity;
 import se.itssimple.realearth.landcover.WorldCover;
 import se.itssimple.realearth.mixin.StructureTemplateAccessor;
+import se.itssimple.realearth.osm.OsmTrees;
 import se.itssimple.realearth.terrain.ChunkTerrain;
 import se.itssimple.realearth.terrain.TerrainField;
 
@@ -191,22 +192,34 @@ public final class EarthTrees {
 				int z = (int) Math.floor((j + cell.nextDouble()) * spacing);
 				if (x >= x0 && x < x0 + 16 && z >= z0 && z < z0 + 16) {
 					growAt(region, generator, t, trees, x, z, spacing, field.projection().blocksPerMeter(t.latitude[centre]),
-						RandomSource.create(cell.nextLong()));
+						RandomSource.create(cell.nextLong()), (byte) -1);
 				}
 			}
 		}
+		// And the single trees the map has, where the land cover shows no forest: street trees, park trees.
+		for (ChunkTerrain.MappedTree tree : t.mappedTrees) {
+			growAt(region, generator, t, trees, tree.x(), tree.z(), spacing, field.projection().blocksPerMeter(t.latitude[centre]),
+				RandomSource.create(region.getSeed() ^ (tree.x() * 341873128712L + tree.z() * 132897987541L)), tree.leaves());
+		}
 	}
 
-	/** A tree at a spot of the grid, if the land cover shows trees there and the ground takes one. */
+	/**
+	 * A tree at a spot of the grid, if the land cover shows trees there, or at a tree the map has ({@code leaves} its leaf
+	 * type, see OsmTrees; -1 for a spot of the grid), if it doesn't; and if the ground takes one.
+	 */
 	private static void growAt(WorldGenRegion region, ChunkGenerator generator, ChunkTerrain t, Index trees, int x, int z, double spacing,
-		double blocksPerMeter, RandomSource random) {
+		double blocksPerMeter, RandomSource random, byte leaves) {
 		int lx = x & 15;
 		int lz = z & 15;
 		int k = ChunkTerrain.index(lx, lz);
 		int cover = t.cover[k] & 0xFF;
-		count("spot");
-		if (cover != WorldCover.TREES && cover != WorldCover.MANGROVES || t.way[k] != 0 || t.building[k] != 0 || t.hasWater(lx, lz)) {
-			count("spot: " + (cover != WorldCover.TREES && cover != WorldCover.MANGROVES ? "cover " + cover : "way/building/water"));
+		boolean mapped = leaves >= 0;
+		boolean forest = cover == WorldCover.TREES || cover == WorldCover.MANGROVES;
+		String spot = mapped ? "spot mapped" : "spot";
+		count(spot);
+		if (forest == mapped || t.way[k] != 0 || t.building[k] != 0 || t.hasWater(lx, lz)) {
+			// A forest's trees stand on the grid, at its real density; a mapped tree there would be one more.
+			count(spot + ": " + (forest == mapped ? (mapped ? "in a forest" : "cover " + cover) : "way/building/water"));
 			return;
 		}
 		BlockPos pos = new BlockPos(x, t.topSolidY[k] + 1, z);
@@ -215,7 +228,7 @@ public final class EarthTrees {
 			count("spot: ground " + ground.getBlock().getDescriptionId());
 			return;
 		}
-		int clear = (int) Math.min(4, spacing * CLEARANCE);
+		int clear = mapped ? 1 : (int) Math.min(4, spacing * CLEARANCE); // mapped trees stand where they really are
 		for (int dx = -clear; dx <= clear; dx++) {
 			for (int dz = -clear; dz <= clear; dz++) {
 				if (region.getBlockState(pos.offset(dx, 1, dz)).is(BlockTags.LOGS)) {
@@ -224,7 +237,10 @@ public final class EarthTrees {
 				}
 			}
 		}
-		String kind = cover == WorldCover.MANGROVES ? "mangrove" : kind(region.getBiome(pos), random);
+		String kind = cover == WorldCover.MANGROVES ? "mangrove" : leaves == OsmTrees.NEEDLE ? "spruce" : kind(region.getBiome(pos), random);
+		if (leaves == OsmTrees.BROAD && kind.equals("spruce")) {
+			kind = "oak";
+		}
 		double lat = t.latitude[k];
 		double lon = t.longitude[k];
 		double treeline = BiomePicker.treelineMeters(lat, lon);
@@ -252,6 +268,9 @@ public final class EarthTrees {
 			if (template != null) {
 				int grown = place(region, template, tree, pos, height, random);
 				count(grown > 0 ? row.species : "no room");
+				if (mapped && grown > 0) {
+					count("spot mapped: grown");
+				}
 				HEIGHTS.computeIfAbsent(row.species, s -> new LongAdder()).add(grown);
 				return;
 			}

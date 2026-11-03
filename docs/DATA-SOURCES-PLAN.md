@@ -89,11 +89,13 @@ effort.
 2. **Road widths from tags: not possible with the current tiles.** OpenFreeMap's transportation layer carries
    no `width`, `lanes` or `sidewalk`, only `surface`, and Overture's road segments carry no width either.
    Widths need raw OSM extracts (Geofabrik) or the national networks in phase 4.
-3. **OSM tree points: needs one new download.** OpenFreeMap's tiles have no tree points. Overture's base
-   theme (`base.pmtiles`, zoom 13, same release and licence as the buildings) has them as `land` points of
-   class `tree`: 223 in one Manhattan tile, some with `leaf_type` or `leaf_cycle`, almost none with species.
-   They would put real-species trees in streets and parks, where WorldCover shows no forest and no tree grows
-   today. Costs about 160 KB a 5 km tile, and the chunk build has to wait for it like building detail.
+3. **OSM tree points.** Built: single trees mapped in OSM (`natural=tree`), read from Overture's base theme
+   (`base.pmtiles`, zoom 13, the building detail's release, `OsmTrees`), grow as real species from
+   `species.tsv` where the land cover shows no forest: street trees, park trees. Needleleaved ones grow as
+   conifers, broadleaved as broadleaf. Round Les Halles in Paris, 76 of 145 mapped trees grow; the rest stand
+   in forest cover (which keeps its own trees), on roads or buildings, or on paving and gravel, which trees
+   don't take yet. Tiles are 0.1 to 4 MB (dense cities like Paris are the large ones), fetched while the
+   chunk is built, as building detail is.
 
 ### Phase 1: the overlay, proven on one block in Delft
 
@@ -241,7 +243,7 @@ palette. Worth it only once roofs are real shapes; until then colour on a wrong 
 
 ## Suggested order
 
-1. **Phase 0.** Item 1 built; item 3 (tree points) waits on adding Overture's base theme.
+1. **Phase 0.** Items 1 and 3 built; item 2 needs data the tiles don't carry.
 2. **Phase 1 (Delft).** It decides the overlay format, so nothing in phases 2 to 5 is built before it works.
 3. **Lantmäteriet bare earth (phase 3.2)** through the new `ground` layer. It fixes the start area's two worst
    known issues, and is ACCURACY-PLAN's own next step.

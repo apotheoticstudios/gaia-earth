@@ -123,6 +123,13 @@ public final class EarthConfig {
 	public String buildingDetailRelease = "latest";
 	/** Overture's release catalogue, for "latest". */
 	public String buildingDetailCatalog = "https://stac.overturemaps.org/catalog.json";
+	/**
+	 * Real-species trees where OpenStreetMap maps single trees (street trees, park trees) and the land cover shows
+	 * no forest: from the Overture Maps base tiles, in the building detail's release. Needs building detail on.
+	 */
+	public boolean useMappedTrees = true;
+	/** The Overture base archive (PMTiles), with {release} for the release. */
+	public String mappedTreesUrl = "https://overturemaps-extras-us-west-2.s3.us-west-2.amazonaws.com/tiles/{release}/base.pmtiles";
 	/** Show the town's name as a title on walking into it, and the district's above the hotbar, from the map's place names. */
 	public boolean placeTitles = true;
 	/** Towns and railway stations near you as waypoints in Xaero's Minimap, when it is installed (read on the client). */
