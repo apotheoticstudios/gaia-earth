@@ -58,3 +58,4 @@ cubeleaf-river-red-gum	ask	CubeLeaf	https://www.planetminecraft.com/project/rive
 leo12-mediterranean	ask	leo12_xv	https://www.planetminecraft.com/project/mediterranean-tree-pack/	-	no terms stated; 9 trees: Italian cypress, olive, stone pine, cork oak, laurel, pomegranate, fig, citrus; no Aleppo pine	
 emollientfirr-yellow-birch	no	emollientfirr	https://www.planetminecraft.com/project/yellow-birch-assets/	-	vanilla-style birch with yellow autumn leaves, not Betula alleghaniensis	
 terra-overworld	no	PolyhedralDev	https://github.com/PolyhedralDev/TerraOverworldConfig	CC-BY-4.0	procedural TerraScript (.tesf) trees, not schematics; has a generic eucalyptus	
+gaia-generated	ok	Project Gaia: Earth	tools/trees/generate.py	MIT, the mod's own licence	grown by generate.py for species no pack has: 43 species, 8 heights each	

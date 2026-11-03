@@ -1586,7 +1586,23 @@ final class SelfTest {
 				java.util.Set.of("eucalyptus_regnans", "acacia_aneura", "picea_abies", "agathis_australis"), Map.of()),
 			new Forest("Waipoua's kauri forest", -35.6, 173.55,
 				java.util.Set.of("agathis_australis", "dacrydium_cupressinum", "beilschmiedia_tawa", "podocarpus_totara"),
-				java.util.Set.of("eucalyptus_regnans", "acacia_aneura", "picea_abies", "eucalyptus_marginata"), Map.of("agathis_australis", 15)))) {
+				java.util.Set.of("eucalyptus_regnans", "acacia_aneura", "picea_abies", "eucalyptus_marginata"), Map.of("agathis_australis", 15)),
+			// Grown by tools/trees/generate.py, for species no pack has.
+			new Forest("the Snowy Mountains' snow gums", -36.4, 148.4, java.util.Set.of("eucalyptus_pauciflora", "eucalyptus_delegatensis"),
+				java.util.Set.of("picea_abies", "eucalyptus_regnans", "eucalyptus_marginata", "agathis_australis"), Map.of()),
+			new Forest("Colorado's subalpine forest", 40.3, -105.7, java.util.Set.of("picea_engelmannii", "abies_lasiocarpa", "pinus_contorta"),
+				java.util.Set.of("picea_abies", "quercus_robur", "pinus_taeda", "sequoia_sempervirens"), Map.of()),
+			new Forest("Nelson Lakes' beech forest", -41.8, 172.8,
+				java.util.Set.of("nothofagus_fusca", "nothofagus_menziesii", "nothofagus_cliffortioides", "nothofagus_solandri"),
+				java.util.Set.of("eucalyptus_regnans", "picea_abies", "quercus_robur", "agathis_australis"), Map.of()),
+			new Forest("Tierra del Fuego's lenga forest", -54.8, -68.3,
+				java.util.Set.of("nothofagus_pumilio", "nothofagus_betuloides", "nothofagus_antarctica"),
+				java.util.Set.of("picea_abies", "quercus_robur", "araucaria_angustifolia", "nothofagus_dombeyi"), Map.of()),
+			new Forest("Mexico's pine-oak forest", 19.2, -99.25,
+				java.util.Set.of("pinus_hartwegii", "pinus_montezumae", "pinus_pseudostrobus", "abies_religiosa", "quercus_rugosa", "quercus_laurina"),
+				java.util.Set.of("picea_abies", "quercus_robur", "pinus_taeda", "pseudotsuga_menziesii"), Map.of()),
+			new Forest("Murcia's Aleppo pines", 37.87, -1.55, java.util.Set.of("pinus_halepensis"),
+				java.util.Set.of("picea_abies", "betula_pendula", "eucalyptus_regnans"), Map.of()))) {
 			phases.add(Map.entry("Real trees: " + f.name(), () -> {
 				TerrainField field = RealEarth.terrain();
 				Map<String, Long> before = se.itssimple.realearth.world.EarthTrees.placed();

@@ -38,3 +38,18 @@ the foot of the trunk, `roots` ignores it for builders who always saved from the
 `bottom` stands every tree on its lowest layer.
 
 `python3 convert.py --self-test` converts a few made-up trees and checks the result.
+
+## Generated trees
+
+Species no pack has are grown by `generate.py`: each is a few numbers in its `SPECIES` table (height, bare
+trunk, crown width and shape, stems and limbs, leaf clumps, bark and leaf blocks), grown at eight heights and
+saved through the converter's own steps. They are the project's own work, so they need no permission:
+
+```bash
+python3 generate.py ../../src/main/resources/data/gaia-earth/structure/tree
+python3 generate.py --preview /tmp/trees eucalyptus_pauciflora   # side views as PNG
+python3 generate.py --self-test
+```
+
+Every run makes the same trees, as each is seeded by its species and version. Change a species' numbers and
+look at its preview before adding it to species.tsv.
