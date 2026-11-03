@@ -427,6 +427,8 @@ def convert(blocks, origin, ground="", version=DATA_VERSION):
     blocks = tree_only(blocks, base)
     if not blocks:
         raise Skip("no tree left once its ground is gone")
+    # The ground found may have been a builder's plinth, now gone: the tree mustn't hang above where it stood.
+    base = (base[0], max(base[1], min(p[1] for p in blocks)), base[2])
     reach = max(max(abs(p[0] - base[0]), abs(p[2] - base[2])) for p in blocks)
     if reach > MAX_REACH:
         raise Skip("reaches %d blocks from its trunk" % reach)
@@ -609,6 +611,8 @@ def self_test():
     plinth.update({(dx, 5, dz): ["minecraft:oak_leaves", {}, None] for dx in (-1, 0, 1) for dz in (-1, 0, 1) if dx or dz})
     kept = tree_only(plinth, (0, 1, 0))
     assert sorted({b[0] for b in kept.values()}) == ["minecraft:oak_leaves", "minecraft:oak_log"] and len(kept) == 13, kept
+    on_plinth = convert(plinth, None, "roots")[1]
+    assert (on_plinth["base"], on_plinth["depth"], on_plinth["height"]) == ([1, 0, 1], 0, 5), on_plinth
 
     # MCEdit's numeric ids: a jungle log lying along x, acacia bark, persistent birch leaves, a spruce fence.
     legacy = load_legacy({"Width": Short(4), "Height": Short(1), "Length": Short(1), "Blocks": bytes([17, 162, 18, 188]),

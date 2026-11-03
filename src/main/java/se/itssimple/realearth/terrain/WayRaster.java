@@ -86,6 +86,10 @@ final class WayRaster {
 			}
 		}
 		double clearlyNearer = 0.5 / perMeter / spacing;
+		// The way each column is drawn from, and where on it the column lies: metres across (signed) and along.
+		OsmWater.Way[] drawnFrom = new OsmWater.Way[n * n];
+		double[] across = new double[n * n];
+		double[] along = new double[n * n];
 
 		for (OsmWater.Way way : ways) {
 			boolean rail = isRail(way);
@@ -146,6 +150,10 @@ final class WayRaster {
 					t.way[k] = kind;
 					target[k] = h;
 					raised[k] = lifted;
+					drawnFrom[k] = way;
+					double side = (sx[k] - near[1]) * near[6] - (sy[k] - near[2]) * near[5];
+					across[k] = (side < 0 ? -near[0] : near[0]) * spacing;
+					along[k] = near[3] * spacing;
 				}
 			}
 			if (rail) {
@@ -171,6 +179,12 @@ final class WayRaster {
 		}
 		if (rails) {
 			RailTracks.joinEnds(t);
+		}
+		for (int k = 0; k < n * n; k++) {
+			OsmWater.Way w = drawnFrom[k];
+			if (w != null && w.markings() != 0 && t.way[k] == w.kind()) {
+				t.marking[k] = Markings.at(w.markings(), across[k], along[k], w.widthMeters(), perMeter);
+			}
 		}
 
 		for (int k = 0; k < n * n; k++) {

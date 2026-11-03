@@ -34,6 +34,8 @@ public final class WorldSettings {
 	public String lidarUrl;
 	/** 0 is original terrain, 1 fits water surfaces, and 2 adds directed profiles and wrap fixes. */
 	public int waterSurfaceVersion;
+	/** 0 is roads a fixed width by class; 1 widens them by region and paints their markings. */
+	public int roadVersion;
 
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 	/** Beyond this the rest of the world would come out very small. */
@@ -68,6 +70,7 @@ public final class WorldSettings {
 		settings.startLongitude = defaults.startLongitude;
 		settings.lidarUrl = defaults.lidarUrl == null ? "" : defaults.lidarUrl;
 		settings.waterSurfaceVersion = 3;
+		settings.roadVersion = 1;
 		if (settings.projection.equals("sinusoidal")) {
 			settings.originLatitude = defaults.startLatitude;
 			settings.originLongitude = defaults.startLongitude;

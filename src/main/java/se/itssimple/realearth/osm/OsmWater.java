@@ -69,7 +69,12 @@ public final class OsmWater {
 	 * the ground.
 	 */
 	public record Way(double[] points, double widthMeters, byte kind, boolean bridge, double minX, double minY, double maxX, double maxY, int tileX,
-		int tileY) {
+		int tileY, byte markings) {
+		/** A way with no markings (see Markings.style). */
+		public Way(double[] points, double widthMeters, byte kind, boolean bridge, double minX, double minY, double maxX, double maxY, int tileX,
+			int tileY) {
+			this(points, widthMeters, kind, bridge, minX, minY, maxX, maxY, tileX, tileY, (byte) 0);
+		}
 	}
 
 	/**
@@ -143,6 +148,12 @@ public final class OsmWater {
 	};
 
 	private volatile OsmDetail detail;
+	private volatile int roadVersion;
+
+	/** How roads are drawn in this world (WorldSettings.roadVersion), so a world made before keeps its roads. */
+	public void setRoadVersion(int version) {
+		roadVersion = version;
+	}
 
 	public OsmWater(String tileJsonUrl, Path root, Executor downloads) {
 		this.tileJsonUrl = tileJsonUrl;
@@ -257,7 +268,7 @@ public final class OsmWater {
 			return Shapes.FAILED;
 		}
 		try {
-			return convert(VectorTile.decode(data, LAYERS), x, y);
+			return convert(VectorTile.decode(data, LAYERS), x, y, roadVersion);
 		} catch (IOException | RuntimeException e) {
 			RealEarth.LOGGER.warn("Unreadable map tile {}; discarding: {}", file, e.toString());
 			try {
@@ -294,7 +305,7 @@ public final class OsmWater {
 		}
 	}
 
-	private static Shapes convert(List<VectorTile.Feature> features, int tileX, int tileY) {
+	private static Shapes convert(List<VectorTile.Feature> features, int tileX, int tileY, int roadVersion) {
 		double samplesPerTile = (double) Mercator.TILE_SIZE * (1 << (Mercator.ZOOM - ZOOM));
 		List<Area> areas = new ArrayList<>();
 		List<Line> lines = new ArrayList<>();
@@ -307,6 +318,9 @@ public final class OsmWater {
 		List<Part> raised = new ArrayList<>();
 		List<Land> parks = new ArrayList<>();
 		List<Way> tunnels = new ArrayList<>();
+		// The tile's middle, for what depends on the country: road widths and markings.
+		double centreLon = (tileX + 0.5) / (1 << ZOOM) * 360 - 180;
+		double centreLat = Math.toDegrees(Math.atan(Math.sinh(Math.PI * (1 - 2 * (tileY + 0.5) / (1 << ZOOM)))));
 		for (VectorTile.Feature f : features) {
 			boolean tunnel = "tunnel".equals(f.string("brunnel"));
 			if (f.flag("intermittent") || tunnel && !f.layer().equals("transportation")) {
@@ -431,7 +445,9 @@ public final class OsmWater {
 				byte kind = Ways.kind(cls, f.string("subclass"));
 				if (kind != Ways.NONE) {
 					boolean bridge = "bridge".equals(f.string("brunnel"));
-					double width = Ways.widthMeters(kind, cls);
+					boolean oneway = f.number("oneway") == 1 || f.number("oneway") == -1;
+					double width = roadVersion >= 1 ? Ways.widthMeters(kind, cls, oneway, centreLat, centreLon) : Ways.widthMeters(kind, cls);
+					byte markings = roadVersion >= 1 ? se.itssimple.realearth.terrain.Markings.style(cls, oneway, f.number("ramp") == 1, centreLat, centreLon) : 0;
 					for (double[] part : parts) {
 						if (part.length >= 4) {
 							double minX = Double.MAX_VALUE;
@@ -444,7 +460,7 @@ public final class OsmWater {
 								minY = Math.min(minY, part[i + 1]);
 								maxY = Math.max(maxY, part[i + 1]);
 							}
-							(tunnel ? tunnels : ways).add(new Way(part, width, kind, bridge, minX, minY, maxX, maxY, tileX, tileY));
+							(tunnel ? tunnels : ways).add(new Way(part, width, kind, bridge, minX, minY, maxX, maxY, tileX, tileY, markings));
 						}
 					}
 				}

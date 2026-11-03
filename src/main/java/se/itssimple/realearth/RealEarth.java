@@ -215,6 +215,9 @@ public class RealEarth implements ModInitializer {
 		});
 		se.itssimple.realearth.data.Net.pool("map and land cover", auxDownloads);
 		OsmWater map = config.useMapWater ? new OsmWater(config.mapTileJson, cacheRoot.resolve("openfreemap"), auxDownloads) : null;
+		if (map != null) {
+			map.setRoadVersion(world.roadVersion);
+		}
 		if (map != null && config.useBuildings && config.useBuildingDetail) {
 			map.enableDetail(config.buildingDetailUrl, config.buildingDetailRelease, config.buildingDetailCatalog, cacheRoot.resolve("overture"));
 			map.detail().useOverlays(config.buildingOverlays);

@@ -119,6 +119,23 @@ final class SelfTest {
 						&& se.itssimple.realearth.terrain.BuildingPlan.heightMeters(5, null) == 5,
 					"a building with no mapped height takes Overture's, a mapped one keeps its own");
 			}
+			{
+				// Road markings: a European primary road at a block a metre (7.5 m wide), and where centre lines are yellow.
+				byte primary = se.itssimple.realearth.terrain.Markings.style("primary", false, false, 59.33, 18.07);
+				java.util.function.BiFunction<Double, Double, Byte> at = (across, along) ->
+					se.itssimple.realearth.terrain.Markings.at(primary, across, along, 7.5, 1.0);
+				check(at.apply(0.0, 1.0) == se.itssimple.realearth.terrain.Markings.WHITE && at.apply(0.0, 4.0) == 0 && at.apply(3.2, 4.0) == se.itssimple.realearth.terrain.Markings.WHITE
+						&& at.apply(-3.2, 4.0) == se.itssimple.realearth.terrain.Markings.WHITE && at.apply(1.5, 1.0) == 0,
+					"a primary road has a dashed white centre line and edge lines, asphalt between");
+				java.util.function.BiFunction<Double, Double, Boolean> yellow = (lat, lon) ->
+					(se.itssimple.realearth.terrain.Markings.style("secondary", false, false, lat, lon) & 4) != 0;
+				check(yellow.apply(59.91, 10.75) && yellow.apply(60.17, 24.94) && yellow.apply(40.71, -74.01) && !yellow.apply(59.33, 18.07)
+						&& !yellow.apply(57.71, 11.97) && !yellow.apply(58.94, 11.17) && !yellow.apply(48.86, 2.35),
+					"centre lines are yellow in Oslo, Helsinki and New York, white in Stockholm, Gothenburg, Stromstad and Paris");
+				check(se.itssimple.realearth.terrain.Markings.style("residential", false, false, 59.33, 18.07) == 0
+						&& se.itssimple.realearth.terrain.Markings.at(se.itssimple.realearth.terrain.Markings.style("primary", false, false, 40.71, -74.01), 0, 4, 9.3, 1)
+						== se.itssimple.realearth.terrain.Markings.YELLOW, "residential streets are unmarked; New York's major roads have a solid yellow centre line");
+			}
 
 			double lat = 59.3293;
 			double lon = 18.0686;
