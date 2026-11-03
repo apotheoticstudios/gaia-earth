@@ -48,6 +48,15 @@ road's class, whether it is one-way, and the country's norms.
   - paving stones, gravel and dirt from Overture's transportation theme (`OsmRoads`, matched to the nearest segment
     of the way's kind): 526 paving-stone columns round Chatelet.
   - Road version 2.
+- **Pavements and kerbs:**
+  - a pavement either side of town streets in built-up land, in Saro's sidewalk block (`Ways.sides`, `WayRaster`);
+  - 2 to 2.5 m in Europe;
+  - in North America and Australia, 1.5 m past a grass verge on residential streets;
+  - none on Japan's residential lanes;
+  - mapped footways where they are;
+  - the asphalt two sixteenths below the pavement, a kerb of about 12 cm;
+  - 13,834 pavement columns in central Stockholm;
+  - road version 3.
 
 ## Phases
 

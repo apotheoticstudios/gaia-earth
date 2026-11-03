@@ -188,6 +188,31 @@ final class WayRaster {
 		if (rails) {
 			RailTracks.joinEnds(t);
 		}
+		// Pavements either side of town streets (built-up land only), past a grass verge where the region has one, at the
+		// street's height; where the map has its own footway there, it stays.
+		for (OsmWater.Way way : ways) {
+			if (!roads || way.sides() == 0) {
+				continue;
+			}
+			double kerb = half(way, perMeter) + Ways.vergeMeters(way.sides());
+			double outer = kerb + Ways.pavementMeters(way.sides());
+			if (!reaches(way, outer / spacing + 1, minSX, minSY, maxSX, maxSY)) {
+				continue;
+			}
+			for (int k = 0; k < n * n; k++) {
+				if (!onGlobe[k] || t.way[k] != Ways.NONE || (t.cover[k] & 0xFF) != se.itssimple.realearth.landcover.WorldCover.BUILT
+					|| !Float.isNaN(t.waterMeters[k]) || t.deckWay[k] != Ways.NONE || t.tunnel[k] != 0) {
+					continue;
+				}
+				nearest(way.points(), sx[k], sy[k], near);
+				double d = near[0] * spacing;
+				if (d > kerb && d <= outer) {
+					t.way[k] = Ways.PATH;
+					t.surface[k] = (byte) (se.itssimple.realearth.osm.OsmDetail.FOOTWAY * 8 + se.itssimple.realearth.osm.OsmDetail.TILES);
+					target[k] = TerrainField.splineHeight(tiles, near[1], near[2]);
+				}
+			}
+		}
 		// What the map says a way is paved with beyond paved or unpaved, from the nearest road segment of its kind
 		// (OsmRoads) within its width and a metre and a half; steps stay steps.
 		double[] q = new double[7];

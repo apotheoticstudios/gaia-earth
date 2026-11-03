@@ -493,7 +493,7 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 			case se.itssimple.realearth.osm.OsmDetail.CONCRETE -> block(Blocks.LIGHT_GRAY_CONCRETE);
 			case se.itssimple.realearth.osm.OsmDetail.BRICKS -> block(Blocks.BRICKS);
 			case se.itssimple.realearth.osm.OsmDetail.PAVERS -> block(Blocks.STONE_BRICKS);
-			case se.itssimple.realearth.osm.OsmDetail.TILES -> block(Blocks.SMOOTH_STONE);
+			case se.itssimple.realearth.osm.OsmDetail.TILES -> RoadBlocks.SIDEWALK != null ? RoadBlocks.SIDEWALK : block(Blocks.SMOOTH_STONE);
 			case se.itssimple.realearth.osm.OsmDetail.GRAVEL -> block(Blocks.GRAVEL);
 			default -> block(Blocks.DIRT_PATH);
 		};
@@ -510,6 +510,9 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 			.orElse(null);
 		static final BlockState WHITE = ASPHALT == null ? block(Blocks.WHITE_CONCRETE) : with(ASPHALT, "texture_variant", "straight");
 		static final BlockState YELLOW = ASPHALT == null ? block(Blocks.YELLOW_CONCRETE) : with(ASPHALT, "texture_variant", "road_block_linie_yellow");
+		static final BlockState SIDEWALK = net.minecraft.core.registries.BuiltInRegistries.BLOCK
+			.getOptional(net.minecraft.resources.Identifier.fromNamespaceAndPath("saros_road_blocks_mod", "sidewalk")).map(Block::defaultBlockState)
+			.orElse(null);
 
 		/** The state with a property of the mod's set by name, unchanged where it has no such property or value. */
 		static BlockState with(BlockState state, String property, String value) {
@@ -523,10 +526,23 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 		}
 	}
 
-	/** Whether this world's roads are drawn as they are now (WorldSettings.roadVersion 1): asphalt and markings. */
-	private static boolean currentRoads() {
+	/** This world's road version (WorldSettings.roadVersion): from 1 asphalt and markings, from 3 kerbs. */
+	private static int roadVersion() {
 		TerrainField field = RealEarth.terrain();
-		return field != null && field.map() != null && field.map().roadVersion() >= 1;
+		return field == null || field.map() == null ? 0 : field.map().roadVersion();
+	}
+
+	private static boolean currentRoads() {
+		return roadVersion() >= 1;
+	}
+
+	/**
+	 * Asphalt on the ground set two sixteenths low (Saro's variant 14), so the pavements beside it, a full block, stand
+	 * a kerb above it: about 12 cm at a block a metre.
+	 */
+	private static BlockState kerbed(BlockState surface) {
+		return RoadBlocks.ASPHALT != null && surface.is(RoadBlocks.ASPHALT.getBlock()) && roadVersion() >= 3 ? RoadBlocks.with(surface, "variant", "14")
+			: surface;
 	}
 
 	/** A road marking's block (see Markings): a white or yellow line, laid along the road. */
@@ -720,8 +736,8 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 
 		byte way = t.way[k];
 		if (way != Ways.NONE) {
-			BlockState surface = t.marking[k] != 0 && Ways.isPaved(way) ? paint(t.marking[k])
-				: t.surface[k] != 0 ? surveyed(t.surface[k]) : waySurface(way, worldX, worldZ);
+			BlockState surface = kerbed(t.marking[k] != 0 && Ways.isPaved(way) ? paint(t.marking[k])
+				: t.surface[k] != 0 ? surveyed(t.surface[k]) : waySurface(way, worldX, worldZ));
 			BlockState under = Ways.isPaved(way) ? STONE : Ways.isRail(way) ? block(Blocks.GRAVEL) : dirt;
 			return new Column(top, waterTop, surface, under, 2, STONE, shore, way == Ways.RAIL ? railShape(t, x, z, false) : null);
 		}

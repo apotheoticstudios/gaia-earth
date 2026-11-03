@@ -149,6 +149,12 @@ final class SelfTest {
 						&& lane % 8 == se.itssimple.realearth.osm.OsmDetail.GRAVEL
 						&& se.itssimple.realearth.osm.Ways.surface(se.itssimple.realearth.osm.Ways.MINOR, "minor", "paved") == 0,
 					"paved footways are pavement, steps stone, unpaved streets gravel, paved streets left to asphalt");
+				byte stockholm = se.itssimple.realearth.osm.Ways.sides(se.itssimple.realearth.osm.Ways.MINOR, "minor", 59.33, 18.07);
+				byte newYork = se.itssimple.realearth.osm.Ways.sides(se.itssimple.realearth.osm.Ways.MINOR, "minor", 40.71, -74.01);
+				check(se.itssimple.realearth.osm.Ways.pavementMeters(stockholm) == 2.0 && se.itssimple.realearth.osm.Ways.vergeMeters(stockholm) == 0 && se.itssimple.realearth.osm.Ways.pavementMeters(newYork) == 1.5 && se.itssimple.realearth.osm.Ways.vergeMeters(newYork) == 1.5
+						&& se.itssimple.realearth.osm.Ways.sides(se.itssimple.realearth.osm.Ways.MINOR, "minor", 35.68, 139.69) == 0 && se.itssimple.realearth.osm.Ways.sides(se.itssimple.realearth.osm.Ways.MOTORWAY, "motorway", 59.33, 18.07) == 0
+						&& se.itssimple.realearth.osm.Ways.pavementMeters(se.itssimple.realearth.osm.Ways.sides(se.itssimple.realearth.osm.Ways.MAJOR, "primary", 48.86, 2.35)) == 2.5,
+					"town streets have pavements of the country's width, North American ones a verge; Tokyo's lanes and motorways none");
 			}
 
 			double lat = 59.3293;
@@ -2129,6 +2135,10 @@ final class SelfTest {
 				int bestCx = 0;
 				int bestCz = 0;
 				int marked = 0;
+				int pavements = 0;
+				int bestWalks = 0;
+				int walkCx = 0;
+				int walkCz = 0;
 				int bestMarks = 0;
 				int markCx = 0;
 				int markCz = 0;
@@ -2142,11 +2152,14 @@ final class SelfTest {
 						}
 						int rails = 0;
 						int marks = 0;
+						int walksHere = 0;
 						for (int x = 0; x < 16; x++) {
 							for (int z = 0; z < 16; z++) {
 								int k = ChunkTerrain.index(x, z);
 								byte w = c.way[k];
 								marks += c.marking[k] != 0 ? 1 : 0;
+								walksHere += w == se.itssimple.realearth.osm.Ways.PATH
+									&& c.surface[k] == se.itssimple.realearth.osm.OsmDetail.FOOTWAY * 8 + se.itssimple.realearth.osm.OsmDetail.TILES ? 1 : 0;
 								if (se.itssimple.realearth.osm.Ways.isPaved(w)) {
 									paved++;
 								} else if (w == se.itssimple.realearth.osm.Ways.PATH) {
@@ -2161,6 +2174,12 @@ final class SelfTest {
 						}
 						track += rails;
 						marked += marks;
+						pavements += walksHere;
+						if (walksHere > bestWalks) {
+							bestWalks = walksHere;
+							walkCx = cx;
+							walkCz = cz;
+						}
 						if (marks > bestMarks) {
 							bestMarks = marks;
 							markCx = cx;
@@ -2183,15 +2202,22 @@ final class SelfTest {
 					int painted = 0;
 					int lines = 0;
 					int asphalt = 0;
+					int kerbed = 0;
+					int walks = 0;
+					int walksBuilt = 0;
 					java.util.Map<String, Integer> built = new java.util.TreeMap<>();
 					for (int x = 0; c != null && x < 16; x++) {
 						for (int z = 0; z < 16; z++) {
 							int k = ChunkTerrain.index(x, z);
-							if (!se.itssimple.realearth.osm.Ways.isPaved(c.way[k]) || c.building[k] != 0) {
+							if (c.building[k] != 0) {
 								continue;
 							}
 							BlockState state = chunk.getBlockState(new BlockPos(markCx * 16 + x, c.topSolidY[k], markCz * 16 + z));
 							String block = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString();
+							if (!se.itssimple.realearth.osm.Ways.isPaved(c.way[k])) {
+								continue;
+							}
+							kerbed += state.toString().contains("variant=14") ? 1 : 0;
 							if (c.marking[k] != 0) {
 								painted++;
 								lines += block.equals("saros_road_blocks_mod:asphalt") && state.toString().contains("texture_variant=straight") ? 1 : 0;
@@ -2208,6 +2234,24 @@ final class SelfTest {
 						+ "built on marked columns (by Y from the surface): %s", marked, markCx, markCz, painted, lines, asphalt, built);
 					check(marked > 300, "main roads are marked (%d columns)", marked);
 					check(painted > 0 && lines * 10 >= painted * 9 && asphalt > 0, "markings are built as white lines on asphalt (%d of %d)", lines, painted);
+					ChunkTerrain wc = field.chunkIfReady(walkCx, walkCz);
+					var walkChunk = earth.getChunk(walkCx, walkCz);
+					for (int x = 0; wc != null && x < 16; x++) {
+						for (int z = 0; z < 16; z++) {
+							int k = ChunkTerrain.index(x, z);
+							if (wc.building[k] == 0 && wc.surface[k] == se.itssimple.realearth.osm.OsmDetail.FOOTWAY * 8 + se.itssimple.realearth.osm.OsmDetail.TILES) {
+								walks++;
+								walksBuilt += walkChunk.getBlockState(new BlockPos(walkCx * 16 + x, wc.topSolidY[k], walkCz * 16 + z))
+									.is(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getValue(
+										net.minecraft.resources.Identifier.fromNamespaceAndPath("saros_road_blocks_mod", "sidewalk"))) ? 1 : 0;
+							}
+						}
+					}
+					log("pavements in central Stockholm: %d columns in 41 x 41 chunks; in chunk %d,%d %d, %d built as sidewalk; %d of %d road columns a kerb lower",
+						pavements, walkCx, walkCz, walks, walksBuilt, kerbed, painted + asphalt);
+					check(pavements > 2000, "town streets have pavements (%d columns)", pavements);
+					check(walks > 0 && walksBuilt * 10 >= walks * 9, "pavements are built as sidewalk (%d of %d)", walksBuilt, walks);
+					check(kerbed > 0 && kerbed * 10 >= (painted + asphalt) * 9, "roads lie a kerb below their pavements (%d of %d)", kerbed, painted + asphalt);
 				}
 				// A surface railway from the map itself: the longest non-bridge line in the tile north of the city.
 				{

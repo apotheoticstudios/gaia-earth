@@ -98,6 +98,41 @@ public final class Ways {
 		return isPaved(kind) && unpaved ? (byte) (OsmDetail.ROAD * 8 + OsmDetail.GRAVEL) : 0;
 	}
 
+	/**
+	 * A town street's sides, packed in a byte (see {@link #pavementMeters} and {@link #vergeMeters}): a pavement either
+	 * side at the region's usual width, and in North America and Australia a grass verge between it and the kerb on
+	 * residential streets. None on Japan's narrow residential streets, or on motorways, service roads, tracks and paths.
+	 */
+	public static byte sides(byte kind, String cls, double latitude, double longitude) {
+		boolean america = latitude > 14 && latitude < 72 && longitude > -170 && longitude < -52;
+		boolean japan = latitude > 24 && latitude < 46 && longitude > 122 && longitude < 146;
+		boolean oceania = latitude > -48 && latitude < -10 && longitude > 112 && longitude < 179;
+		boolean residential = kind == MINOR && !"tertiary".equals(cls);
+		double pavement;
+		double verge = 0;
+		if (kind == MAJOR) {
+			pavement = america || oceania ? 2.0 : 2.5;
+		} else if (kind != MINOR || japan && residential) {
+			return 0;
+		} else if (america || oceania) {
+			pavement = 1.5;
+			verge = oceania ? 2.0 : 1.5;
+		} else {
+			pavement = residential ? 2.0 : 2.5;
+		}
+		return (byte) ((int) Math.round(verge * 2) << 4 | (int) Math.round(pavement * 2));
+	}
+
+	/** The width of each pavement in a street's {@link #sides}, in metres. */
+	public static double pavementMeters(byte sides) {
+		return (sides & 15) / 2.0;
+	}
+
+	/** The width of the grass verge between kerb and pavement in a street's {@link #sides}, in metres. */
+	public static double vergeMeters(byte sides) {
+		return (sides >> 4 & 15) / 2.0;
+	}
+
 	/** Typical width of a way, in metres. Each carriageway of a motorway is its own line in the map. */
 	public static double widthMeters(byte kind, String cls) {
 		return switch (kind) {
