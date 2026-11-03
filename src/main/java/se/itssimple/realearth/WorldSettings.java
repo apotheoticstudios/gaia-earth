@@ -34,7 +34,10 @@ public final class WorldSettings {
 	public String lidarUrl;
 	/** 0 is original terrain, 1 fits water surfaces, and 2 adds directed profiles and wrap fixes. */
 	public int waterSurfaceVersion;
-	/** 0 is roads a fixed width by class; 1 widens them by region and paints their markings. */
+	/**
+	 * 0 is roads a fixed width by class; 1 widens them by region and paints their markings in Saro's asphalt; 2 adds
+	 * marked crossings and paves roads and paths as mapped (paved footways, steps, unpaved roads).
+	 */
 	public int roadVersion;
 
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -70,7 +73,7 @@ public final class WorldSettings {
 		settings.startLongitude = defaults.startLongitude;
 		settings.lidarUrl = defaults.lidarUrl == null ? "" : defaults.lidarUrl;
 		settings.waterSurfaceVersion = 3;
-		settings.roadVersion = 1;
+		settings.roadVersion = 2;
 		if (settings.projection.equals("sinusoidal")) {
 			settings.originLatitude = defaults.startLatitude;
 			settings.originLongitude = defaults.startLongitude;

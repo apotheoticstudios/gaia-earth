@@ -2,20 +2,11 @@ package se.itssimple.realearth.osm;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import se.itssimple.realearth.RealEarth;
-import se.itssimple.realearth.data.Http;
-import se.itssimple.realearth.data.PmTiles;
 import se.itssimple.realearth.geo.Mercator;
 
 /**
@@ -37,102 +28,57 @@ public final class OsmTrees {
 	public record Tree(double x, double y, byte leaves) {
 	}
 
-	/** A tile's trees. */
-	public record Tile(List<Tree> trees, boolean failed) {
-		public static final Tile EMPTY = new Tile(List.of(), false);
-		public static final Tile FAILED = new Tile(List.of(), true);
+	/** How a crossing is painted, as OSM's crossing:markings say: zebra bars, or two lines across the road. */
+	public static final byte ZEBRA = 1;
+	public static final byte LINES = 2;
+
+	/** A marked pedestrian crossing, in global z15 sample coordinates. */
+	public record Crossing(double x, double y, byte markings) {
 	}
 
-	private final String template;
-	private final OsmDetail detail;
-	private final Path root;
-	private final ExecutorService downloads;
-	private volatile PmTiles archive;
-	private final Map<Long, CompletableFuture<Tile>> cache = new LinkedHashMap<>(32, 0.75f, true) {
-		@Override
-		protected boolean removeEldestEntry(Map.Entry<Long, CompletableFuture<Tile>> eldest) {
-			return size() > 32;
-		}
-	};
+	/** A tile's trees, and its marked crossings (the base theme's infrastructure points). */
+	public record Tile(List<Tree> trees, List<Crossing> crossings, boolean failed) {
+		public static final Tile EMPTY = new Tile(List.of(), List.of(), false);
+		public static final Tile FAILED = new Tile(List.of(), List.of(), true);
+	}
+
+	private final OvertureTiles<Tile> tiles;
 
 	/**
 	 * @param template the archive's URL with {release} for the release's name
 	 * @param detail the building detail, whose release this follows
 	 */
 	OsmTrees(String template, OsmDetail detail, Path root) {
-		this.template = template;
-		this.detail = detail;
-		this.root = root;
-		this.downloads = Executors.newFixedThreadPool(1, r -> {
-			Thread t = new Thread(r, "RealEarth-Trees");
-			t.setDaemon(true);
-			return t;
-		});
-		se.itssimple.realearth.data.Net.pool("mapped trees", downloads);
+		tiles = new OvertureTiles<>("mapped trees", template, detail, root, ZOOM, Set.of("land", "infrastructure"), OsmTrees::parse, Tile.EMPTY,
+			Tile.FAILED);
 	}
 
 	/** The z13 tile holding a global z15 sample position. */
 	public static long tileOf(double sx, double sy) {
-		double perTile = (double) Mercator.TILE_SIZE * (1 << (Mercator.ZOOM - ZOOM));
-		int n = 1 << ZOOM;
-		int x = Math.floorMod((int) Math.floor((sx + 0.5) / perTile), n);
-		int y = Math.max(0, Math.min(n - 1, (int) Math.floor((sy + 0.5) / perTile)));
-		return ((long) x << 32) | y;
+		return OvertureTiles.tileOf(ZOOM, sx, sy);
 	}
 
-	/** The trees of a z13 tile ({@link #tileOf}): from disk, else read from the archive and kept. */
+	/** The trees and crossings of a z13 tile ({@link #tileOf}): from disk, else read from the archive and kept. */
 	public CompletableFuture<Tile> tile(long key) {
-		synchronized (cache) {
-			return cache.computeIfAbsent(key, k -> CompletableFuture.supplyAsync(() -> load((int) (k >>> 32), (int) (long) k), downloads));
-		}
-	}
-
-	private Tile load(int x, int y) {
-		Path file = root.resolve(Integer.toString(ZOOM)).resolve(Integer.toString(x)).resolve(y + ".mvt");
-		byte[] data = Http.readCache(file);
-		if (data == null) {
-			try {
-				PmTiles a = archive;
-				if (a == null) {
-					a = archive = new PmTiles(template.replace("{release}", detail.release()));
-				}
-				data = a.tile(ZOOM, x, y);
-			} catch (Http.Missing e) {
-				archive = null; // the release is gone from the bucket: the building detail looks for the newest
-				return failed(x, y, e);
-			} catch (IOException | RuntimeException e) {
-				return failed(x, y, e);
-			}
-			// No tile: no trees there. Kept as an empty file, so it is not asked for again.
-			Http.writeCache(file, data == null ? new byte[0] : data);
-		}
-		if (data.length == 0) {
-			return Tile.EMPTY;
-		}
-		try {
-			return parse(VectorTile.decode(data, Set.of("land")), x, y);
-		} catch (IOException | RuntimeException e) {
-			RealEarth.LOGGER.warn("Unreadable mapped trees {}; discarding: {}", file, e.toString());
-			try {
-				Files.deleteIfExists(file);
-			} catch (IOException ignored) {
-			}
-			return failed(x, y, e);
-		}
-	}
-
-	private Tile failed(int x, int y, Exception e) {
-		RealEarth.LOGGER.warn("Mapped trees for tile {}/{}/{} unavailable ({}); only forests grow trees there", ZOOM, x, y, e.getMessage());
-		synchronized (cache) {
-			cache.remove(((long) x << 32) | y); // asked again another time
-		}
-		return Tile.FAILED;
+		return tiles.tile(key);
 	}
 
 	static Tile parse(List<VectorTile.Feature> features, int tileX, int tileY) {
 		double samplesPerTile = (double) Mercator.TILE_SIZE * (1 << (Mercator.ZOOM - ZOOM));
 		List<Tree> trees = new ArrayList<>();
+		List<Crossing> crossings = new ArrayList<>();
+		boolean americas = tileX < (1 << ZOOM) * (180 - 30) / 360.0 && tileX > (1 << ZOOM) * (180 - 170) / 360.0;
 		for (VectorTile.Feature f : features) {
+			if (f.type() == VectorTile.POINT && "crossing".equals(f.string("class"))) {
+				byte markings = markings(f.string("source_tags"), americas);
+				double scale = samplesPerTile / f.extent();
+				for (int[] p : f.parts()) {
+					for (int i = 0; markings != 0 && i + 1 < p.length; i += 2) {
+						crossings.add(new Crossing(tileX * samplesPerTile + p[i] * scale - 0.5, tileY * samplesPerTile + p[i + 1] * scale - 0.5, markings));
+					}
+				}
+				continue;
+			}
 			if (f.type() != VectorTile.POINT || !"tree".equals(f.string("class"))) {
 				continue;
 			}
@@ -144,7 +90,34 @@ public final class OsmTrees {
 				}
 			}
 		}
-		return trees.isEmpty() ? Tile.EMPTY : new Tile(List.copyOf(trees), false);
+		return trees.isEmpty() && crossings.isEmpty() ? Tile.EMPTY : new Tile(List.copyOf(trees), List.copyOf(crossings), false);
+	}
+
+	/**
+	 * How a crossing is painted, from its OSM tags (a JSON object): crossing:markings zebra, ladder or yes as zebra bars,
+	 * lines as two lines; none where unmarked. Where the markings aren't mapped, the country's usual: lines in the
+	 * Americas, zebra bars elsewhere.
+	 */
+	static byte markings(String sourceTags, boolean americas) {
+		String crossing = "";
+		String markings = "";
+		try {
+			var tags = JsonParser.parseString(sourceTags == null ? "{}" : sourceTags).getAsJsonObject();
+			crossing = tags.has("crossing") ? tags.get("crossing").getAsString() : "";
+			markings = tags.has("crossing:markings") ? tags.get("crossing:markings").getAsString() : "";
+		} catch (RuntimeException e) {
+			// unreadable tags: the country's usual
+		}
+		if (markings.equals("no") || crossing.equals("unmarked") || crossing.equals("no") || crossing.equals("informal")) {
+			return 0;
+		}
+		if (markings.startsWith("lines") || markings.equals("surface")) {
+			return LINES;
+		}
+		if (markings.startsWith("zebra") || markings.startsWith("ladder") || markings.equals("yes") || crossing.equals("zebra")) {
+			return ZEBRA;
+		}
+		return americas ? LINES : ZEBRA;
 	}
 
 	/** The leaf type in a feature's OSM tags (a JSON object), ANY where not given. */
@@ -163,6 +136,6 @@ public final class OsmTrees {
 
 	/** Stops asking for trees; for a server shutting down. */
 	public void close() {
-		downloads.shutdownNow();
+		tiles.close();
 	}
 }

@@ -252,7 +252,8 @@ public final class OsmDetail {
 				return failed(x, y, e);
 			}
 			// No tile: no buildings there. Kept as an empty file, so it is not asked for again.
-			Http.writeCache(file, data == null ? new byte[0] : data);
+			data = data == null ? new byte[0] : data;
+			Http.writeCache(file, data);
 		}
 		if (data.length == 0) {
 			return Tile.EMPTY;

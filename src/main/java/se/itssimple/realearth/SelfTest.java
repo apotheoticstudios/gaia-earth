@@ -135,6 +135,20 @@ final class SelfTest {
 				check(se.itssimple.realearth.terrain.Markings.style("residential", false, false, 59.33, 18.07) == 0
 						&& se.itssimple.realearth.terrain.Markings.at(se.itssimple.realearth.terrain.Markings.style("primary", false, false, 40.71, -74.01), 0, 4, 9.3, 1)
 						== se.itssimple.realearth.terrain.Markings.YELLOW, "residential streets are unmarked; New York's major roads have a solid yellow centre line");
+				// Crossings on a road 7 m wide at a block a metre: zebra bars a block wide across it, 3 m deep; or a line each side.
+				byte zebra = se.itssimple.realearth.osm.OsmTrees.ZEBRA;
+				byte lines = se.itssimple.realearth.osm.OsmTrees.LINES;
+				check(se.itssimple.realearth.terrain.Markings.crossing(zebra, 0, 0.5, 7, 1) == se.itssimple.realearth.terrain.Markings.BAR && se.itssimple.realearth.terrain.Markings.crossing(zebra, 1.2, 2.5, 7, 1) == se.itssimple.realearth.terrain.Markings.BAR && se.itssimple.realearth.terrain.Markings.crossing(zebra, 0, 1.5, 7, 1) == 0
+						&& se.itssimple.realearth.terrain.Markings.crossing(zebra, 2.5, 0.5, 7, 1) == 0 && se.itssimple.realearth.terrain.Markings.crossing(zebra, 0, 3.6, 7, 1) == 0
+						&& se.itssimple.realearth.terrain.Markings.crossing(lines, 1.4, 1, 7, 1) == se.itssimple.realearth.terrain.Markings.WHITE && se.itssimple.realearth.terrain.Markings.crossing(lines, 0, 1, 7, 1) == 0,
+					"a zebra crossing has bars a block wide across the road; a lined one a line each side");
+				byte footway = se.itssimple.realearth.osm.Ways.surface(se.itssimple.realearth.osm.Ways.PATH, "footway", "paved");
+				byte steps = se.itssimple.realearth.osm.Ways.surface(se.itssimple.realearth.osm.Ways.PATH, "steps", null);
+				byte lane = se.itssimple.realearth.osm.Ways.surface(se.itssimple.realearth.osm.Ways.MINOR, "minor", "unpaved");
+				check(footway % 8 == se.itssimple.realearth.osm.OsmDetail.CONCRETE && steps / 8 == se.itssimple.realearth.osm.OsmDetail.STEPS
+						&& lane % 8 == se.itssimple.realearth.osm.OsmDetail.GRAVEL
+						&& se.itssimple.realearth.osm.Ways.surface(se.itssimple.realearth.osm.Ways.MINOR, "minor", "paved") == 0,
+					"paved footways are pavement, steps stone, unpaved streets gravel, paved streets left to asphalt");
 			}
 
 			double lat = 59.3293;
@@ -2023,6 +2037,62 @@ final class SelfTest {
 			} catch (Exception e) {
 				check(false, "Delft's measured buildings: %s", e);
 			}
+		}));
+
+		phases.add(Map.entry("Roads: Paris's crossings and paving", () -> {
+			// Chatelet, where Rivoli meets Sebastopol (34 marked crossings within 160 m): zebra crossings at the map's
+			// marked crossings, paving stones where mapped.
+			TerrainField field = RealEarth.terrain();
+			int cx0 = (int) field.projection().blockX(48.8580, 2.3474) >> 4;
+			int cz0 = (int) field.projection().blockZ(48.8580) >> 4;
+			int bars = 0;
+			int pavers = 0;
+			int pavements = 0;
+			int bestBars = 0;
+			int barCx = cx0;
+			int barCz = cz0;
+			for (int cx = cx0 - 4; cx <= cx0 + 4; cx++) {
+				for (int cz = cz0 - 4; cz <= cz0 + 4; cz++) {
+					ChunkTerrain c;
+					try {
+						c = field.chunkBlocking(cx, cz, 120);
+					} catch (Exception e) {
+						continue;
+					}
+					int here = 0;
+					for (int x = 0; x < 16; x++) {
+						for (int z = 0; z < 16; z++) {
+							int k = ChunkTerrain.index(x, z);
+							here += (c.marking[k] & 3) == se.itssimple.realearth.terrain.Markings.BAR ? 1 : 0;
+							pavers += c.surface[k] % 8 == se.itssimple.realearth.osm.OsmDetail.PAVERS && c.surface[k] / 8 != se.itssimple.realearth.osm.OsmDetail.STEPS ? 1 : 0;
+							pavements += c.way[k] == se.itssimple.realearth.osm.Ways.PATH && c.surface[k] % 8 == se.itssimple.realearth.osm.OsmDetail.CONCRETE ? 1 : 0;
+						}
+					}
+					bars += here;
+					if (here > bestBars) {
+						bestBars = here;
+						barCx = cx;
+						barCz = cz;
+					}
+				}
+			}
+			ChunkTerrain c = field.chunkIfReady(barCx, barCz);
+			var chunk = earth.getChunk(barCx, barCz);
+			int built = 0;
+			for (int x = 0; c != null && x < 16; x++) {
+				for (int z = 0; z < 16; z++) {
+					int k = ChunkTerrain.index(x, z);
+					if ((c.marking[k] & 3) == se.itssimple.realearth.terrain.Markings.BAR && c.building[k] == 0
+						&& chunk.getBlockState(new BlockPos(barCx * 16 + x, c.topSolidY[k], barCz * 16 + z)).is(net.minecraft.world.level.block.Blocks.WHITE_CONCRETE)) {
+						built++;
+					}
+				}
+			}
+			log("Paris round Chatelet (9 x 9 chunks): %d zebra bar columns, %d on paving stones, %d paved footway columns; chunk %d,%d: %d of %d bars built",
+				bars, pavers, pavements, barCx, barCz, built, bestBars);
+			check(bars > 100, "Paris's marked crossings are painted as zebra crossings (%d bar columns)", bars);
+			check(bestBars > 0 && built * 10 >= bestBars * 8, "zebra bars are built in white (%d of %d)", built, bestBars);
+			check(pavers > 50, "Paris's paving stones are paved as mapped (%d columns)", pavers);
 		}));
 
 		phases.add(Map.entry("Real trees: Paris's mapped street trees", () -> {

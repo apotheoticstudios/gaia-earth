@@ -488,8 +488,8 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 			return block(Blocks.STONE_BRICKS);
 		}
 		return switch (code % 8) {
-			case se.itssimple.realearth.osm.OsmDetail.ASPHALT -> block(code / 8 == se.itssimple.realearth.osm.OsmDetail.CYCLEWAY ? Blocks.RED_TERRACOTTA
-				: Blocks.GRAY_CONCRETE);
+			case se.itssimple.realearth.osm.OsmDetail.ASPHALT -> code / 8 == se.itssimple.realearth.osm.OsmDetail.CYCLEWAY ? block(Blocks.RED_TERRACOTTA)
+				: RoadBlocks.ASPHALT != null ? RoadBlocks.ASPHALT : block(Blocks.GRAY_CONCRETE);
 			case se.itssimple.realearth.osm.OsmDetail.CONCRETE -> block(Blocks.LIGHT_GRAY_CONCRETE);
 			case se.itssimple.realearth.osm.OsmDetail.BRICKS -> block(Blocks.BRICKS);
 			case se.itssimple.realearth.osm.OsmDetail.PAVERS -> block(Blocks.STONE_BRICKS);
@@ -531,6 +531,9 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 
 	/** A road marking's block (see Markings): a white or yellow line, laid along the road. */
 	private static BlockState paint(byte marking) {
+		if ((marking & 3) == se.itssimple.realearth.terrain.Markings.BAR) {
+			return block(Blocks.WHITE_CONCRETE);
+		}
 		BlockState line = (marking & 3) == se.itssimple.realearth.terrain.Markings.YELLOW ? RoadBlocks.YELLOW : RoadBlocks.WHITE;
 		return RoadBlocks.with(line, "facing", (marking & se.itssimple.realearth.terrain.Markings.ALONG_X) != 0 ? "east" : "north");
 	}

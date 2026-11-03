@@ -69,11 +69,11 @@ public final class OsmWater {
 	 * the ground.
 	 */
 	public record Way(double[] points, double widthMeters, byte kind, boolean bridge, double minX, double minY, double maxX, double maxY, int tileX,
-		int tileY, byte markings) {
-		/** A way with no markings (see Markings.style). */
+		int tileY, byte markings, byte surface) {
+		/** A way with no markings (see Markings.style) and no mapped surface. */
 		public Way(double[] points, double widthMeters, byte kind, boolean bridge, double minX, double minY, double maxX, double maxY, int tileX,
 			int tileY) {
-			this(points, widthMeters, kind, bridge, minX, minY, maxX, maxY, tileX, tileY, (byte) 0);
+			this(points, widthMeters, kind, bridge, minX, minY, maxX, maxY, tileX, tileY, (byte) 0, (byte) 0);
 		}
 	}
 
@@ -189,6 +189,20 @@ public final class OsmWater {
 		return trees;
 	}
 
+	private volatile OsmRoads roads;
+
+	/** Reads the road surfaces mapped too (see OsmRoads), in the building detail's release, kept under {@code roadsRoot}. */
+	public void enableRoads(String template, Path roadsRoot) {
+		if (detail != null) {
+			roads = new OsmRoads(template, detail, roadsRoot);
+		}
+	}
+
+	/** The road surfaces mapped, or null when not asked for. */
+	public OsmRoads roads() {
+		return roads;
+	}
+
 	/** Stops asking for detail and trees; for a server shutting down. */
 	public void close() {
 		OsmDetail d = detail;
@@ -198,6 +212,10 @@ public final class OsmWater {
 		OsmTrees t = trees;
 		if (t != null) {
 			t.close();
+		}
+		OsmRoads r = roads;
+		if (r != null) {
+			r.close();
 		}
 	}
 
@@ -452,6 +470,7 @@ public final class OsmWater {
 					boolean oneway = f.number("oneway") == 1 || f.number("oneway") == -1;
 					double width = roadVersion >= 1 ? Ways.widthMeters(kind, cls, oneway, centreLat, centreLon) : Ways.widthMeters(kind, cls);
 					byte markings = roadVersion >= 1 ? se.itssimple.realearth.terrain.Markings.style(cls, oneway, f.number("ramp") == 1, centreLat, centreLon) : 0;
+					byte surface = roadVersion >= 2 ? Ways.surface(kind, f.string("subclass"), f.string("surface")) : 0;
 					for (double[] part : parts) {
 						if (part.length >= 4) {
 							double minX = Double.MAX_VALUE;
@@ -464,7 +483,7 @@ public final class OsmWater {
 								minY = Math.min(minY, part[i + 1]);
 								maxY = Math.max(maxY, part[i + 1]);
 							}
-							(tunnel ? tunnels : ways).add(new Way(part, width, kind, bridge, minX, minY, maxX, maxY, tileX, tileY, markings));
+							(tunnel ? tunnels : ways).add(new Way(part, width, kind, bridge, minX, minY, maxX, maxY, tileX, tileY, markings, surface));
 						}
 					}
 				}

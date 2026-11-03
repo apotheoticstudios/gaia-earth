@@ -135,6 +135,13 @@ public final class EarthConfig {
 	public boolean useMappedTrees = true;
 	/** The Overture base archive (PMTiles), with {release} for the release. */
 	public String mappedTreesUrl = "https://overturemaps-extras-us-west-2.s3.us-west-2.amazonaws.com/tiles/{release}/base.pmtiles";
+	/**
+	 * Roads and paths paved as mapped where the map says more than paved or unpaved (paving stones, gravel, dirt): from
+	 * the Overture Maps transportation tiles, in the building detail's release. Needs building detail on.
+	 */
+	public boolean useRoadDetail = true;
+	/** The Overture transportation archive (PMTiles), with {release} for the release. */
+	public String roadDetailUrl = "https://overturemaps-extras-us-west-2.s3.us-west-2.amazonaws.com/tiles/{release}/transportation.pmtiles";
 	/** Show the town's name as a title on walking into it, and the district's above the hotbar, from the map's place names. */
 	public boolean placeTitles = true;
 	/** Towns and railway stations near you as waypoints in Xaero's Minimap, when it is installed (read on the client). */

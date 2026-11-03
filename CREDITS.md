@@ -26,8 +26,9 @@ PMTiles release. The buildings theme is available under the Open Database Licens
 mostly from OpenStreetMap, **© OpenStreetMap contributors**, with other sources as listed at
 <https://docs.overturemaps.org/attribution/>.
 
-Single trees (street and park trees, OpenStreetMap's `natural=tree`), from the land layer of the same release's
-base theme, also ODbL 1.0, **© OpenStreetMap contributors**.
+Single trees (street and park trees, OpenStreetMap's `natural=tree`) and marked pedestrian crossings, from the land
+and infrastructure layers of the same release's base theme, and road and path surfaces from its transportation theme,
+also ODbL 1.0, **© OpenStreetMap contributors**.
 
 ## Measured buildings: 3D Basisvoorziening (overlay, Netherlands)
 

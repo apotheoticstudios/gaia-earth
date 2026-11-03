@@ -224,6 +224,9 @@ public class RealEarth implements ModInitializer {
 			if (config.useMappedTrees) {
 				map.enableTrees(config.mappedTreesUrl, cacheRoot.resolve("overture-trees"));
 			}
+			if (config.useRoadDetail) {
+				map.enableRoads(config.roadDetailUrl, cacheRoot.resolve("overture-roads"));
+			}
 		}
 		WorldCover cover = config.useLandCover ? new WorldCover(config.landCoverUrl, cacheRoot.resolve("worldcover"), auxDownloads) : null;
 		Projection projection = world.toProjection();

@@ -33,6 +33,22 @@ Its base theme (already downloaded for single trees) has crossing points, traffi
 stops. Neither OpenFreeMap nor Overture carries a road's width, lanes or turn lanes: those are generated, from the
 road's class, whether it is one-way, and the country's norms.
 
+## Built (2026-11-04)
+
+- **Widths and markings:**
+  - lanes at the region's width;
+  - centre lines, white or yellow by country;
+  - lane lines and edge lines;
+  - painted in Saro's Road Blocks' asphalt (`Markings`, `WayRaster`), from road version 1.
+- **Zebra crossings and two-line crossings** at the base theme's marked crossings (`OsmTrees` crossings,
+  `Markings.crossing`): 109 bar columns round Chatelet.
+- **Surfaces:**
+  - paved footways as concrete pavement, steps in stone, unpaved roads in gravel, paved tracks in asphalt, all from
+    OpenFreeMap's paved and unpaved (`Ways.surface`);
+  - paving stones, gravel and dirt from Overture's transportation theme (`OsmRoads`, matched to the nearest segment
+    of the way's kind): 526 paving-stone columns round Chatelet.
+  - Road version 2.
+
 ## Phases
 
 1. **Look right everywhere.** All generated from map data:

@@ -34,7 +34,8 @@ final class WayRaster {
 	}
 
 	static void apply(TerrainField field, ChunkTerrain t, Map<Long, ProcessedTile> tiles, double[] sx, double[] sy, boolean[] onGlobe,
-		List<OsmWater.Way> ways, Bridges.Network bridges, int chunkX, int chunkZ, boolean roads, boolean rails, Map<Long, Integer> railEnds) {
+		List<OsmWater.Way> ways, List<se.itssimple.realearth.osm.OsmRoads.Segment> segments, Bridges.Network bridges, int chunkX, int chunkZ,
+		boolean roads, boolean rails, Map<Long, Integer> railEnds) {
 		int n = ChunkTerrain.SPAN;
 		int centre = ChunkTerrain.index(8, 8);
 		double minSX = Double.MAX_VALUE;
@@ -91,6 +92,8 @@ final class WayRaster {
 		double[] across = new double[n * n];
 		double[] along = new double[n * n];
 		boolean[] alongX = new boolean[n * n];
+		double[] dirX = new double[n * n];
+		double[] dirZ = new double[n * n];
 
 		for (OsmWater.Way way : ways) {
 			boolean rail = isRail(way);
@@ -152,10 +155,13 @@ final class WayRaster {
 					target[k] = h;
 					raised[k] = lifted;
 					drawnFrom[k] = way;
+					t.surface[k] = way.surface(); // an overlay's surveyed surface, drawn after, wins
 					double side = (sx[k] - near[1]) * near[6] - (sy[k] - near[2]) * near[5];
 					across[k] = (side < 0 ? -near[0] : near[0]) * spacing;
 					along[k] = near[3] * spacing;
 					alongX[k] = Math.abs(near[5]) >= Math.abs(near[6]);
+					dirX[k] = near[5];
+					dirZ[k] = near[6];
 				}
 			}
 			if (rail) {
@@ -182,11 +188,54 @@ final class WayRaster {
 		if (rails) {
 			RailTracks.joinEnds(t);
 		}
+		// What the map says a way is paved with beyond paved or unpaved, from the nearest road segment of its kind
+		// (OsmRoads) within its width and a metre and a half; steps stay steps.
+		double[] q = new double[7];
+		for (int k = 0; k < n * n && !segments.isEmpty(); k++) {
+			OsmWater.Way w = drawnFrom[k];
+			if (w == null || t.way[k] != w.kind() || w.surface() / 8 == se.itssimple.realearth.osm.OsmDetail.STEPS) {
+				continue;
+			}
+			double reach = (w.widthMeters() / 2 + 1.5) / spacing;
+			double best = reach;
+			for (se.itssimple.realearth.osm.OsmRoads.Segment s : segments) {
+				if (s.path() != (w.kind() == Ways.PATH) || sx[k] < s.minX() - best || sx[k] > s.maxX() + best || sy[k] < s.minY() - best
+					|| sy[k] > s.maxY() + best) {
+					continue;
+				}
+				nearest(s.points(), sx[k], sy[k], q);
+				if (q[0] < best) {
+					best = q[0];
+					t.surface[k] = s.surface();
+				}
+			}
+		}
 		for (int k = 0; k < n * n; k++) {
 			OsmWater.Way w = drawnFrom[k];
 			if (w != null && w.markings() != 0 && t.way[k] == w.kind()) {
 				byte paint = Markings.at(w.markings(), across[k], along[k], w.widthMeters(), perMeter);
 				t.marking[k] = paint != Markings.NONE && alongX[k] ? (byte) (paint | Markings.ALONG_X) : paint;
+			}
+		}
+		// Marked crossings, on the road each lies on: a column's road must run through the crossing's own spot.
+		for (ChunkTerrain.Crossing c : t.crossings) {
+			for (int k = 0; k < n * n; k++) {
+				OsmWater.Way w = drawnFrom[k];
+				if (w == null || !Ways.isPaved(w.kind()) || t.way[k] != w.kind()) {
+					continue;
+				}
+				double dx = (chunkX * 16 + k % n - 1 - c.x()) / perMeter;
+				double dz = (chunkZ * 16 + k / n - 1 - c.z()) / perMeter;
+				double alongCrossing = dx * dirX[k] + dz * dirZ[k];
+				double acrossCrossing = dx * dirZ[k] - dz * dirX[k];
+				if (Math.abs(across[k] - acrossCrossing) > 2 || Math.abs(alongCrossing) > 4) {
+					continue;
+				}
+				byte paint = Markings.crossing(c.markings(), alongCrossing, across[k], w.widthMeters(), perMeter);
+				if (paint != Markings.NONE) {
+					// A line across the road lies at right angles to it; a bar is solid.
+					t.marking[k] = paint == Markings.WHITE && !alongX[k] ? (byte) (paint | Markings.ALONG_X) : paint;
+				}
 			}
 		}
 

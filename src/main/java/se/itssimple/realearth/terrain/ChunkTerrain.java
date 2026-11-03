@@ -89,6 +89,12 @@ public final class ChunkTerrain {
 	public record MappedTree(int x, int z, byte leaves) {
 	}
 
+	/** A marked pedestrian crossing at a world block column, painted as OsmTrees.ZEBRA or LINES. */
+	public record Crossing(int x, int z, byte markings) {
+	}
+
+	/** The marked crossings in and just round this chunk (a crossing paints a few blocks either side of it). */
+	public volatile java.util.List<Crossing> crossings = java.util.List.of();
 	/** The single trees the map has in this chunk: street trees, park trees. */
 	public volatile java.util.List<MappedTree> mappedTrees = java.util.List.of();
 	/** A column's surveyed surface from an overlay, as OsmDetail.Surface's code (kind * 8 + material), or 0 (see Surfaces). */

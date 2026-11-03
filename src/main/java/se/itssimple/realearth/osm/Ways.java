@@ -77,6 +77,27 @@ public final class Ways {
 		};
 	}
 
+	/**
+	 * The surface a way is mapped with, as an OsmDetail surface code (kind × 8 + material), or 0 to pave it as its kind
+	 * usually is: from OpenMapTiles' surface (paved or unpaved) and subclass. A paved footway is a concrete pavement,
+	 * steps are stone, an unpaved road is gravel, a paved track is asphalt.
+	 */
+	public static byte surface(byte kind, String subclass, String surface) {
+		boolean paved = "paved".equals(surface);
+		boolean unpaved = "unpaved".equals(surface);
+		if (kind == PATH) {
+			if ("steps".equals(subclass)) {
+				return (byte) (OsmDetail.STEPS * 8 + OsmDetail.PAVERS);
+			}
+			return paved ? (byte) (("cycleway".equals(subclass) ? OsmDetail.ROAD : OsmDetail.FOOTWAY) * 8
+				+ ("cycleway".equals(subclass) ? OsmDetail.ASPHALT : OsmDetail.CONCRETE)) : 0;
+		}
+		if (kind == TRACK) {
+			return paved ? (byte) (OsmDetail.ROAD * 8 + OsmDetail.ASPHALT) : 0;
+		}
+		return isPaved(kind) && unpaved ? (byte) (OsmDetail.ROAD * 8 + OsmDetail.GRAVEL) : 0;
+	}
+
 	/** Typical width of a way, in metres. Each carriageway of a motorway is its own line in the map. */
 	public static double widthMeters(byte kind, String cls) {
 		return switch (kind) {

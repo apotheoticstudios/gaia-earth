@@ -14,6 +14,7 @@ import se.itssimple.realearth.EarthConfig;
 import se.itssimple.realearth.climate.Koppen;
 import se.itssimple.realearth.landcover.WorldCover;
 import se.itssimple.realearth.osm.OsmDetail;
+import se.itssimple.realearth.osm.OsmRoads;
 import se.itssimple.realearth.osm.OsmTrees;
 import se.itssimple.realearth.osm.OsmWater;
 import se.itssimple.realearth.data.TileStore;
@@ -717,9 +718,19 @@ public final class TerrainField implements AutoCloseable {
 						key -> detail.surfaces(tx, ty).copy().completeOnTimeout(List.of(), DETAIL_WAIT_S, TimeUnit.SECONDS));
 				}
 			}
+			// And the road surfaces mapped in the chunk's z14 tiles, where this world's roads use them.
+			Map<Long, CompletableFuture<OsmRoads.Tile>> roadTiles = new HashMap<>();
+			OsmRoads mappedRoads = map == null || map.roadVersion() < 2 ? null : map.roads();
+			for (int k : new int[] {0, span - 1, span * (span - 1), span * span - 1}) {
+				if (mappedRoads != null && onGlobe[k]) {
+					roadTiles.computeIfAbsent(OsmRoads.tileOf(sx[k], sy[k]),
+						key -> mappedRoads.tile(key).copy().completeOnTimeout(OsmRoads.Tile.FAILED, DETAIL_WAIT_S, TimeUnit.SECONDS));
+				}
+			}
 			List<CompletableFuture<?>> waits = new ArrayList<>(withBuildings.values());
 			waits.addAll(detailTiles.values());
 			waits.addAll(treeTiles.values());
+			waits.addAll(roadTiles.values());
 			waits.addAll(surfaceTiles.values());
 			return CompletableFuture.allOf(waits.toArray(CompletableFuture[]::new)).thenApplyAsync(w -> {
 				Map<Long, ProcessedTile> all2 = new HashMap<>();
@@ -728,9 +739,10 @@ public final class TerrainField implements AutoCloseable {
 				detailTiles.forEach((key, f) -> details.put(key, f.join()));
 				long started = se.itssimple.realearth.Perf.start();
 				List<OsmTrees.Tile> trees = treeTiles.values().stream().map(CompletableFuture::join).toList();
+				List<OsmRoads.Segment> segments = roadTiles.values().stream().flatMap(f -> f.join().segments().stream()).toList();
 				List<OsmDetail.Surface> surfaces = surfaceTiles.values().stream().flatMap(f -> f.join().stream()).toList();
-				ChunkTerrain built = build(terrain, all2, needed.keySet(), coverLookup.join(), shapes, candidates, details, trees, surfaces, chunkRuns, sx,
-					sy, onGlobe, chunkX, chunkZ);
+				ChunkTerrain built = build(terrain, all2, needed.keySet(), coverLookup.join(), shapes, candidates, details, trees, surfaces, segments,
+					chunkRuns, sx, sy, onGlobe, chunkX, chunkZ);
 				se.itssimple.realearth.Perf.stop("terrain", started);
 				se.itssimple.realearth.data.Net.waited("everything (chunk ready)", System.nanoTime() - asked, built.degraded);
 				return built;
@@ -741,7 +753,7 @@ public final class TerrainField implements AutoCloseable {
 	/** The chunk's terrain from everything fetched for it. */
 	private ChunkTerrain build(ChunkTerrain terrain, Map<Long, ProcessedTile> tiles, java.util.Set<Long> own, WorldCover.Lookup landCover,
 		List<OsmWater.Shapes> shapes, List<Buildings.Candidate> candidates, Map<Long, OsmDetail.Tile> details, List<OsmTrees.Tile> trees,
-		List<OsmDetail.Surface> surfaces, List<Bridges.Run> runs, double[] sx, double[] sy, boolean[] onGlobe,
+		List<OsmDetail.Surface> surfaces, List<OsmRoads.Segment> segments, List<Bridges.Run> runs, double[] sx, double[] sy, boolean[] onGlobe,
 		int chunkX, int chunkZ) {
 		int n = ChunkTerrain.SPAN;
 		{
@@ -839,6 +851,21 @@ public final class TerrainField implements AutoCloseable {
 					}
 				}
 				terrain.mappedTrees = List.copyOf(mapped);
+				List<ChunkTerrain.Crossing> crossings = new ArrayList<>();
+				for (OsmTrees.Tile tile : map != null && map.roadVersion() >= 2 ? trees : List.<OsmTrees.Tile>of()) {
+					for (OsmTrees.Crossing c : tile.crossings()) {
+						if (c.x() < sx0 - 4 || c.x() > sx1 + 4 || c.y() < sy0 - 4 || c.y() > sy1 + 4) {
+							continue;
+						}
+						double[] b = Buildings.toBlock(projection, c.x(), c.y(), baseX + 8);
+						int bx = (int) Math.floor(b[0]);
+						int bz = (int) Math.floor(b[1]);
+						if (bx >= baseX - 6 && bx < baseX + 22 && bz >= baseZ - 6 && bz < baseZ + 22) {
+							crossings.add(new ChunkTerrain.Crossing(bx, bz, c.markings()));
+						}
+					}
+				}
+				terrain.crossings = List.copyOf(crossings);
 				if (config.useRoads || config.useRailways) {
 					long started = se.itssimple.realearth.Perf.start();
 					long minX = Long.MAX_VALUE;
@@ -860,7 +887,8 @@ public final class TerrainField implements AutoCloseable {
 					Bridges.Network bridges = Bridges.network(this, tiles, ways, runs, r -> nearChunk(r, x0, y0, x1, y1));
 					// Where each line of track on the ground ends, its rail's Y: a tunnel's track comes out to meet it.
 					Map<Long, Integer> railEnds = new HashMap<>();
-					WayRaster.apply(this, terrain, tiles, sx, sy, onGlobe, ways, bridges, chunkX, chunkZ, config.useRoads, config.useRailways, railEnds);
+					WayRaster.apply(this, terrain, tiles, sx, sy, onGlobe, ways, segments, bridges, chunkX, chunkZ, config.useRoads, config.useRailways,
+						railEnds);
 					List<Tunnels.Run> tunnels = new ArrayList<>(Tunnels.near(this, shapes, x0, y0, x1, y1, 8));
 					tunnels.removeIf(r -> r.rail() ? !config.useRailways : !config.useRoads);
 					if (!tunnels.isEmpty()) {
