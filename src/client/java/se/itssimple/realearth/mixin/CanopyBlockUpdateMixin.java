@@ -41,6 +41,9 @@ public abstract class CanopyBlockUpdateMixin {
 				CanopyMeshUpdates.dirtyColumn(level, pos, newBottom, newTop);
 			}
 		}
+		if (CanopyLight.changesSpread(before, state)) {
+			CanopyMeshUpdates.dirtySpread(level, pos);
+		}
 		return before;
 	}
 }

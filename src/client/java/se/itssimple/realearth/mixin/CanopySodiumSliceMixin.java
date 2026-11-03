@@ -27,8 +27,7 @@ public abstract class CanopySodiumSliceMixin {
 	@Inject(method = "<init>", at = @At("TAIL"))
 	private void realearth$initCanopyLight(CallbackInfo ci) {
 		if (RealEarth.isEarth(level)) {
-			// Sodium samples a two-block border around the section it is building.
-			realearth$canopyLight = new CanopyLight.SectionCache(level, 20);
+			realearth$canopyLight = new CanopyLight.SectionCache(level);
 		}
 	}
 

@@ -8,7 +8,6 @@ import net.minecraft.core.SectionPos;
 
 /** Coalesces canopy edits on the client thread before Sodium rebuilds its meshes. */
 public final class CanopyMeshUpdates {
-	private static final int SAMPLE_BORDER = 2; // Sodium can sample two blocks outside a section.
 	private static final LongOpenHashSet DIRTY_SECTIONS = new LongOpenHashSet();
 	private static ClientLevel pendingLevel;
 
@@ -30,7 +29,14 @@ public final class CanopyMeshUpdates {
 	}
 
 	public static void dirtyColumn(ClientLevel level, BlockPos edit, int bottom, int top) {
-		int highestSample = Math.min(top, edit.getY());
+		dirtyRange(level, edit, bottom, Math.min(top, edit.getY()));
+	}
+
+	public static void dirtySpread(ClientLevel level, BlockPos edit) {
+		dirtyRange(level, edit, edit.getY(), edit.getY());
+	}
+
+	private static void dirtyRange(ClientLevel level, BlockPos edit, int bottom, int highestSample) {
 		if (bottom > highestSample) {
 			return;
 		}
@@ -39,12 +45,13 @@ public final class CanopyMeshUpdates {
 			pendingLevel = level;
 		}
 
-		int minX = SectionPos.blockToSectionCoord(edit.getX() - SAMPLE_BORDER);
-		int maxX = SectionPos.blockToSectionCoord(edit.getX() + SAMPLE_BORDER);
-		int minZ = SectionPos.blockToSectionCoord(edit.getZ() - SAMPLE_BORDER);
-		int maxZ = SectionPos.blockToSectionCoord(edit.getZ() + SAMPLE_BORDER);
-		int minY = Math.max(level.getMinSectionY(), SectionPos.blockToSectionCoord(bottom - SAMPLE_BORDER));
-		int maxY = Math.min(level.getMaxSectionY(), SectionPos.blockToSectionCoord(highestSample + SAMPLE_BORDER));
+		int border = CanopyLight.LIGHT_BORDER;
+		int minX = SectionPos.blockToSectionCoord(edit.getX() - border);
+		int maxX = SectionPos.blockToSectionCoord(edit.getX() + border);
+		int minZ = SectionPos.blockToSectionCoord(edit.getZ() - border);
+		int maxZ = SectionPos.blockToSectionCoord(edit.getZ() + border);
+		int minY = Math.max(level.getMinSectionY(), SectionPos.blockToSectionCoord(bottom - border));
+		int maxY = Math.min(level.getMaxSectionY(), SectionPos.blockToSectionCoord(highestSample + border));
 		for (int z = minZ; z <= maxZ; z++) {
 			for (int y = minY; y <= maxY; y++) {
 				for (int x = minX; x <= maxX; x++) {
