@@ -520,12 +520,16 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 	}
 
 	/**
-	 * Asphalt on the ground set two sixteenths low (Saro's variant 14), so the pavements beside it, a full block, stand
-	 * a kerb above it: about 12 cm at a block a metre.
+	 * Asphalt on the ground set two sixteenths low beside pavements (ChunkTerrain.kerb), so they, a full block, stand a
+	 * kerb above it: about 12 cm at a block a metre. Elsewhere it is a full block, level with the ground. Saro's variant
+	 * N is (16 - N) sixteenths tall: up to road version 4 every road on the ground was variant 14, a sliver two sixteenths
+	 * tall, so it lay most of a block below the ground beside it; those worlds keep it.
 	 */
-	private static BlockState kerbed(BlockState surface) {
-		return RoadBlocks.ASPHALT != null && surface.is(RoadBlocks.ASPHALT.getBlock()) && roadVersion() >= 3 ? RoadBlocks.with(surface, "variant", "14")
-			: surface;
+	private static BlockState kerbed(BlockState surface, boolean kerb) {
+		if (RoadBlocks.ASPHALT == null || !surface.is(RoadBlocks.ASPHALT.getBlock()) || roadVersion() < 3) {
+			return surface;
+		}
+		return roadVersion() < 5 ? RoadBlocks.with(surface, "variant", "14") : kerb ? RoadBlocks.with(surface, "variant", "2") : surface;
 	}
 
 	/** A road marking's block (see Markings): a white or yellow line, laid along the road. */
@@ -720,7 +724,7 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 		byte way = t.way[k];
 		if (way != Ways.NONE) {
 			BlockState surface = kerbed(t.marking[k] != 0 && Ways.isPaved(way) ? paint(t.marking[k])
-				: t.surface[k] != 0 ? surveyed(t.surface[k]) : waySurface(way, worldX, worldZ));
+				: t.surface[k] != 0 ? surveyed(t.surface[k]) : waySurface(way, worldX, worldZ), t.kerb[k]);
 			BlockState under = Ways.isPaved(way) ? STONE : Ways.isRail(way) ? block(Blocks.GRAVEL) : dirt;
 			return new Column(top, waterTop, surface, under, 2, STONE, shore, way == Ways.RAIL ? railShape(t, x, z, false) : null);
 		}

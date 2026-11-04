@@ -43,6 +43,8 @@ public final class ChunkTerrain {
 	public final byte[] way = new byte[SPAN * SPAN];
 	/** The paint on a road column: {@link Markings#WHITE}, {@link Markings#YELLOW}, or NONE. */
 	public final byte[] marking = new byte[SPAN * SPAN];
+	/** Road columns set a kerb below the pavement beside them: a town street with pavements (Ways.sides), a surveyed carriageway. */
+	public final boolean[] kerb = new boolean[SPAN * SPAN];
 	/** Way carried on a bridge deck above the column, NONE for none. */
 	public final byte[] deckWay = new byte[SPAN * SPAN];
 	/** Bridge deck surface in metres, NaN where there is none. */

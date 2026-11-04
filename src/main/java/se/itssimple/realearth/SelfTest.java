@@ -2448,7 +2448,6 @@ final class SelfTest {
 							if (!se.itssimple.realearth.osm.Ways.isPaved(c.way[k])) {
 								continue;
 							}
-							kerbed += state.toString().contains("variant=14") ? 1 : 0;
 							if (c.marking[k] != 0) {
 								painted++;
 								lines += block.equals("saros_road_blocks_mod:asphalt") && state.toString().contains("texture_variant=straight") ? 1 : 0;
@@ -2467,9 +2466,18 @@ final class SelfTest {
 					check(painted > 0 && lines * 10 >= painted * 9 && asphalt > 0, "markings are built as white lines on asphalt (%d of %d)", lines, painted);
 					ChunkTerrain wc = field.chunkIfReady(walkCx, walkCz);
 					var walkChunk = earth.getChunk(walkCx, walkCz);
+					int curbside = 0;
+					byte walkway = se.itssimple.realearth.osm.OsmDetail.FOOTWAY * 8 + se.itssimple.realearth.osm.OsmDetail.TILES;
 					for (int x = 0; wc != null && x < 16; x++) {
 						for (int z = 0; z < 16; z++) {
 							int k = ChunkTerrain.index(x, z);
+							// A road column beside a pavement: Saro's asphalt variant 2, two sixteenths low.
+							if (wc.building[k] == 0 && se.itssimple.realearth.osm.Ways.isPaved(wc.way[k]) && (wc.surface[ChunkTerrain.index(x + 1, z)] == walkway
+								|| wc.surface[ChunkTerrain.index(x - 1, z)] == walkway || wc.surface[ChunkTerrain.index(x, z + 1)] == walkway
+								|| wc.surface[ChunkTerrain.index(x, z - 1)] == walkway)) {
+								curbside++;
+								kerbed += walkChunk.getBlockState(new BlockPos(walkCx * 16 + x, wc.topSolidY[k], walkCz * 16 + z)).toString().contains("variant=2") ? 1 : 0;
+							}
 							if (wc.building[k] == 0 && wc.surface[k] == se.itssimple.realearth.osm.OsmDetail.FOOTWAY * 8 + se.itssimple.realearth.osm.OsmDetail.TILES) {
 								walks++;
 								walksBuilt += walkChunk.getBlockState(new BlockPos(walkCx * 16 + x, wc.topSolidY[k], walkCz * 16 + z))
@@ -2478,11 +2486,11 @@ final class SelfTest {
 							}
 						}
 					}
-					log("pavements in central Stockholm: %d columns in 41 x 41 chunks; in chunk %d,%d %d, %d built as sidewalk; %d of %d road columns a kerb lower",
-						pavements, walkCx, walkCz, walks, walksBuilt, kerbed, painted + asphalt);
+					log("pavements in central Stockholm: %d columns in 41 x 41 chunks; in chunk %d,%d %d, %d built as sidewalk; %d of %d road columns beside them a kerb lower",
+						pavements, walkCx, walkCz, walks, walksBuilt, kerbed, curbside);
 					check(pavements > 2000, "town streets have pavements (%d columns)", pavements);
 					check(walks > 0 && walksBuilt * 10 >= walks * 9, "pavements are built as sidewalk (%d of %d)", walksBuilt, walks);
-					check(kerbed > 0 && kerbed * 10 >= (painted + asphalt) * 9, "roads lie a kerb below their pavements (%d of %d)", kerbed, painted + asphalt);
+					check(kerbed > 0 && kerbed * 10 >= curbside * 8, "roads lie a kerb below their pavements (%d of %d)", kerbed, curbside);
 				}
 				// A surface railway from the map itself: the longest non-bridge line in the tile north of the city.
 				{
@@ -2556,6 +2564,60 @@ final class SelfTest {
 					check(placed >= bestRails * 7 / 10 && joined >= placed * 9 / 10,
 						"rails are laid along the track: %d of %d track columns, %d joined to a neighbour", placed, bestRails, joined);
 				}
+			}
+			// A country road on the Uppsala plain, the longest in the map's tile there: its surface level with the ground beside
+			// it, top face to top face (no kerb out of town; up to road version 4 the asphalt was a sliver most of a block low).
+			{
+				TerrainField field = RealEarth.terrain();
+				int mx = (int) Math.floor(Mercator.sampleX(17.5935) / (Mercator.TILE_SIZE * 2));
+				int my = (int) Math.floor(Mercator.sampleY(59.7681) / (Mercator.TILE_SIZE * 2));
+				double[] longest = null;
+				for (var w : field.map().tile(mx, my).join().ways()) {
+					if (!w.bridge() && (w.kind() == se.itssimple.realearth.osm.Ways.MAJOR || w.kind() == se.itssimple.realearth.osm.Ways.MINOR)
+						&& (longest == null || length(w.points()) > length(longest))) {
+						longest = w.points();
+					}
+				}
+				int edges = 0;
+				int level = 0;
+				if (longest != null) {
+					int mid = (longest.length / 4) * 2;
+					double rLat = Mercator.latitudeOfSampleY(longest[mid + 1]);
+					double rLon = (longest[mid] + 0.5) / Mercator.SAMPLES_PER_AXIS * 360.0 - 180.0;
+					int rCx = (int) field.projection().blockX(rLat, rLon) >> 4;
+					int rCz = (int) field.projection().blockZ(rLat) >> 4;
+					for (int cx = rCx - 2; cx <= rCx + 2; cx++) {
+						for (int cz = rCz - 2; cz <= rCz + 2; cz++) {
+							LevelChunk chunk = earth.getChunk(cx, cz);
+							ChunkTerrain t = field.chunkIfReady(cx, cz);
+							for (int x = 0; t != null && x < 16; x++) {
+								for (int z = 0; z < 16; z++) {
+									int k = ChunkTerrain.index(x, z);
+									if (!se.itssimple.realearth.osm.Ways.isPaved(t.way[k]) || t.coverAt(x, z) == se.itssimple.realearth.landcover.WorldCover.BUILT
+										|| t.building[k] != 0 || t.tunnel[k] != 0 || t.deckWay[k] != se.itssimple.realearth.osm.Ways.NONE) {
+										continue;
+									}
+									BlockPos road = new BlockPos(cx * 16 + x, t.topSolidY[k], cz * 16 + z);
+									double roadTop = road.getY() + chunk.getBlockState(road).getShape(chunk, road).max(Direction.Axis.Y);
+									for (Direction d : Direction.Plane.HORIZONTAL) {
+										int nx = x + d.getStepX();
+										int nz = z + d.getStepZ();
+										int n = ChunkTerrain.index(nx, nz);
+										if (nx < 0 || nx > 15 || nz < 0 || nz > 15 || t.way[n] != se.itssimple.realearth.osm.Ways.NONE || t.building[n] != 0
+											|| t.hasWater(nx, nz)) {
+											continue;
+										}
+										BlockPos beside = new BlockPos(cx * 16 + nx, t.topSolidY[n], cz * 16 + nz);
+										edges++;
+										level += Math.abs(beside.getY() + chunk.getBlockState(beside).getShape(chunk, beside).max(Direction.Axis.Y) - roadTop) < 0.25 ? 1 : 0;
+									}
+								}
+							}
+						}
+					}
+					log("a country road on the Uppsala plain at %.5f, %.5f: %d of %d edges level with the ground beside", rLat, rLon, level, edges);
+				}
+				check(edges > 20 && level * 10 >= edges * 8, "a country road lies level with the ground beside it (%d of %d edges)", level, edges);
 			}
 		}));
 

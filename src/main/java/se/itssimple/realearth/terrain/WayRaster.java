@@ -156,6 +156,8 @@ final class WayRaster {
 					raised[k] = lifted;
 					drawnFrom[k] = way;
 					t.surface[k] = way.surface(); // an overlay's surveyed surface, drawn after, wins
+					// Where its pavements are laid (the loop below): the same street, on built-up land.
+					t.kerb[k] = way.sides() != 0 && (t.cover[k] & 0xFF) == se.itssimple.realearth.landcover.WorldCover.BUILT;
 					double side = (sx[k] - near[1]) * near[6] - (sy[k] - near[2]) * near[5];
 					across[k] = (side < 0 ? -near[0] : near[0]) * spacing;
 					along[k] = near[3] * spacing;

@@ -27,6 +27,7 @@ final class Surfaces {
 			}
 			int kind = s.code() / 8;
 			t.surface[k] = s.code();
+			t.kerb[k] = kind == OsmDetail.ROAD;
 			t.way[k] = kind == OsmDetail.ROAD ? (byte) Math.max(Ways.MINOR, Ways.isPaved(t.way[k]) ? t.way[k] : 0)
 				: kind == OsmDetail.PARKING ? Ways.SERVICE : Ways.PATH;
 		}
