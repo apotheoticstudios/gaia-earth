@@ -2266,6 +2266,7 @@ final class SelfTest {
 			// Les Halles and the Marais: built-up land cover, so every tree here is one the map has (Paris mapped its street trees).
 			TerrainField field = RealEarth.terrain();
 			Map<String, Long> before = se.itssimple.realearth.world.EarthTrees.placed();
+			Map<String, Long> heightsBefore = se.itssimple.realearth.world.EarthTrees.heights();
 			int cx0 = (int) field.projection().blockX(48.8633, 2.3445) >> 4;
 			int cz0 = (int) field.projection().blockZ(48.8633) >> 4;
 			for (int cx = cx0 - 3; cx <= cx0 + 3; cx++) {
@@ -2286,6 +2287,18 @@ final class SelfTest {
 			check(grown.getOrDefault("spot mapped: named", 0L) * 10 >= grown.getOrDefault("spot mapped", 0L) * 6,
 				"most of Paris's mapped trees grow as the species or genus the map names (%d of %d)", grown.getOrDefault("spot mapped: named", 0L),
 				grown.getOrDefault("spot mapped", 0L));
+			// As tall as Paris's trees are measured (13 m median, half of them 8 to 20 m), not as their species grow in a forest.
+			long blocks = 0;
+			long trees = 0;
+			for (var e : se.itssimple.realearth.world.EarthTrees.heights().entrySet()) {
+				long n = grown.getOrDefault(e.getKey(), 0L);
+				blocks += n > 0 ? e.getValue() - heightsBefore.getOrDefault(e.getKey(), 0L) : 0;
+				trees += n;
+			}
+			double scale = se.itssimple.realearth.world.EarthTrees.scale(field.projection().blocksPerMeter(48.8633));
+			double mean = trees == 0 ? 0 : blocks / (double) trees / scale;
+			log("Paris's trees round Les Halles stand %.1f m on average", mean);
+			check(mean > 8 && mean < 20, "Paris's trees stand as tall as measured (%.1f m on average)", mean);
 			long planes = grown.entrySet().stream().filter(e -> e.getKey().startsWith("platanus_")).mapToLong(Map.Entry::getValue).sum();
 			check(planes > 0, "Paris's plane trees grow as planes (%d)", planes);
 		}));

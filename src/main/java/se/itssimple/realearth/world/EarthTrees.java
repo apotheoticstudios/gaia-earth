@@ -298,6 +298,11 @@ public final class EarthTrees {
 			species = row.species;
 			metres = row.height0 + random.nextDouble() * (row.height1 - row.height0);
 		}
+		if (mapped && Float.isNaN(map.meters()) && cover == WorldCover.BUILT && row != null) {
+			// A town's trees with no measured height stand as its measured ones do: 0.4 to 0.8 of their species' grown height
+			// (the quartiles of Paris's 1,678 measured trees of species in the table).
+			metres = (row.height0 + row.height1) / 2 * (0.4 + 0.4 * random.nextDouble());
+		}
 		if (species != null) {
 			List<Tree> versions = trees.trees.get(species);
 			// A tree measured keeps its height; one of a species with neither a measure nor a row, its versions' middling height.
