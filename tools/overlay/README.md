@@ -40,3 +40,19 @@ python3 surfaces_nl.py --self-test
 ```
 
 `overlay.py` holds what the converters share: Web Mercator, vector tiles and PMTiles (`python3 overlay.py` tests it).
+
+## Bridges, anywhere (and measured in the Netherlands)
+
+Each bridge as it really is (see `docs/BRIDGES-PLAN.md`): its outline and structure from OpenStreetMap (one Overpass
+query, ODbL), its type, material and sizes from Wikidata (CC0), cited numbers neither has from `bridge_facts.tsv`
+(one row each, with its source), and in the Netherlands every deck, pier and abutment from the BGT and the deck's real
+top from AHN's surface model (both CC0). List the archive in `buildingOverlays`; worlds from road version 7 build
+their bridges from it.
+
+```bash
+python3 bridges.py <min lon> <min lat> <max lon> <max lat> data/<name>.pmtiles
+python3 bridges.py --self-test
+```
+
+Central Delft (4.350, 52.008, 4.365, 52.016): 85 bridges, 58 with Wikidata, 79 surveyed parts, 2,062 measured deck
+points. Västerbron and Tranebergsbron (17.99, 59.315, 18.04, 59.34): 42 bridges, 38 with Wikidata.

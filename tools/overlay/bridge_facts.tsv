@@ -1,0 +1,10 @@
+match	field	value	source
+wikidata:Q580518	length	601	https://sv.wikipedia.org/wiki/V%C3%A4sterbron (total längd 601 meter)
+wikidata:Q580518	clearance	26	https://en.wikipedia.org/wiki/V%C3%A4sterbron (the southern arch next to Långholmen: vertical clearance of 26 m)
+wikidata:Q580518	spans	168;204	https://en.wikipedia.org/wiki/V%C3%A4sterbron (two arches over Riddarfjärden; the southern, next to Långholmen, 204 m); sv.wikipedia: 168 respektive 204 meter
+wikidata:Q580518	structure	arch	https://sv.wikipedia.org/wiki/V%C3%A4sterbron (bågbro i stål)
+wikidata:Q580518	material	steel	https://sv.wikipedia.org/wiki/V%C3%A4sterbron (material: stål)
+wikidata:Q750068	length	450	https://sv.wikipedia.org/wiki/Tranebergsbron (total längd 450 m)
+wikidata:Q750068	width	27	https://sv.wikipedia.org/wiki/Tranebergsbron (bredd 27 m)
+wikidata:Q750068	main_span	181	https://sv.wikipedia.org/wiki/Tranebergsbron (längsta spann 181 m)
+wikidata:Q750068	clearance	25.2	https://sv.wikipedia.org/wiki/Tranebergsbron (segelfri höjd 25,2 m)

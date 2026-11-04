@@ -50,12 +50,16 @@ def zigzag(n):
 
 
 def encode_layer(name, features, tx, ty):
-    """One z14 tile's polygons, [(rings in Mercator shares, properties)], as an MVT layer."""
+    """One z14 tile's polygons, [(rings in Mercator shares, properties)], as an MVT layer; a feature whose only ring is
+    a single point is a point."""
     keys, values, key_index, value_index, feats = [], [], {}, {}, []
     scale = (1 << ZOOM) * EXTENT
     for rings, props in features:
         geometry, cx, cy = [], 0, 0
-        for i, ring in enumerate(rings):
+        point = len(rings) == 1 and len(rings[0]) == 1
+        if point:
+            geometry = [9, zigzag(round(rings[0][0][0] * scale - tx * EXTENT)), zigzag(round(rings[0][0][1] * scale - ty * EXTENT))]
+        for i, ring in enumerate([] if point else rings):
             pts = [(round(x * scale - tx * EXTENT), round(y * scale - ty * EXTENT)) for x, y in ring]
             if pts[0] == pts[-1]:
                 pts = pts[:-1]
@@ -83,7 +87,7 @@ def encode_layer(name, features, tx, ty):
                 value_index[vk] = len(values)
                 values.append(v)
             tags += [key_index[k], value_index[vk]]
-        feats.append(field(2, 2, b"".join(varint(t) for t in tags)) + field(3, 0, varint(3))
+        feats.append(field(2, 2, b"".join(varint(t) for t in tags)) + field(3, 0, varint(1 if point else 3))
                      + field(4, 2, b"".join(varint(g) for g in geometry)))
     layer = field(15, 0, varint(2)) + field(1, 2, name.encode())
     for f in feats:
@@ -144,6 +148,7 @@ def self_test():
     assert abs(x - 0.5) < 1e-12 and abs(y - 0.5) < 1e-12
     tile = encode_layer("test", [([[(0.5, 0.5), (0.5001, 0.5), (0.5001, 0.5001)]], {"a": 1.0, "b": "c"})], 8192, 8192)
     assert b"test" in tile and len(tile) > 20
+    assert b"pt" in encode_layer("pt", [([[(0.50001, 0.50001)]], {"h": 2.5})], 8192, 8192)
     print("self-test passed")
 
 

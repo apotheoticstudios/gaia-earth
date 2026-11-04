@@ -2,3 +2,7 @@ id	status	publisher	url	terms	release	horizontal	vertical	note
 nl-3d-basisvoorziening	ok	Kadaster	https://api.pdok.nl/kadaster/3d-basisvoorziening/ogc/v1	CC BY 4.0	2025 (aerial imagery 2025, BAG 2026-01-01)	EPSG:28992 RD New	NAP	building heights by 3DBAG's roofer: rf_h_ground, rf_h_roof_min, rf_h_roof_ridge, rf_h_roof_70p, rf_roof_type
 3dbag	ok	3D geoinformation group, TU Delft	https://3dbag.nl	CC BY 4.0	-	EPSG:28992	NAP	LoD2.2 CityJSON; its servers timed out from here on 2026-11-03
 bgt	ok	Kadaster (PDOK)	https://api.pdok.nl/lv/bgt/ogc/v1	CC0	-	EPSG:28992 / CRS84	-	road, pavement and path polygons; next for the overlay's surface layer
+osm-overpass	ok	OpenStreetMap contributors (Overpass API)	https://overpass-api.de/api/interpreter	ODbL 1.0	live	WGS84	-	bridge outlines, bridge:structure, bridge:movable, bridge:support, layer, ele, height, width, material, wikidata
+wikidata	ok	Wikidata	https://www.wikidata.org/w/api.php	CC0	live	-	-	bridge type (P31), material (P186), length (P2043), height (P2048), clearance (P2793), spans (P1314), longest span (P2787), width (P2049)
+bgt-overbruggingsdeel	ok	Kadaster (PDOK)	https://api.pdok.nl/lv/bgt/ogc/v1/collections/overbruggingsdeel	CC0	-	CRS84	-	bridge decks, piers, abutments and sills as surveyed, and whether the bridge opens
+ahn-dsm	ok	Rijkswaterstaat (PDOK)	https://service.pdok.nl/rws/ahn/wcs/v1_0 (dsm_05m)	CC0	-	EPSG:28992 RD New	NAP	surface model every half metre: bridge decks' real tops
