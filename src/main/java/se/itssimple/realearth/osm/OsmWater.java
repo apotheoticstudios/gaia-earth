@@ -332,6 +332,36 @@ public final class OsmWater {
 		return "wood".equals(cls) || "mangrove".equals(subclass) || "swamp".equals(subclass);
 	}
 
+	/** What the map says the ground is (landcover): its woods, and the kinds {@link #ground} names. */
+	public static final byte WOOD = 1;
+	public static final byte BEACH = 2;
+	public static final byte SAND = 3;
+	public static final byte DUNE = 4;
+	public static final byte ROCK = 5;
+	public static final byte SCREE = 6;
+	public static final byte TIDAL_FLAT = 7;
+	public static final byte MARSH = 8;
+
+	/**
+	 * The ground a landcover feature's subclass stands for: beaches, sand, dunes, bare rock, scree, tidal flats, and open
+	 * wetland (marsh, salt marsh, reed beds, wet meadows, bogs); 0 for the rest, whose ground the land cover decides.
+	 */
+	public static byte ground(String subclass) {
+		if (subclass == null) {
+			return 0;
+		}
+		return switch (subclass) {
+			case "beach" -> BEACH;
+			case "sand" -> SAND;
+			case "dune" -> DUNE;
+			case "bare_rock" -> ROCK;
+			case "scree" -> SCREE;
+			case "tidalflat" -> TIDAL_FLAT;
+			case "wetland", "marsh", "saltmarsh", "reedbed", "wet_meadow", "bog", "fen" -> MARSH;
+			default -> 0;
+		};
+	}
+
 	private static Shapes convert(List<VectorTile.Feature> features, int tileX, int tileY, int roadVersion) {
 		double samplesPerTile = (double) Mercator.TILE_SIZE * (1 << (Mercator.ZOOM - ZOOM));
 		List<Area> areas = new ArrayList<>();
@@ -427,7 +457,8 @@ public final class OsmWater {
 			String subclass = f.string("subclass");
 			// The map's woods, kept with the parks as "wood": forest trees grow only where they and the land cover agree.
 			boolean wood = f.layer().equals("landcover") && wood(cls, subclass);
-			boolean park = wood || f.layer().equals("landcover") && PARKS.contains(subclass)
+			// So is the ground it draws (beaches, rock, marsh...), kept by its subclass: the chunk's ground follows it.
+			boolean park = wood || f.layer().equals("landcover") && (PARKS.contains(subclass) || ground(subclass) != 0)
 				|| f.layer().equals("landuse") && GREEN_LANDUSE.contains(cls);
 			if (f.layer().equals("landcover") && !park) {
 				continue;

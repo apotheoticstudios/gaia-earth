@@ -822,6 +822,15 @@ public final class TerrainField implements AutoCloseable {
 							}
 							continue;
 						}
+						byte land = OsmWater.ground(park.cls());
+						if (land != 0) {
+							for (int k = 0; k < n * n; k++) {
+								if (onGlobe[k] && terrain.landcover[k] == 0 && BuildingPlan.contains(park.rings(), sx[k], sy[k])) {
+									terrain.landcover[k] = land;
+								}
+							}
+							continue;
+						}
 						byte ground = switch (park.cls()) {
 							case "cemetery" -> ChunkTerrain.CEMETERY;
 							case "allotments" -> ChunkTerrain.ALLOTMENT;

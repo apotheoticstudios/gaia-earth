@@ -94,19 +94,21 @@ public final class MapPainter {
 	}
 
 	/**
-	 * Which pixels of tile {@code zoom/x/y} lie in the map's woods (see OsmWater.wood), non-zero there, from the vector tile at
-	 * {@code dataZoom} that holds it (as for {@link #paint}): where forest trees grow, for distant terrain's canopy.
+	 * What the map says the ground of each pixel of tile {@code zoom/x/y} is, from the vector tile at {@code dataZoom} that holds
+	 * it (as for {@link #paint}): OsmWater.WOOD in its woods (where forest trees grow), else OsmWater.ground's kinds, or 0. For
+	 * distant terrain's canopy and ground.
 	 */
-	public static byte[] woods(byte[] data, int dataZoom, int zoom, int x, int y) throws IOException {
+	public static byte[] landcover(byte[] data, int dataZoom, int zoom, int x, int y) throws IOException {
 		int parts = 1 << (zoom - dataZoom);
-		byte[] woods = new byte[SIZE * SIZE];
+		byte[] land = new byte[SIZE * SIZE];
 		for (VectorTile.Feature f : VectorTile.decode(data, Set.of("landcover"))) {
-			if (f.type() == VectorTile.POLYGON && OsmWater.wood(f.string("class"), f.string("subclass"))) {
+			byte kind = OsmWater.wood(f.string("class"), f.string("subclass")) ? OsmWater.WOOD : OsmWater.ground(f.string("subclass"));
+			if (f.type() == VectorTile.POLYGON && kind != 0) {
 				double side = (double) f.extent() / parts;
-				Rasterizer.fill(rings(f), (x & (parts - 1)) * side, (y & (parts - 1)) * side, SIZE, SIZE / side, woods, WOOD);
+				Rasterizer.fill(rings(f), (x & (parts - 1)) * side, (y & (parts - 1)) * side, SIZE, SIZE / side, land, kind);
 			}
 		}
-		return woods;
+		return land;
 	}
 
 	/** The same, hill-shaded from {@code metres}, the ground's height under each pixel (null for none). */

@@ -8,6 +8,7 @@ import se.itssimple.realearth.climate.Koppen;
 import se.itssimple.realearth.data.Http;
 import se.itssimple.realearth.landcover.WorldCover;
 import se.itssimple.realearth.osm.MapPainter;
+import se.itssimple.realearth.osm.OsmWater;
 import se.itssimple.realearth.terrain.TerrainField;
 import se.itssimple.realearth.world.BiomePicker;
 
@@ -80,7 +81,7 @@ public final class LodSampler {
 			elevation[k] = columnSize <= SMOOTHED_BELOW ? field.smoothedElevationAt(lat[k], lon[k]) : field.elevationAt(lat[k], lon[k], zoom);
 		}
 
-		boolean[] wooded = woods(lat, lon, columnSize);
+		byte[] land = landcover(lat, lon, columnSize);
 		Column[] out = new Column[n];
 		for (int j = 0; j < width; j++) {
 			for (int i = 0; i < width; i++) {
@@ -97,14 +98,14 @@ public final class LodSampler {
 				// see-through, and a shallower lake reads as the sand under it.
 				double ground = sea ? e : inland ? e - Math.max(2.0, 4.0 / field.projection().blocksPerMeter(lat[k])) : e;
 				double water = sea ? 0 : inland ? e : Double.NaN;
-				out[k] = column(lat[k], lon[k], ground, water, inland, rise, c, climate, wooded[k]);
+				out[k] = column(lat[k], lon[k], ground, water, inland, rise, c, climate, land[k]);
 			}
 		}
 		return out;
 	}
 
-	/** The map tiles' wood masks (MapPainter.woods) by zoom, x and y, an empty one for a tile the map hasn't: 64 KB each. */
-	private static final java.util.Map<Long, byte[]> WOODS = java.util.Collections.synchronizedMap(new java.util.LinkedHashMap<>(64, 0.75f, true) {
+	/** The map tiles' land cover masks (MapPainter.landcover) by zoom, x and y, an empty one for a tile the map hasn't: 64 KB each. */
+	private static final java.util.Map<Long, byte[]> LANDCOVER = java.util.Collections.synchronizedMap(new java.util.LinkedHashMap<>(64, 0.75f, true) {
 		@Override
 		protected boolean removeEldestEntry(java.util.Map.Entry<Long, byte[]> eldest) {
 			return size() > 64;
@@ -112,11 +113,12 @@ public final class LodSampler {
 	});
 
 	/**
-	 * Which columns lie in the map's woods, where forest trees grow: from the map's tiles at the zoom whose pixels are about a
-	 * column across, so a coarse column sees the woods the map draws at its scale. None without a map.
+	 * What the map says each column's ground is (MapPainter.landcover: its woods, where forest trees grow, beaches, rock...): from
+	 * the map's tiles at the zoom whose pixels are about a column across, so a coarse column sees what the map draws at its scale.
+	 * Nothing without a map.
 	 */
-	private boolean[] woods(double[] lat, double[] lon, int columnSize) throws Exception {
-		boolean[] out = new boolean[lat.length];
+	private byte[] landcover(double[] lat, double[] lon, int columnSize) throws Exception {
+		byte[] out = new byte[lat.length];
 		var map = field.map();
 		if (map == null || lat.length == 0) {
 			return out;
@@ -132,21 +134,21 @@ public final class LodSampler {
 			int tx = Math.floorMod((int) Math.floor(fx), n);
 			int ty = Math.max(0, Math.min(n - 1, (int) Math.floor(fy)));
 			long key = ((long) zoom << 40) | ((long) tx << 20) | ty;
-			byte[] mask = WOODS.get(key);
+			byte[] mask = LANDCOVER.get(key);
 			if (mask == null) {
 				try {
-					mask = MapPainter.woods(map.raw(zoom, tx, ty), zoom, zoom, tx, ty);
+					mask = MapPainter.landcover(map.raw(zoom, tx, ty), zoom, zoom, tx, ty);
 				} catch (Http.Missing e) {
 					mask = new byte[0];
 				} catch (java.io.IOException e) {
 					throw new TerrainField.Unavailable(); // stored for good by the LOD mod: asked again later rather than forest left out
 				}
-				WOODS.put(key, mask);
+				LANDCOVER.put(key, mask);
 			}
 			if (mask.length > 0) {
 				int px = Math.min(MapPainter.SIZE - 1, (int) ((fx - Math.floor(fx)) * MapPainter.SIZE));
 				int py = Math.min(MapPainter.SIZE - 1, (int) ((fy - Math.floor(fy)) * MapPainter.SIZE));
-				out[k] = mask[py * MapPainter.SIZE + px] != 0;
+				out[k] = mask[py * MapPainter.SIZE + px];
 			}
 		}
 		return out;
@@ -188,7 +190,7 @@ public final class LodSampler {
 			int idx = se.itssimple.realearth.terrain.ChunkTerrain.index(lx, lz);
 			boolean wet = !Float.isNaN(t.waterMeters[idx]) && t.waterTopY[idx] != Integer.MIN_VALUE;
 			out[k] = column(t.latitude[idx], t.longitude[idx], t.groundMeters[idx], wet ? t.waterMeters[idx] : Double.NaN, t.lake[idx],
-				t.slope(lx, lz), t.cover[idx] & 0xFF, t.climate[idx] & 0xFF, t.wood[idx]);
+				t.slope(lx, lz), t.cover[idx] & 0xFF, t.climate[idx] & 0xFF, t.wood[idx] ? OsmWater.WOOD : t.landcover[idx]);
 			var plan = t.building[idx] == 0 ? null : t.plans.get(t.building[idx] - 1);
 			if (plan != null) {
 				// Near the player, buildings stand in the distant terrain too, as solid blocks to their roofs.
@@ -210,9 +212,12 @@ public final class LodSampler {
 		return out;
 	}
 
-	/** A column; {@code wooded} where it lies in one of the map's woods, as forest trees grow only there (EarthTrees). */
+	/**
+	 * A column; {@code land} is what the map says its ground is (OsmWater.WOOD in its woods, where alone forest trees grow,
+	 * EarthTrees; else OsmWater.ground's kinds, or 0).
+	 */
 	private Column column(double lat, double lon, double ground, double water, boolean lake, double rise, int cover, int climate,
-		boolean wooded) {
+		byte land) {
 		boolean sea = !Double.isNaN(water) && !lake && water <= 0.5;
 		boolean inland = !Double.isNaN(water) && !sea;
 		ResourceKey<Biome> biome = BiomePicker.pick(lat, lon, ground, sea || inland, inland, Double.isNaN(water) ? 0 : water, climate, cover);
@@ -222,12 +227,12 @@ public final class LodSampler {
 			waterTop = Integer.MIN_VALUE;
 		}
 
-		String surface = surface(biome, cover, climate, rise, sea, inland);
+		String surface = surface(biome, land == OsmWater.MARSH ? WorldCover.WETLAND : cover, climate, rise, sea, inland, land);
 		int canopyHeight = 0;
 		String leaves = null;
 		// Forest canopies only on coarse columns. Next to real chunks (which have real trees) a solid
 		// block of leaves stands up as a wall at the edge of the loaded area.
-		boolean forest = cover == WorldCover.TREES && wooded;
+		boolean forest = cover == WorldCover.TREES && land == OsmWater.WOOD;
 		if (CANOPY && columnSize >= CANOPY_FROM && forest && waterTop == Integer.MIN_VALUE && rise < 1.2) {
 			canopyHeight = canopyHeight(biome);
 			leaves = leaves(biome);
@@ -249,19 +254,33 @@ public final class LodSampler {
 		return new Column(groundTop, waterTop, surface, under, groundTop + canopyHeight, leaves, biome.identifier().toString());
 	}
 
-	private static String surface(ResourceKey<Biome> biome, int cover, int climate, double rise, boolean sea, boolean inland) {
+	private static String surface(ResourceKey<Biome> biome, int cover, int climate, double rise, boolean sea, boolean inland, byte land) {
 		if (sea || inland) {
 			return "minecraft:sand";
 		}
 		if (cover == WorldCover.SNOW_ICE || biome == Biomes.FROZEN_PEAKS || biome == Biomes.SNOWY_SLOPES || biome == Biomes.JAGGED_PEAKS) {
 			return rise > 1.0 ? "minecraft:stone" : "minecraft:snow_block";
 		}
-		boolean dunes = cover == WorldCover.BARE && Koppen.hotArid(climate);
+		boolean sandy = land == OsmWater.BEACH || land == OsmWater.SAND || land == OsmWater.DUNE;
+		boolean dunes = cover == WorldCover.BARE && Koppen.hotArid(climate) || sandy;
 		if (rise > 1.0 && (Koppen.arid(climate) || biome == Biomes.BADLANDS) && !dunes) {
 			return se.itssimple.realearth.world.Strata.BANDS;
 		}
-		if (rise > 1.0) {
+		if (rise > 1.0 && !sandy) {
 			return "minecraft:stone";
+		}
+		// The map's own ground first, as in the chunks (EarthChunkGenerator.column).
+		if (sandy) {
+			return "minecraft:sand";
+		}
+		if (land == OsmWater.ROCK) {
+			return Koppen.arid(climate) ? se.itssimple.realearth.world.Strata.BANDS : "minecraft:stone";
+		}
+		if (land == OsmWater.SCREE) {
+			return "minecraft:gravel";
+		}
+		if (land == OsmWater.TIDAL_FLAT) {
+			return "minecraft:mud";
 		}
 		boolean desert = Koppen.desert(climate);
 		if (Koppen.arid(climate) && (cover == WorldCover.SHRUBS || cover == WorldCover.GRASS)) {

@@ -2359,6 +2359,69 @@ final class SelfTest {
 			check(stray == 0, "the Uppsala plain grows no trees where the real world has none (%d trunk columns)", stray);
 		}));
 
+		phases.add(Map.entry("The map's ground: Flinders Beach and Wastwater's screes", () -> {
+			// Where the map says what the ground is, the ground is that: sand on North Stradbroke Island's mapped beach (once grass
+			// from the land cover alone), gravel and rock on mapped scree and bare rock.
+			TerrainField field = RealEarth.terrain();
+			for (double[] spot : new double[][] {{-27.42172, 153.50463}, {54.437, -3.29}}) {
+				int cx0 = (int) field.projection().blockX(spot[0], spot[1]) >> 4;
+				int cz0 = (int) field.projection().blockZ(spot[0]) >> 4;
+				for (int cx = cx0 - 3; cx <= cx0 + 3; cx++) {
+					for (int cz = cz0 - 3; cz <= cz0 + 3; cz++) {
+						earth.getChunk(cx, cz);
+					}
+				}
+				int mapped = 0;
+				int right = 0;
+				Map<String, Integer> wrong = new java.util.TreeMap<>();
+				for (int cx = cx0 - 2; cx <= cx0 + 2; cx++) {
+					for (int cz = cz0 - 2; cz <= cz0 + 2; cz++) {
+						ChunkTerrain t = field.chunkIfReady(cx, cz);
+						LevelChunk c = earth.getChunk(cx, cz);
+						for (int k16 = 0; t != null && k16 < 256; k16++) {
+							int k = ChunkTerrain.index(k16 & 15, k16 >> 4);
+							byte land = t.landcover[k];
+							if (land == 0 || land == se.itssimple.realearth.osm.OsmWater.MARSH || t.waterTopY[k] != Integer.MIN_VALUE
+								|| t.building[k] != 0 || t.way[k] != se.itssimple.realearth.osm.Ways.NONE) {
+								continue;
+							}
+							BlockState top = c.getBlockState(new BlockPos(cx * 16 + (k16 & 15), t.topSolidY[k], cz * 16 + (k16 >> 4)));
+							// Rock as vanilla's ores and its stone and dirt blobs (shifted to depth below the ground) leave it where it lies bare.
+							String name = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(top.getBlock()).getPath();
+							boolean ok = land == se.itssimple.realearth.osm.OsmWater.ROCK || land == se.itssimple.realearth.osm.OsmWater.SCREE
+								? top.is(net.minecraft.tags.BlockTags.BASE_STONE_OVERWORLD) || name.endsWith("_ore") || top.is(Blocks.DIRT) || top.is(Blocks.GRAVEL)
+									|| top.is(Blocks.SNOW_BLOCK)
+								: top.is(Blocks.SAND) || top.is(Blocks.GRAVEL) || land == se.itssimple.realearth.osm.OsmWater.DUNE && top.is(Blocks.GRASS_BLOCK);
+							mapped++;
+							right += ok ? 1 : 0;
+							if (!ok) {
+								BlockState above = c.getBlockState(new BlockPos(cx * 16 + (k16 & 15), t.topSolidY[k] + 1, cz * 16 + (k16 >> 4)));
+								wrong.merge(land + ":" + name + " under " + net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(above.getBlock()).getPath(),
+									1, Integer::sum);
+							}
+						}
+					}
+				}
+				log("%.4f, %.4f: %d of %d columns of the map's ground as it says, else %s", spot[0], spot[1], right, mapped, wrong);
+				check(mapped >= 100 && right >= mapped * 0.95, "the ground at %.4f, %.4f is what the map says (%d of %d columns)",
+					spot[0], spot[1], right, mapped);
+			}
+			// Distant terrain shows the beach too: from the chunks' terrain close by, from the map's tiles further out.
+			int bx = (int) field.projection().blockX(-27.42172, 153.50463);
+			int bz = (int) field.projection().blockZ(-27.42172);
+			for (int size : new int[] {4, 16}) {
+				int sand = 0;
+				try {
+					for (var col : new se.itssimple.realearth.lod.LodSampler(field).patch(bx - 16 * size, bz - 16 * size, 32, size)) {
+						sand += col.waterTop() == Integer.MIN_VALUE && col.surface().equals("minecraft:sand") ? 1 : 0;
+					}
+				} catch (Exception e) {
+					throw new RuntimeException(e);
+				}
+				check(sand >= 8, "distant terrain in %d-block columns shows Flinders Beach's sand (%d columns)", size, sand);
+			}
+		}));
+
 		phases.add(Map.entry("Roads and railways", () -> {
 			// Roads and railways: central Stockholm, about 600 m square around the start.
 			{

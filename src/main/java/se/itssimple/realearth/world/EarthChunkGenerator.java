@@ -3,6 +3,7 @@ package se.itssimple.realearth.world;
 import net.minecraft.world.level.block.RailBlock;
 import net.minecraft.world.level.block.state.properties.RailShape;
 import se.itssimple.realearth.osm.Ways;
+import se.itssimple.realearth.osm.OsmWater;
 import java.util.ArrayList;
 import java.util.Arrays;
 import com.mojang.serialization.MapCodec;
@@ -743,6 +744,12 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 			BlockState under = Ways.isPaved(way) ? STONE : Ways.isRail(way) ? block(Blocks.GRAVEL) : dirt;
 			return new Column(top, waterTop, surface, under, 2, STONE, shore, way == Ways.RAIL ? railShape(t, x, z, false) : null);
 		}
+		// What the map says the ground is, where it says (its beaches, dunes, rock, marshes), wins over the land cover's guess.
+		byte land = t.landcover[k];
+		boolean sandy = land == OsmWater.BEACH || land == OsmWater.SAND || land == OsmWater.DUNE;
+		if (land == OsmWater.MARSH) {
+			cover = WorldCover.WETLAND;
+		}
 		ResourceKey<Biome> biome = BiomePicker.pick(lat, lon, ground, false, false, 0, climate, cover);
 		int slope = t.slope(x, z);
 		boolean cold = Koppen.polar(climate) || Koppen.subarctic(climate) || (climate == Koppen.SEA && Math.abs(lat) > 60);
@@ -751,7 +758,7 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 
 		// Cliffs and steep slopes in dry country: banded terracotta, deep enough to cover the exposed
 		// face down to the neighbouring column. Sand seas keep their sandstone.
-		boolean dunes = cover == WorldCover.BARE && Koppen.hotArid(climate);
+		boolean dunes = cover == WorldCover.BARE && Koppen.hotArid(climate) || sandy;
 		// Measured across the column (left neighbour to right), so a single terrace step on flat ground
 		// doesn't count but a 45-degree canyon wall does.
 		int across = Math.max(Math.abs(t.topSolidY[ChunkTerrain.index(x + 1, z)] - t.topSolidY[ChunkTerrain.index(x - 1, z)]),
@@ -760,13 +767,13 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 			return new Column(top, waterTop, Strata.at(top, worldX, worldZ), STONE, 0, STONE, shore, null, Math.min(48, slope + 4));
 		}
 
-		if (slope >= 4) {
+		if (slope >= 4 && !sandy) {
 			BlockState rock = biome == Biomes.DESERT && hotDry ? block(Blocks.SANDSTONE) : biome == Biomes.BADLANDS ? block(Blocks.TERRACOTTA) : STONE;
 			return new Column(top, waterTop, rock, rock, 0, STONE, shore, null);
 		}
 
-		// Shores: sand where land meets warm sea, gravel where it meets cold sea or a lake.
-		if (shore && ground < 2.5 + seaOrLakeLevel(t, x, z)) {
+		// Shores the map says nothing about: sand where land meets warm sea, gravel where it meets cold sea or a lake.
+		if (shore && land == 0 && ground < 2.5 + seaOrLakeLevel(t, x, z)) {
 			BlockState beach = cold || nextToLake(t, x, z) ? (roll < 0.5 ? block(Blocks.GRAVEL) : block(Blocks.SAND)) : block(Blocks.SAND);
 			return new Column(top, waterTop, beach, beach, 2, STONE, true, null);
 		}
@@ -779,6 +786,26 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 			boolean ice = (cover == WorldCover.SNOW_ICE || biome == Biomes.FROZEN_PEAKS) && GeoNoise.sample(lat, lon, 0.15, 11) > 0.2;
 			BlockState cap = ice ? block(Blocks.PACKED_ICE) : block(Blocks.SNOW_BLOCK);
 			return new Column(top, waterTop, cap, ice ? block(Blocks.PACKED_ICE) : block(Blocks.SNOW_BLOCK), ice ? 4 : 1, STONE, shore, null);
+		}
+
+		if (sandy) {
+			// Beaches on cold shores are as much shingle as sand; a dune under grass or scrub has grass on its sand.
+			boolean vegetated = cover == WorldCover.GRASS || cover == WorldCover.SHRUBS || cover == WorldCover.TREES || cover == WorldCover.MOSS;
+			BlockState surface = land == OsmWater.BEACH && cold && roll < 0.5 ? block(Blocks.GRAVEL)
+				: land == OsmWater.DUNE && vegetated && roll < 0.5 ? grass : block(Blocks.SAND);
+			return new Column(top, waterTop, surface, block(Blocks.SAND), 4, Koppen.hotArid(climate) ? block(Blocks.SANDSTONE) : STONE, shore, null);
+		}
+		if (land == OsmWater.ROCK) {
+			BlockState rock = Koppen.arid(climate) ? Strata.at(top, worldX, worldZ) : roll < 0.2 ? block(Blocks.ANDESITE) : STONE;
+			return new Column(top, waterTop, rock, STONE, 0, STONE, shore, null);
+		}
+		if (land == OsmWater.SCREE) {
+			BlockState scree = roll < 0.55 ? block(Blocks.GRAVEL) : roll < 0.8 ? STONE : block(Blocks.ANDESITE);
+			return new Column(top, waterTop, scree, block(Blocks.GRAVEL), 2, STONE, shore, null);
+		}
+		if (land == OsmWater.TIDAL_FLAT) {
+			BlockState flat = roll < 0.65 ? block(Blocks.MUD) : block(Blocks.SAND);
+			return new Column(top, waterTop, flat, flat, 3, STONE, true, null);
 		}
 
 		switch (cover) {
