@@ -6,7 +6,7 @@ height, clearance, number of spans and longest span; from bridge_facts.tsv: cite
 Netherlands from the BGT (Kadaster via PDOK, CC0) every deck, pier and abutment as surveyed, and from AHN (CC0) the
 deck's real top. Writes a PMTiles archive of z14 vector tiles with three layers:
 
-    bridges         outlines: name, structure, movable, material, length, height, clearance, spans, main_span,
+    bridges         outlines: name, structure, movable (drawbridge, bascule, lift, swing, movable), material, length, height, clearance, spans, main_span,
                     span_count, width, layer, wikidata, osm, sources ("" or 0 where unknown; spans in metres, ";" between,
                     from the north or west end)
     bridge_parts    decks, piers and abutments: kind (deck, pier, abutment, sill), movable, source
@@ -40,13 +40,15 @@ FACTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bridge_facts.t
 STRUCTURES = {"beam": "beam", "girder": "beam", "arch": "arch", "tied-arch": "arch", "humpback": "humpback", "truss": "truss",
               "suspension": "suspension", "simple-suspension": "suspension", "cable-stayed": "cable_stayed",
               "cantilever": "cantilever", "floating": "floating", "trestle": "trestle"}
-MOVABLE = {"bascule": "bascule", "drawbridge": "bascule", "lift": "lift", "swing": "swing", "transporter": "transporter",
+# A drawbridge lifts its leaf by chains or rods from balance beams overhead (the Dutch ophaalbrug); a bascule by a
+# counterweight under the deck.
+MOVABLE = {"bascule": "bascule", "drawbridge": "drawbridge", "lift": "lift", "swing": "swing", "transporter": "transporter",
            "submersible": "lift", "retractable": "swing", "tilt": "bascule"}
 MATERIALS = {"steel": "steel", "metal": "steel", "iron": "iron", "concrete": "concrete", "reinforced_concrete": "concrete",
              "stone": "stone", "masonry": "stone", "brick": "brick", "wood": "wood", "timber": "wood"}
 # Wikidata types and materials by their English label: the first keyword in a label decides.
 TYPE_WORDS = [("suspension", ("suspension", "")), ("cable-stayed", ("cable_stayed", "")), ("truss", ("truss", "")),
-              ("bascule", ("beam", "bascule")), ("drawbridge", ("beam", "bascule")), ("swing bridge", ("beam", "swing")),
+              ("bascule", ("beam", "bascule")), ("drawbridge", ("beam", "drawbridge")), ("swing bridge", ("beam", "swing")),
               ("lift bridge", ("beam", "lift")), ("deck arch", ("arch", "")), ("through arch", ("arch", "")),
               ("arch", ("arch", "")), ("cantilever", ("cantilever", "")), ("girder", ("beam", "")), ("beam", ("beam", "")),
               ("viaduct", ("beam", ""))]
@@ -109,7 +111,7 @@ def number(v):
 
 def describe(tags):
     """What a map element says about a bridge: structure, movable, material, height, width, layer, name, wikidata."""
-    movable = MOVABLE.get(tags.get("bridge:movable", ""), "bascule" if tags.get("bridge") == "movable" else "")
+    movable = MOVABLE.get(tags.get("bridge:movable", ""), "movable" if tags.get("bridge") == "movable" else "")
     return {"structure": STRUCTURES.get(tags.get("bridge:structure", ""), ""), "movable": movable,
             "material": MATERIALS.get(tags.get("material", "").replace(" ", "_"), ""), "height": number(tags.get("height", 0)),
             "width": number(tags.get("width", 0)), "layer": number(tags.get("layer", 0)), "name": tags.get("name", ""),
@@ -378,16 +380,17 @@ def main(min_lon, min_lat, max_lon, max_lat, out):
 
 def self_test():
     assert describe({"bridge": "yes", "bridge:structure": "humpback", "layer": "1"})["structure"] == "humpback"
-    assert describe({"bridge": "movable", "bridge:movable": "drawbridge"})["movable"] == "bascule"
-    assert describe({"bridge": "movable"})["movable"] == "bascule" and describe({"material": "reinforced concrete"})["material"] == "concrete"
+    assert describe({"bridge": "movable", "bridge:movable": "drawbridge"})["movable"] == "drawbridge"
+    assert describe({"bridge": "movable"})["movable"] == "movable" and describe({"material": "reinforced concrete"})["material"] == "concrete"
     assert number("26 m") == 26 and number("4,5") == 4.5 and number("x") == 0
-    labels = {"Q1": "arch bridge", "Q2": "steel", "Q3": "bascule bridge", "Q4": "reinforced concrete"}
+    labels = {"Q1": "arch bridge", "Q2": "steel", "Q3": "bascule bridge", "Q4": "reinforced concrete", "Q5": "double-beam drawbridge"}
     snak = lambda q: {"mainsnak": {"datavalue": {"value": {"id": q}}}}
     metre = lambda v: {"mainsnak": {"datavalue": {"value": {"amount": "+%s" % v, "unit": "http://www.wikidata.org/entity/Q11573"}}}}
     d = from_claims({"P31": [snak("Q1")], "P186": [snak("Q2")], "P2043": [metre(600)], "P2793": [metre(26)]}, labels)
     assert d["structure"] == "arch" and d["material"] == "steel" and d["length"] == 600 and d["clearance"] == 26
     d = from_claims({"P31": [snak("Q3")], "P186": [snak("Q4")]}, labels)
     assert d["structure"] == "beam" and d["movable"] == "bascule" and d["material"] == "concrete"
+    assert from_claims({"P31": [snak("Q5")]}, labels)["movable"] == "drawbridge"
     assert merge({"structure": "arch", "material": ""}, {"structure": "beam", "material": "steel"}) == {"structure": "arch", "material": "steel"}
     square = [(0, 0), (2, 0), (2, 2), (0, 2)]
     assert inside(1, 1, square) and not inside(3, 1, square)

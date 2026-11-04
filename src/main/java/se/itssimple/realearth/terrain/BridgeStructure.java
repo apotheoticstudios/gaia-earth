@@ -16,6 +16,11 @@ import se.itssimple.realearth.osm.Ways;
  * span or more above the arch's feet (two steel or concrete ribs on posts), else over it (ribs at the deck's edges,
  * hangers down to it). In the bridge's material. The result is {@link ChunkTerrain#bridgeFill}; the generator
  * builds it, and the railings.
+ *
+ * From road version 8 a bridge that opens has its leaf: the cited opening span (else its longest), a slab on piers at
+ * its ends. A drawbridge (the Dutch ophaalbrug) also has its lifting gear, built closed: a portal over the road at the
+ * leaf's hinge with the counterweight on it, two balance beams on it along the deck's sides reaching over the leaf, and
+ * rods from their front ends down to the leaf's tip.
  */
 final class BridgeStructure {
 	private static final int STEEL = ChunkTerrain.STEEL, CONCRETE = ChunkTerrain.CONCRETE, STONE = ChunkTerrain.STONE, BRICK = ChunkTerrain.BRICK,
@@ -24,6 +29,12 @@ final class BridgeStructure {
 	private static final double POST_SPACING = 4;
 	/** Hangers from a through arch down to its deck, this far apart (metres). */
 	private static final double HANGER_SPACING = 5;
+	/**
+	 * A drawbridge's balance beams stand this share of its leaf's length above the deck, at least DRAWBRIDGE_MIN_HEIGHT
+	 * metres for headroom under the portal.
+	 */
+	private static final double DRAWBRIDGE_HEIGHT = 0.55;
+	private static final double DRAWBRIDGE_MIN_HEIGHT = 6;
 
 	private BridgeStructure() {
 	}
@@ -56,12 +67,13 @@ final class BridgeStructure {
 			if (!onGlobe[k] || t.deckY[k] == Integer.MIN_VALUE || t.deckWay[k] == Ways.NONE) {
 				continue;
 			}
-			// The bridge this deck is: the matched run whose outline holds it, nearest.
+			// The bridge this deck is: the matched run whose outline (or deck surveyed round it) holds it, nearest.
 			Bridges.Run r = null;
 			double s = 0;
 			double across = Double.MAX_VALUE;
 			for (Bridges.Run c : runs) {
-				if (!BuildingPlan.contains(c.facts.rings(), sx[k], sy[k])) {
+				int kk = k;
+				if (!BuildingPlan.contains(c.facts.rings(), sx[k], sy[k]) && c.decks.stream().noneMatch(p -> BuildingPlan.contains(p.rings(), sx[kk], sy[kk]))) {
 					continue;
 				}
 				Bridges.project(c, sx[k], sy[k], q);
@@ -114,7 +126,13 @@ final class BridgeStructure {
 			if (pier && t.way[k] == Ways.NONE && bed <= under) {
 				fill.add(new int[] {bed, under, material});
 			}
-			if (!span.arch()) {
+			Bridges.Span leaf = field.map() != null && field.map().roadVersion() >= 8 ? leaf(r) : null;
+			if (leaf != null && r.facts.movable().equals("drawbridge")) {
+				drawbridge(leaf, m, edge(t, k), perMeter, top, material, fill);
+			}
+			if (span == leaf) {
+				fill.add(new int[] {under, under, material}); // the leaf: a slab, no girders
+			} else if (!span.arch()) {
 				// Girders or a slab under the deck.
 				int depth = (int) Math.max(1, Math.round(span.length() / 20 * perMeter));
 				fill.add(new int[] {Math.max(bed, under - depth + 1), under, material});
@@ -126,6 +144,57 @@ final class BridgeStructure {
 				System.arraycopy(fill.get(i), 0, flat, i * 3, 3);
 			}
 			t.bridgeFill[k] = flat.length == 0 ? null : flat;
+		}
+	}
+
+	/** Where a bridge opens, the span that does: its cited opening span, else its longest; null for a bridge that doesn't. */
+	private static Bridges.Span leaf(Bridges.Run r) {
+		if (r.facts.movable().isEmpty()) {
+			return null;
+		}
+		double cited = r.facts.mainSpanMeters();
+		return r.spans.stream().min(java.util.Comparator.comparingDouble(c -> cited > 0 ? Math.abs(c.length() - cited) : -c.length())).orElse(null);
+	}
+
+	/**
+	 * Whether a deck column lies along its deck's side: beside neither more deck about as high nor a way on the ground it
+	 * carries on to (as the generator's railings do).
+	 */
+	private static boolean edge(ChunkTerrain t, int k) {
+		int x = k % ChunkTerrain.SPAN;
+		for (int n : new int[] {x > 0 ? k - 1 : -1, x < ChunkTerrain.SPAN - 1 ? k + 1 : -1, k - ChunkTerrain.SPAN, k + ChunkTerrain.SPAN}) {
+			if (n < 0 || n >= ChunkTerrain.SPAN * ChunkTerrain.SPAN) {
+				continue;
+			}
+			boolean deck = t.deckY[n] != Integer.MIN_VALUE && t.deckWay[n] != Ways.NONE && Math.abs(t.deckY[n] - t.deckY[k]) <= 1;
+			boolean road = t.way[n] != Ways.NONE && t.topSolidY[n] >= t.deckY[k] - 1;
+			if (!deck && !road) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/** A closed drawbridge's lifting gear over a column (see the class), metres {@code m} along its run. */
+	private static void drawbridge(Bridges.Span leaf, double m, boolean edge, double perMeter, int top, int material, List<int[]> fill) {
+		// shortcut: which end a drawbridge is hinged at is in none of its data; its end nearer the run's start, until an
+		// overlay records it. And its gear stands on the leaf, the portal on its first metre and a half rather than on the
+		// abutment behind, the beams not reaching back past it: the structure is built over deck columns only.
+		double hinge = leaf.from();
+		int beam = top + (int) Math.round(Math.max(DRAWBRIDGE_MIN_HEIGHT, DRAWBRIDGE_HEIGHT * leaf.length()) * perMeter);
+		// A block and a half along, so a deck lying across the block grid has a column of each in every band.
+		double block = 1.5 / perMeter;
+		if (m >= hinge && m <= hinge + block) {
+			if (edge) {
+				fill.add(new int[] {top + 1, beam, material}); // the portal's posts
+			}
+			fill.add(new int[] {beam, beam + 2, material}); // its crossbar, the counterweight on it
+		}
+		if (edge && m >= hinge && m <= leaf.to()) {
+			fill.add(new int[] {beam + 1, beam + 1, material}); // a balance beam
+		}
+		if (edge && m >= leaf.to() - block && m <= leaf.to()) {
+			fill.add(new int[] {top + 1, beam, material}); // a rod down to the leaf's tip
 		}
 	}
 

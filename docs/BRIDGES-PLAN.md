@@ -86,15 +86,25 @@ Built (road version 7):
 - **Arches:** a masonry barrel filled to the deck, kept open above the water; two steel or concrete ribs on posts
   where the deck stands a tenth of the span above the arch's feet; over the deck, ribs and hangers, where it doesn't.
 - **Railings** along every road deck's sides, in the bridge's material.
+- **Bridges that open** (road version 8). A bridge's spans lie between its surveyed supports where it has them. Its
+  leaf is the cited opening span, else the longest: a slab on its piers. A drawbridge (the Dutch ophaalbrug: OSM
+  `bridge:movable=drawbridge`, Wikidata "double-beam drawbridge") also has its lifting gear, built closed: a portal
+  over the road at the hinge with the counterweight on it, balance beams along both sides, and rods to the leaf's tip.
 
 Checked in `SelfTest`:
 - Delft: 82 % of AHN's measured deck points within a block of the deck built there.
 - The Jeronymusbrug: a brick humpback, open over the canal, railed.
 - Västerbron: its arch 26 m clear of Riddarfjärden; 167 and 204 m between its piers (cited 168 and 204); every deck
   column over the water standing on its structure; railings.
+- The Koepoortbrug: its leaf over 12.6 m of open water (cited 10.35 m; the BGT's abutments are 9.6 m apart); its
+  underside 1.6 m over Delfland's boezem level, NAP -0.43 m (cited 2.5 m, within a block); its portal, rods and beams.
 
 Not yet:
-- Bascule leaves: Koepoortbrug is built as a fixed beam.
+- Which end a drawbridge is hinged at (in none of the data): its end nearer the run's start. Its portal stands on the
+  leaf's first metre and a half, not on the abutment behind, and its beams don't reach back past it.
+- A bascule's counterweight and pit, a lift bridge's towers, a swing bridge's pivot: their leaves only.
+- The world's canal water in Delft stands about 0.8 m above Delfland's boezem level (0.38 m against NAP -0.43 m), so
+  a canal bridge looks lower over the water in the game than it is.
 - Trusses, suspension towers and cables, cable-stayed pylons and stays.
 - Arches and piers for surveyed decks the map has no bridge for (they get the deck and railings only).
 - Delft's bridges' materials: the data mostly has none, so a humpback is taken as brick.

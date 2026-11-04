@@ -42,7 +42,8 @@ public final class WorldSettings {
 	 * below their pavements only (3 and 4 built every road on the ground most of a block low); 6 has roads, pavements and
 	 * road bridges climb in sixteenths of a block, in Saro's blocks of each height, rather than in whole blocks; 7 builds each
 	 * bridge a bridge overlay describes as it really is (docs/BRIDGES-PLAN.md): its outline, measured or cited deck heights,
-	 * piers, arches and girders in its material, and railings along every road bridge's sides.
+	 * piers, arches and girders in its material, and railings along every road bridge's sides; 8 gives a bridge that opens
+	 * its leaf, and a drawbridge its portal, balance beams, counterweight and rods.
 	 */
 	public int roadVersion;
 
@@ -79,7 +80,7 @@ public final class WorldSettings {
 		settings.startLongitude = defaults.startLongitude;
 		settings.lidarUrl = defaults.lidarUrl == null ? "" : defaults.lidarUrl;
 		settings.waterSurfaceVersion = 3;
-		settings.roadVersion = 7;
+		settings.roadVersion = 8;
 		if (settings.projection.equals("sinusoidal")) {
 			settings.originLatitude = defaults.startLatitude;
 			settings.originLongitude = defaults.startLongitude;

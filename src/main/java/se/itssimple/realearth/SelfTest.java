@@ -1459,6 +1459,22 @@ final class SelfTest {
 		return out;
 	}
 
+	/** A ring's long axis: its two points farthest apart, as x0, y0, x1, y1. */
+	private static double[] longAxis(double[] ring) {
+		double[] out = new double[4];
+		double far = -1;
+		for (int i = 0; i < ring.length; i += 2) {
+			for (int j = i + 2; j < ring.length; j += 2) {
+				double d = Math.hypot(ring[i] - ring[j], ring[i + 1] - ring[j + 1]);
+				if (d > far) {
+					far = d;
+					out = new double[] {ring[i], ring[i + 1], ring[j], ring[j + 1]};
+				}
+			}
+		}
+		return out;
+	}
+
 	/** Whether a column carries a bridge deck. */
 	private static boolean isDeck(ChunkTerrain c, int k) {
 		return c.deckY[k] != Integer.MIN_VALUE && c.deckWay[k] != se.itssimple.realearth.osm.Ways.NONE;
@@ -2285,6 +2301,96 @@ final class SelfTest {
 					decks, brick, open, walls);
 				check(decks >= 6 && brick > 0 && open * 10 >= decks * 8 && walls > 0,
 					"the Jeronymusbrug is a brick humpback over the open canal, railed (%d of %d open, %d brick spandrel, %d railing)", open, decks, brick, walls);
+				// The Koepoortbrug, a drawbridge (road version 8), against its cited sizes (tools/overlay/bridge_facts.tsv): its
+				// leaf over 10.35 m of open water (within two blocks: the BGT has its abutments 9.6 m apart), its underside 2.5 m
+				// over the canal closed (over Delfland's boezem level, NAP -0.43 m, https://www.hhdelfland.nl/ontdek-werk/juiste-waterpeil/juiste-waterpeil/:
+				// the world's canal water stands where its elevation puts it, logged beside); posts and rods up to its beams.
+				int kx = (int) Math.floor(Mercator.sampleX(4.3650) / (Mercator.TILE_SIZE * 2));
+				int ky = (int) Math.floor(Mercator.sampleY(52.0139) / (Mercator.TILE_SIZE * 2));
+				var koepoort = detail.bridges(kx, ky).get(120, java.util.concurrent.TimeUnit.SECONDS).bridges().stream()
+					.filter(b -> "Koepoortbrug".equals(b.name()) && b.movable().equals("drawbridge")).findFirst().orElse(null);
+				double[] ring = koepoort == null ? null : koepoort.rings().get(0);
+				// Along the bridge's own way: the map's bridge way through its outline.
+				double[] line = ring == null ? null : field.map().tile(kx, ky).join().ways().stream().filter(w -> w.bridge() && w.points().length >= 4)
+					.map(w -> w.points()).filter(p -> insideRing(ring, (p[0] + p[p.length - 2]) / 2, (p[1] + p[p.length - 1]) / 2)).findFirst().orElse(null);
+				if (line == null || field.map().roadVersion() < 8) {
+					log("no drawbridge Koepoortbrug in the bridge overlays (or road version 7); not checked");
+				} else {
+					double ax = line[0];
+					double ay = line[1];
+					double far = Math.hypot(line[line.length - 2] - ax, line[line.length - 1] - ay);
+					double ux = (line[line.length - 2] - ax) / far;
+					double uy = (line[line.length - 1] - ay) / far;
+					double lat = Mercator.latitudeOfSampleY(ay);
+					double spacing = Mercator.sampleSpacingMeters(lat);
+					double perMeter = field.projection().blocksPerMeter(lat);
+					int x0 = Integer.MAX_VALUE;
+					int z0 = Integer.MAX_VALUE;
+					int x1 = Integer.MIN_VALUE;
+					int z1 = Integer.MIN_VALUE;
+					for (int i = 0; i < ring.length; i += 2) {
+						double la = Mercator.latitudeOfSampleY(ring[i + 1]);
+						double lo = (ring[i] + 0.5) / Mercator.SAMPLES_PER_AXIS * 360.0 - 180.0;
+						x0 = Math.min(x0, (int) Math.floor(field.projection().blockX(la, lo)) - 4);
+						x1 = Math.max(x1, (int) Math.floor(field.projection().blockX(la, lo)) + 4);
+						z0 = Math.min(z0, (int) Math.floor(field.projection().blockZ(la)) - 4);
+						z1 = Math.max(z1, (int) Math.floor(field.projection().blockZ(la)) + 4);
+					}
+					// Its deck: in its outline, or in a deck the BGT surveys reaching into it.
+					List<double[]> surveyed = data.parts().stream().filter(p -> p.kind().equals("deck") && p.maxX() >= koepoort.minX() && p.minX() <= koepoort.maxX()
+						&& p.maxY() >= koepoort.minY() && p.minY() <= koepoort.maxY()).map(p -> p.rings().get(0)).toList();
+					List<Double> openWater = new ArrayList<>();
+					List<Integer> clear = new ArrayList<>();
+					List<Float> water = new ArrayList<>();
+					int uprights = 0;
+					int beams = 0;
+					for (int bx = x0; bx <= x1; bx++) {
+						for (int bz = z0; bz <= z1; bz++) {
+							ChunkTerrain c = field.chunkBlocking(bx >> 4, bz >> 4, 120);
+							int k = ChunkTerrain.index(bx & 15, bz & 15);
+							double sx = Mercator.sampleX(c.longitude[k]);
+							double sy = Mercator.sampleY(c.latitude[k]);
+							if (!isDeck(c, k) || !insideRing(ring, sx, sy) && surveyed.stream().noneMatch(d -> insideRing(d, sx, sy))) {
+								continue;
+							}
+							int[] fill = c.bridgeFill[k];
+							boolean held = false;
+							for (int i = 0; fill != null && i < fill.length; i += 3) {
+								held |= fill[i] < c.deckY[k] - 1;
+								uprights += fill[i] == c.deckY[k] + 1 && fill[i + 1] >= c.deckY[k] + Math.round(5 * perMeter) ? 1 : 0;
+								beams += fill[i] == fill[i + 1] && fill[i] >= c.deckY[k] + Math.round(5 * perMeter) ? 1 : 0;
+							}
+							if (!held && c.waterTopY[k] != Integer.MIN_VALUE) {
+								openWater.add(((sx - ax) * ux + (sy - ay) * uy) * spacing);
+								clear.add(c.deckY[k] - 1);
+								water.add(c.waterMeters[k]);
+							}
+						}
+					}
+					// The open water under its deck, in stretches along it: the longest, the leaf's.
+					openWater.sort(null);
+					double leaf = 0;
+					for (int i = 0, j = 0; i < openWater.size(); i = j) {
+						while (j + 1 < openWater.size() && openWater.get(j + 1) - openWater.get(j) <= 1.5 / perMeter) {
+							j++;
+						}
+						leaf = Math.max(leaf, openWater.get(j) - openWater.get(i) + 1 / perMeter);
+						j++;
+					}
+					clear.sort(null);
+					water.sort(null);
+					// The leaf's underside (its slab's bottom face), metres above NAP, over the boezem level.
+					double perY = field.toY(1, lat) - field.toY(0, lat);
+					double clearance = clear.isEmpty() ? Double.NaN : (clear.get(clear.size() / 2) - field.toY(0, lat)) / perY + 0.43;
+					log("the Koepoortbrug: %.1f m of open water under its leaf; its underside %.1f m over the boezem level (middle of %d columns), the world's "
+						+ "canal there at %.2f m; %d upright and %d beam columns overhead", leaf, clearance, clear.size(), water.isEmpty() ? Float.NaN : water.get(water.size() / 2),
+						uprights, beams);
+					check(Math.abs(leaf - 10.35) <= 2 / perMeter, "the Koepoortbrug's leaf spans 10.35 m (cited) of open water, within two blocks (%.1f m)", leaf);
+					check(Math.abs(clearance - 2.5) <= 1 / perMeter, "the Koepoortbrug's leaf is 2.5 m over the canal's level closed (cited), within a block (%.1f m)",
+						clearance);
+					check(uprights >= 4 && beams >= 8, "the Koepoortbrug has its drawbridge's portal, rods and balance beams (%d upright, %d beam columns)", uprights,
+						beams);
+				}
 			} catch (Exception e) {
 				check(false, "Delft's bridges: %s", e);
 			}
@@ -2309,21 +2415,11 @@ final class SelfTest {
 					log("the bridge overlays have no Västerbron; not checked");
 					return;
 				}
-				// Its long axis: the outline's two points farthest apart.
 				double[] ring = vb.rings().get(0);
-				double[] a = {0, 0};
-				double[] b = {0, 0};
-				double far = -1;
-				for (int i = 0; i < ring.length; i += 2) {
-					for (int j = i + 2; j < ring.length; j += 2) {
-						double d = Math.hypot(ring[i] - ring[j], ring[i + 1] - ring[j + 1]);
-						if (d > far) {
-							far = d;
-							a = new double[] {ring[i], ring[i + 1]};
-							b = new double[] {ring[j], ring[j + 1]};
-						}
-					}
-				}
+				double[] axis = longAxis(ring);
+				double[] a = {axis[0], axis[1]};
+				double[] b = {axis[2], axis[3]};
+				double far = Math.hypot(b[0] - a[0], b[1] - a[1]);
 				double ux = (b[0] - a[0]) / far;
 				double uy = (b[1] - a[1]) / far;
 				double spacing = Mercator.sampleSpacingMeters(Mercator.latitudeOfSampleY(a[1]));

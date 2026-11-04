@@ -72,6 +72,8 @@ final class Bridges {
 		OsmDetail.Bridge facts;
 		List<double[]> measured = List.of();
 		List<OsmDetail.BridgePart> parts = List.of();
+		/** The decks surveyed in and round its outline: its deck where the survey is wider than the map. */
+		List<OsmDetail.BridgePart> decks = List.of();
 		/** Half its deck's width in samples, from its outline; and its spans (metres along it), once matched. */
 		double halfWidth;
 		/** The run whose deck the matched bridge's other runs follow: its longest (itself if it is), so a bridge has one deck. */
@@ -619,8 +621,10 @@ final class Bridges {
 		r.facts = b;
 		r.measured = overlay.heights().stream().filter(h -> BuildingPlan.contains(b.rings(), h[0], h[1])).toList();
 		double margin = 3 / Mercator.sampleSpacingMeters(Mercator.latitudeOfSampleY(b.minY()));
-		r.parts = overlay.parts().stream().filter(p -> !p.kind().equals("deck") && p.maxX() >= b.minX() - margin && p.minX() <= b.maxX() + margin
+		List<OsmDetail.BridgePart> near = overlay.parts().stream().filter(p -> p.maxX() >= b.minX() - margin && p.minX() <= b.maxX() + margin
 			&& p.maxY() >= b.minY() - margin && p.minY() <= b.maxY() + margin).toList();
+		r.parts = near.stream().filter(p -> !p.kind().equals("deck")).toList();
+		r.decks = near.stream().filter(p -> p.kind().equals("deck")).toList();
 		// Half the deck's width: the outline's area over the length of run inside it.
 		double[] ring = b.rings().get(0);
 		double area = 0;
@@ -642,7 +646,8 @@ final class Bridges {
 	}
 
 	/**
-	 * A matched bridge's spans, metres along its run: the cited ones (from the north or west end) over the water they fit
+	 * A matched bridge's spans, metres along its run. Where its supports are surveyed or mapped, what lies between them
+	 * (arches over the water of an arch bridge). Else the cited ones (from the north or west end) over the water they fit
 	 * best; an arch over each other stretch of water if it is an arch bridge, beams of its usual span over it if not; and
 	 * beams of its usual span the rest of the way. The boundaries between them are its piers.
 	 */
@@ -650,6 +655,11 @@ final class Bridges {
 		OsmDetail.Bridge f = r.facts;
 		double spacing = Mercator.sampleSpacingMeters(Mercator.latitudeOfSampleY((r.minY + r.maxY) / 2));
 		double total = r.length() * spacing;
+		boolean arches = f.structure().equals("arch") || f.structure().equals("humpback");
+		List<Span> surveyed = between(r, tiles, spacing, total, arches);
+		if (!surveyed.isEmpty()) {
+			return surveyed;
+		}
 		List<double[]> wet = new ArrayList<>();
 		double[] at = new double[2];
 		double from = -1;
@@ -670,7 +680,6 @@ final class Bridges {
 				from = -1;
 			}
 		}
-		boolean arches = f.structure().equals("arch") || f.structure().equals("humpback");
 		double usual = usualSpan(f);
 		List<Span> placed = new ArrayList<>();
 		double[] cited = f.spans().length > 0 ? f.spans() : f.mainSpanMeters() > 0 ? new double[] {f.mainSpanMeters()} : new double[0];
@@ -715,6 +724,44 @@ final class Bridges {
 		}
 		beams(all, reached, total, usual);
 		return List.copyOf(all);
+	}
+
+	/**
+	 * The spans between a bridge's surveyed or mapped supports (metres along its run, each support where its outline lies
+	 * along it, a mapped point a metre and a half thick), an arch where an arch bridge's span is over water; none without.
+	 */
+	private static List<Span> between(Run r, Map<Long, ProcessedTile> tiles, double spacing, double total, boolean arches) {
+		List<double[]> held = new ArrayList<>();
+		double[] q = new double[2];
+		for (OsmDetail.BridgePart p : r.parts) {
+			double lo = Double.MAX_VALUE;
+			double hi = -Double.MAX_VALUE;
+			boolean near = false;
+			for (double[] ring : p.rings()) {
+				for (int i = 0; i + 1 < ring.length; i += 2) {
+					project(r, ring[i], ring[i + 1], q);
+					lo = Math.min(lo, q[0] * spacing);
+					hi = Math.max(hi, q[0] * spacing);
+					near |= (q[1] - r.halfWidth) * spacing <= 2;
+				}
+			}
+			if (near) {
+				held.add(new double[] {Math.max(0, Math.min(lo, hi - 1.5)), Math.min(total, Math.max(hi, lo + 1.5))});
+			}
+		}
+		held.sort(Comparator.comparingDouble(h -> h[0]));
+		List<Span> spans = new ArrayList<>();
+		double reached = 0;
+		double[] at = new double[2];
+		for (int i = 0; i <= held.size(); i++) {
+			double to = i < held.size() ? held.get(i)[0] : total;
+			if (to - reached >= 0.5) {
+				r.pointAt((reached + to) / 2 / spacing, at);
+				spans.add(new Span(reached, to, arches && !Double.isNaN(TerrainField.waterSurface(tiles, at[0], at[1]))));
+			}
+			reached = Math.max(reached, i < held.size() ? held.get(i)[1] : total);
+		}
+		return held.isEmpty() ? List.of() : List.copyOf(spans);
 	}
 
 	/** Beams from a to b (metres), as few as keep each within {@code usual}. */
