@@ -147,6 +147,20 @@ final class SelfTest {
 					"a building with no mapped height takes Overture's, a mapped one keeps its own");
 			}
 			{
+				// A mapped tree's species, else genus, and height, from its OSM tags as Paris's street trees have them.
+				java.util.function.Function<String, String> taxon = json -> se.itssimple.realearth.osm.OsmTrees.taxon(se.itssimple.realearth.osm.OsmTrees.tags(json));
+				check("platanus_hispanica".equals(taxon.apply("{\"species\":\"Platanus \u00d7 hispanica\"}"))
+						&& "cedrus_libani".equals(taxon.apply("{\"species\":\"Cedrus libani subsp. atlantica\"}"))
+						&& "quercus".equals(taxon.apply("{\"genus\":\"Quercus\",\"species\":\"Quercus sp.\"}"))
+						&& "tilia".equals(taxon.apply("{\"genus\":\"Tilia\"}"))
+						&& "prunus_serrulata".equals(taxon.apply("{\"species\":\"Prunus serrulata 'Kanzan'\"}"))
+						&& taxon.apply("{\"natural\":\"tree\"}") == null,
+					"a mapped tree's species and genus are read from its tags");
+				check(se.itssimple.realearth.osm.OsmTrees.meters(se.itssimple.realearth.osm.OsmTrees.tags("{\"height\":\"12 m\"}")) == 12f
+						&& Float.isNaN(se.itssimple.realearth.osm.OsmTrees.meters(se.itssimple.realearth.osm.OsmTrees.tags("{\"height\":\"0.5\"}"))),
+					"a mapped tree's height is read in metres");
+			}
+			{
 				// Road markings: a European primary road at a block a metre (7.5 m wide), and where centre lines are yellow.
 				byte primary = se.itssimple.realearth.terrain.Markings.style("primary", false, false, 59.33, 18.07);
 				java.util.function.BiFunction<Double, Double, Byte> at = (across, along) ->
@@ -2260,6 +2274,12 @@ final class SelfTest {
 			log("trees round Les Halles: %s", grown);
 			check(grown.getOrDefault("spot mapped: grown", 0L) > 20, "Paris grows the street trees the map has (%d)",
 				grown.getOrDefault("spot mapped: grown", 0L));
+			// Paris's trees come with their species and height (opendata.paris.fr): they grow as what they are.
+			check(grown.getOrDefault("spot mapped: named", 0L) * 10 >= grown.getOrDefault("spot mapped", 0L) * 6,
+				"most of Paris's mapped trees grow as the species or genus the map names (%d of %d)", grown.getOrDefault("spot mapped: named", 0L),
+				grown.getOrDefault("spot mapped", 0L));
+			long planes = grown.entrySet().stream().filter(e -> e.getKey().startsWith("platanus_")).mapToLong(Map.Entry::getValue).sum();
+			check(planes > 0, "Paris's plane trees grow as planes (%d)", planes);
 		}));
 
 		phases.add(Map.entry("Real trees: the Uppsala plain's fields", () -> {

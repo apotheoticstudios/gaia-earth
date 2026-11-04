@@ -85,8 +85,8 @@ public final class ChunkTerrain {
 
 	/** The map's points of interest in this chunk: benches, bins, bus stops, statues, markets, harbours. */
 	public volatile java.util.List<Poi> pois = java.util.List.of();
-	/** A single tree the map has in this chunk, at a world block column, with its leaf type (see OsmTrees). */
-	public record MappedTree(int x, int z, byte leaves) {
+	/** A single tree the map has in this chunk, at a world block column, with its leaf type, species and height (see OsmTrees.Tree). */
+	public record MappedTree(int x, int z, byte leaves, String taxon, float meters) {
 	}
 
 	/** A marked pedestrian crossing at a world block column, painted as OsmTrees.ZEBRA or LINES. */

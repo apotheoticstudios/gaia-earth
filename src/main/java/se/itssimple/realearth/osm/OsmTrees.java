@@ -1,10 +1,12 @@
 package se.itssimple.realearth.osm;
 
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import se.itssimple.realearth.geo.Mercator;
@@ -24,8 +26,11 @@ public final class OsmTrees {
 	public static final byte BROAD = 1;
 	public static final byte NEEDLE = 2;
 
-	/** A tree, in global z15 sample coordinates. */
-	public record Tree(double x, double y, byte leaves) {
+	/**
+	 * A tree, in global z15 sample coordinates, and what the map says of it: its leaf type, its species or else its genus as
+	 * the trees' names have them ("acer_pseudoplatanus", "platanus"; null if neither), and its height in metres (NaN if not).
+	 */
+	public record Tree(double x, double y, byte leaves, String taxon, float meters) {
 	}
 
 	/** How a crossing is painted, as OSM's crossing:markings say: zebra bars, or two lines across the road. */
@@ -102,10 +107,14 @@ public final class OsmTrees {
 				continue;
 			}
 			double scale = samplesPerTile / f.extent();
-			byte leaves = leaves(f.string("source_tags"));
+			JsonObject tags = tags(f.string("source_tags"));
+			byte leaves = leaves(tags);
+			String taxon = taxon(tags);
+			float meters = meters(tags);
 			for (int[] p : f.parts()) {
 				for (int i = 0; i + 1 < p.length; i += 2) {
-					trees.add(new Tree(tileX * samplesPerTile + p[i] * scale - 0.5, tileY * samplesPerTile + p[i + 1] * scale - 0.5, leaves));
+					trees.add(new Tree(tileX * samplesPerTile + p[i] * scale - 0.5, tileY * samplesPerTile + p[i + 1] * scale - 0.5, leaves,
+						taxon, meters));
 				}
 			}
 		}
@@ -140,18 +149,58 @@ public final class OsmTrees {
 		return americas ? LINES : ZEBRA;
 	}
 
-	/** The leaf type in a feature's OSM tags (a JSON object), ANY where not given. */
-	static byte leaves(String sourceTags) {
-		if (sourceTags == null || !sourceTags.contains("leaf_type")) {
-			return ANY;
+	/** A feature's OSM tags, from their JSON; null where there are none or they can't be read. */
+	public static JsonObject tags(String sourceTags) {
+		if (sourceTags == null || sourceTags.isEmpty()) {
+			return null;
 		}
 		try {
-			JsonElement type = JsonParser.parseString(sourceTags).getAsJsonObject().get("leaf_type");
-			String s = type == null ? "" : type.getAsString();
-			return s.equals("needleleaved") ? NEEDLE : s.equals("broadleaved") ? BROAD : ANY;
+			return JsonParser.parseString(sourceTags).getAsJsonObject();
 		} catch (RuntimeException e) {
-			return ANY;
+			return null;
 		}
+	}
+
+	private static String tag(JsonObject tags, String key) {
+		JsonElement e = tags == null ? null : tags.get(key);
+		return e == null || !e.isJsonPrimitive() ? null : e.getAsString();
+	}
+
+	/** The leaf type in a tree's OSM tags, ANY where not given. */
+	static byte leaves(JsonObject tags) {
+		String s = tag(tags, "leaf_type");
+		return "needleleaved".equals(s) ? NEEDLE : "broadleaved".equals(s) ? BROAD : ANY;
+	}
+
+	/**
+	 * A tree's species, else its genus, from its OSM tags, as the trees' names have them: "Platanus × hispanica" is
+	 * platanus_hispanica, "Cedrus libani subsp. atlantica" cedrus_libani, "Quercus sp." quercus; null if neither is given.
+	 */
+	public static String taxon(JsonObject tags) {
+		String species = tag(tags, "species");
+		List<String> words = new ArrayList<>();
+		for (String w : (species == null ? "" : species.toLowerCase(Locale.ROOT).replace('\u00d7', ' ')).trim().split("\\s+")) {
+			if (!w.isEmpty() && !w.equals("x") && words.size() < 2) {
+				words.add(w);
+			}
+		}
+		String genus = words.isEmpty() ? tag(tags, "genus") : words.get(0);
+		genus = genus == null ? null : genus.toLowerCase(Locale.ROOT);
+		if (genus == null || !genus.matches("[a-z]+")) {
+			return null;
+		}
+		String epithet = words.size() > 1 && words.get(1).matches("[a-z][a-z-]+") && !words.get(1).equals("spp") ? words.get(1) : null;
+		return (epithet == null ? genus : genus + "_" + epithet.replace('-', '_')).intern();
+	}
+
+	private static final java.util.regex.Pattern NUMBER = java.util.regex.Pattern.compile("^\\s*([0-9]+(?:\\.[0-9]+)?)");
+
+	/** A tree's height in metres from its OSM tags ("12", "12.5", "12 m"), NaN where not given or not a tree's. */
+	public static float meters(JsonObject tags) {
+		String h = tag(tags, "height");
+		java.util.regex.Matcher m = h == null ? null : NUMBER.matcher(h);
+		float v = m != null && m.find() ? Float.parseFloat(m.group(1)) : Float.NaN;
+		return v >= 1 && v <= 100 ? v : Float.NaN;
 	}
 
 	/** Stops asking for trees; for a server shutting down. */

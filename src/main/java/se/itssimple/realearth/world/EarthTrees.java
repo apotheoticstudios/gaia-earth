@@ -205,29 +205,29 @@ public final class EarthTrees {
 				int x = (int) Math.floor((i + cell.nextDouble()) * spacing);
 				int z = (int) Math.floor((j + cell.nextDouble()) * spacing);
 				if (x >= x0 && x < x0 + 16 && z >= z0 && z < z0 + 16) {
-					growAt(region, generator, t, trees, x, z, spacing, scale,
-						RandomSource.create(cell.nextLong()), (byte) -1);
+					growAt(region, generator, t, trees, x, z, spacing, scale, RandomSource.create(cell.nextLong()), null);
 				}
 			}
 		}
 		// And the single trees the map has, outside its forests: street trees, park trees.
 		for (ChunkTerrain.MappedTree tree : t.mappedTrees) {
 			growAt(region, generator, t, trees, tree.x(), tree.z(), spacing, scale,
-				RandomSource.create(region.getSeed() ^ (tree.x() * 341873128712L + tree.z() * 132897987541L)), tree.leaves());
+				RandomSource.create(region.getSeed() ^ (tree.x() * 341873128712L + tree.z() * 132897987541L)), tree);
 		}
 	}
 
 	/**
 	 * A tree at a spot of the grid, if it is in a forest (a mapped wood the land cover shows as trees), or at a tree the map has
-	 * ({@code leaves} its leaf type, see OsmTrees; -1 for a spot of the grid), if it isn't; and if the ground takes one.
+	 * ({@code map}; null for a spot of the grid), if it isn't; and if the ground takes one.
 	 */
 	private static void growAt(WorldGenRegion region, ChunkGenerator generator, ChunkTerrain t, Index trees, int x, int z, double spacing,
-		double blocksPerMeter, RandomSource random, byte leaves) {
+		double blocksPerMeter, RandomSource random, ChunkTerrain.MappedTree map) {
 		int lx = x & 15;
 		int lz = z & 15;
 		int k = ChunkTerrain.index(lx, lz);
 		int cover = t.cover[k] & 0xFF;
-		boolean mapped = leaves >= 0;
+		boolean mapped = map != null;
+		byte leaves = mapped ? map.leaves() : -1;
 		boolean treeCover = cover == WorldCover.TREES || cover == WorldCover.MANGROVES;
 		// A forest is where the land cover sees trees and the map has a wood: either alone puts trees where there are none.
 		boolean forest = treeCover && t.wood[k];
@@ -268,29 +268,46 @@ public final class EarthTrees {
 		double treeline = BiomePicker.treelineMeters(lat, lon);
 		double meters = t.groundMeters[k];
 		String zone = meters >= treeline - TREELINE_BAND ? "high" : meters >= treeline / 2 ? "mid" : "low";
-		List<Row> rows = new ArrayList<>();
 		String climate = Koppen.code(t.climate[k] & 0xFF);
-		for (Row row : trees.rows) {
-			if (row.matches(kind, climate, zone, lat, lon)) {
-				rows.add(row);
+		// A tree the map names grows as that species, or one of its genus, at the height it was measured if it was.
+		String species = mapped && map.taxon() != null ? named(trees, map.taxon(), climate, zone, lat, lon, random) : null;
+		Row row = species == null ? null : rowOf(trees, species, climate, zone, lat, lon);
+		double metres = species == null ? Double.NaN : !Float.isNaN(map.meters()) ? map.meters()
+			: row != null ? row.height0 + random.nextDouble() * (row.height1 - row.height0) : Double.NaN;
+		if (species != null) {
+			count("spot mapped: named");
+		}
+		List<Row> rows = new ArrayList<>();
+		for (int i = 0; species == null && i < trees.rows.size(); i++) {
+			Row r = trees.rows.get(i);
+			if (r.matches(kind, climate, zone, lat, lon)) {
+				rows.add(r);
 			}
 		}
 		// No species here stands in for the biome's kind of tree: any that grows here, before a vanilla tree; mangroves stay mangroves.
-		if (rows.isEmpty() && !kind.equals("mangrove")) {
-			for (Row row : trees.rows) {
-				if (row.matches(null, climate, zone, lat, lon)) {
-					rows.add(row);
+		if (species == null && rows.isEmpty() && !kind.equals("mangrove")) {
+			for (Row r : trees.rows) {
+				if (r.matches(null, climate, zone, lat, lon)) {
+					rows.add(r);
 				}
 			}
 		}
-		if (!rows.isEmpty()) {
+		if (species == null && !rows.isEmpty()) {
 			long stand = region.getSeed() ^ ((long) (x >> STAND_SHIFT) * 341873128712L + (long) (z >> STAND_SHIFT) * 132897987541L + kind.hashCode());
-			Row row = pick(rows, random.nextDouble() < STAND ? new SplittableRandom(stand).nextDouble() : random.nextDouble());
-			double metres = row.height0 + random.nextDouble() * (row.height1 - row.height0);
-			int height = (int) Math.round(metres * blocksPerMeter * (zone.equals("high") ? TREELINE_HEIGHT : 1));
+			row = pick(rows, random.nextDouble() < STAND ? new SplittableRandom(stand).nextDouble() : random.nextDouble());
+			species = row.species;
+			metres = row.height0 + random.nextDouble() * (row.height1 - row.height0);
+		}
+		if (species != null) {
+			List<Tree> versions = trees.trees.get(species);
+			// A tree measured keeps its height; one of a species with neither a measure nor a row, its versions' middling height.
+			if (Double.isNaN(metres)) {
+				metres = versions.stream().mapToInt(Tree::height).sorted().toArray()[versions.size() / 2];
+			}
+			int height = (int) Math.round(metres * blocksPerMeter * (zone.equals("high") && (!mapped || Float.isNaN(map.meters())) ? TREELINE_HEIGHT : 1));
 			// World generation writes one chunk beyond this one: a crown may reach 16 blocks past the nearer edge.
 			int room = 16 + Math.min(Math.min(lx, 15 - lx), Math.min(lz, 15 - lz));
-			Tree tree = variant(trees.trees.get(row.species), spacing, height, room, random);
+			Tree tree = variant(versions, spacing, height, room, random);
 			StructureTemplate template = tree == null ? null : region.getServer().getStructureManager().get(tree.id).orElse(null);
 			if (tree == null) {
 				count("too wide here");
@@ -301,11 +318,11 @@ public final class EarthTrees {
 				if (pit && grown > 0) {
 					region.setBlock(pos.below(), net.minecraft.world.level.block.Blocks.COARSE_DIRT.defaultBlockState(), 2);
 				}
-				count(grown > 0 ? row.species : "no room");
+				count(grown > 0 ? species : "no room");
 				if (mapped && grown > 0) {
 					count("spot mapped: grown");
 				}
-				HEIGHTS.computeIfAbsent(row.species, s -> new LongAdder()).add(grown);
+				HEIGHTS.computeIfAbsent(species, s -> new LongAdder()).add(grown);
 				return;
 			}
 		}
@@ -350,6 +367,58 @@ public final class EarthTrees {
 			return "cherry";
 		}
 		return random.nextFloat() < 0.2f ? "birch" : "oak";
+	}
+
+	/**
+	 * The installed species a tree the map names is ({@code taxon} as OsmTrees.Tree has it): the very one, else one of its
+	 * genus the table grows here, else the one of its genus whose range is nearest (a London plane in Paris grows as an
+	 * oriental plane, not Arizona's), else any of its genus; null if none is installed.
+	 */
+	private static String named(Index trees, String taxon, String climate, String zone, double lat, double lon, RandomSource random) {
+		if (trees.trees.containsKey(taxon)) {
+			return taxon;
+		}
+		String genus = (taxon.indexOf('_') < 0 ? taxon : taxon.substring(0, taxon.indexOf('_'))) + "_";
+		List<Row> here = new ArrayList<>();
+		String nearest = null;
+		double distance = Double.MAX_VALUE;
+		for (Row row : trees.rows) {
+			if (!row.species.startsWith(genus)) {
+				continue;
+			}
+			if (row.matches(null, climate, zone, lat, lon)) {
+				here.add(row);
+			}
+			double dLat = Math.max(0, Math.max(row.lat0 - lat, lat - row.lat1));
+			double dLon = Math.max(0, Math.max(row.lon0 - lon, lon - row.lon1));
+			double d = Math.hypot(dLat, Math.min(dLon, 360 - dLon) * Math.cos(Math.toRadians(lat)));
+			if (d < distance) {
+				distance = d;
+				nearest = row.species;
+			}
+		}
+		if (!here.isEmpty()) {
+			return pick(here, random.nextDouble()).species;
+		}
+		if (nearest != null) {
+			return nearest;
+		}
+		List<String> any = trees.trees.keySet().stream().filter(s -> s.startsWith(genus)).sorted().toList();
+		return any.isEmpty() ? null : any.get(random.nextInt(any.size()));
+	}
+
+	/** A row of the table for a species, for its height: one for here if there is one, else any; null if it has none. */
+	private static Row rowOf(Index trees, String species, String climate, String zone, double lat, double lon) {
+		Row any = null;
+		for (Row row : trees.rows) {
+			if (row.species.equals(species)) {
+				if (row.matches(null, climate, zone, lat, lon)) {
+					return row;
+				}
+				any = any == null ? row : any;
+			}
+		}
+		return any;
 	}
 
 	private static Row pick(List<Row> rows, double u) {

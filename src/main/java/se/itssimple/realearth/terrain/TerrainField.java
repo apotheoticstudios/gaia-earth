@@ -852,7 +852,7 @@ public final class TerrainField implements AutoCloseable {
 						int bx = (int) Math.floor(b[0]);
 						int bz = (int) Math.floor(b[1]);
 						if (bx >= baseX && bx < baseX + 16 && bz >= baseZ && bz < baseZ + 16) {
-							mapped.add(new ChunkTerrain.MappedTree(bx, bz, tree.leaves()));
+							mapped.add(new ChunkTerrain.MappedTree(bx, bz, tree.leaves(), tree.taxon(), tree.meters()));
 						}
 					}
 				}
