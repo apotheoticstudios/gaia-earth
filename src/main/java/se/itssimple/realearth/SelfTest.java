@@ -1459,6 +1459,11 @@ final class SelfTest {
 		return out;
 	}
 
+	/** Y of a block's top face: its own Y and its shape's height (Saro's road blocks come in sixteenths). */
+	private static double topFace(LevelChunk chunk, BlockPos pos) {
+		return pos.getY() + chunk.getBlockState(pos).getShape(chunk, pos).max(Direction.Axis.Y);
+	}
+
 	private static double length(double[] p) {
 		double l = 0;
 		for (int i = 0; i + 3 < p.length; i += 2) {
@@ -2373,6 +2378,12 @@ final class SelfTest {
 				int bestMarks = 0;
 				int markCx = 0;
 				int markCz = 0;
+				// Where neighbouring road columns differ in height: by sixteenths, or by a block or more.
+				int gentle = 0;
+				int sharp = 0;
+				int bestRamp = 0;
+				int rampCx = 0;
+				int rampCz = 0;
 				for (int cx = startCx - 20; cx <= startCx + 20; cx++) {
 					for (int cz = startCz - 20; cz <= startCz + 20; cz++) {
 						ChunkTerrain c;
@@ -2384,11 +2395,20 @@ final class SelfTest {
 						int rails = 0;
 						int marks = 0;
 						int walksHere = 0;
+						int ramp = 0;
 						for (int x = 0; x < 16; x++) {
 							for (int z = 0; z < 16; z++) {
 								int k = ChunkTerrain.index(x, z);
 								byte w = c.way[k];
 								marks += c.marking[k] != 0 ? 1 : 0;
+								ramp += c.roadHeight[k] > 0 && c.roadHeight[k] < 16 && c.roadHeight[k] != 14 ? 1 : 0;
+								for (int n : new int[] {ChunkTerrain.index(x + 1, z), ChunkTerrain.index(x, z + 1)}) {
+									int step = Math.abs(c.topSolidY[k] * 16 + c.roadHeight[k] - c.topSolidY[n] * 16 - c.roadHeight[n]);
+									if (c.roadHeight[k] != 0 && c.roadHeight[n] != 0 && c.kerb[k] == c.kerb[n] && step > 0) {
+										gentle += step < 16 ? 1 : 0;
+										sharp += step >= 16 ? 1 : 0;
+									}
+								}
 								walksHere += w == se.itssimple.realearth.osm.Ways.PATH
 									&& c.surface[k] == se.itssimple.realearth.osm.OsmDetail.FOOTWAY * 8 + se.itssimple.realearth.osm.OsmDetail.TILES ? 1 : 0;
 								if (se.itssimple.realearth.osm.Ways.isPaved(w)) {
@@ -2416,6 +2436,11 @@ final class SelfTest {
 							markCx = cx;
 							markCz = cz;
 						}
+						if (ramp > bestRamp) {
+							bestRamp = ramp;
+							rampCx = cx;
+							rampCz = cz;
+						}
 						if (rails > bestRails) {
 							bestRails = rails;
 							bestCx = cx;
@@ -2426,6 +2451,28 @@ final class SelfTest {
 				log("ways in 41 x 41 chunks of central Stockholm: %d paved, %d path, %d rail, %d bridge deck columns", paved, paths, track, decks);
 				check(paved > 20_000 && paths > 2_000, "streets and paths are drawn in the city");
 				check(decks > 100, "bridges carry ways over the water");
+				// Streets climb the city's hills in sixteenths of a block, in Saro's blocks of each height (where nothing stands on them).
+				{
+					ChunkTerrain c = field.chunkIfReady(rampCx, rampCz);
+					var chunk = earth.getChunk(rampCx, rampCz);
+					int ramps = 0;
+					int built = 0;
+					for (int x = 0; c != null && x < 16; x++) {
+						for (int z = 0; z < 16; z++) {
+							int k = ChunkTerrain.index(x, z);
+							BlockPos at = new BlockPos(rampCx * 16 + x, c.topSolidY[k], rampCz * 16 + z);
+							if (c.roadHeight[k] > 0 && c.roadHeight[k] < 16 && chunk.getBlockState(at.above()).isAir()) {
+								ramps++;
+								built += Math.abs(topFace(chunk, at) - (at.getY() + c.roadHeight[k] / 16.0)) < 0.01 ? 1 : 0;
+							}
+						}
+					}
+					log("road heights in central Stockholm: %d neighbouring road columns a sixteenth or more apart, %d a block or more; "
+						+ "in chunk %d,%d %d columns part of a block high, %d built so", gentle, sharp, rampCx, rampCz, ramps, built);
+					check(gentle > 500 && sharp * 10 <= gentle, "roads climb in sixteenths, not whole blocks (%d steps of a block or more, %d smaller)", sharp,
+						gentle);
+					check(ramps > 0 && built * 10 >= ramps * 9, "roads part of a block high are built in Saro's blocks of that height (%d of %d)", built, ramps);
+				}
 				// Markings on the main roads (centre, lane and edge lines), built in Saro's Road Blocks' line block.
 				{
 					ChunkTerrain c = field.chunkIfReady(markCx, markCz);
@@ -2471,12 +2518,20 @@ final class SelfTest {
 					for (int x = 0; wc != null && x < 16; x++) {
 						for (int z = 0; z < 16; z++) {
 							int k = ChunkTerrain.index(x, z);
-							// A road column beside a pavement: Saro's asphalt variant 2, two sixteenths low.
-							if (wc.building[k] == 0 && se.itssimple.realearth.osm.Ways.isPaved(wc.way[k]) && (wc.surface[ChunkTerrain.index(x + 1, z)] == walkway
-								|| wc.surface[ChunkTerrain.index(x - 1, z)] == walkway || wc.surface[ChunkTerrain.index(x, z + 1)] == walkway
-								|| wc.surface[ChunkTerrain.index(x, z - 1)] == walkway)) {
+							// A road column beside a pavement: two sixteenths below it, top face to top face, on hills too.
+							for (Direction d : Direction.Plane.HORIZONTAL) {
+								int nx = x + d.getStepX();
+								int nz = z + d.getStepZ();
+								int n = ChunkTerrain.index(nx, nz);
+								if (wc.building[k] != 0 || !se.itssimple.realearth.osm.Ways.isPaved(wc.way[k]) || nx < 0 || nx > 15 || nz < 0 || nz > 15
+									|| wc.surface[n] != walkway || wc.building[n] != 0) {
+									continue;
+								}
+								BlockPos road = new BlockPos(walkCx * 16 + x, wc.topSolidY[k], walkCz * 16 + z);
+								BlockPos walk = new BlockPos(walkCx * 16 + nx, wc.topSolidY[n], walkCz * 16 + nz);
 								curbside++;
-								kerbed += walkChunk.getBlockState(new BlockPos(walkCx * 16 + x, wc.topSolidY[k], walkCz * 16 + z)).toString().contains("variant=2") ? 1 : 0;
+								kerbed += Math.abs(topFace(walkChunk, walk) - topFace(walkChunk, road) - 0.125) < 0.01 ? 1 : 0;
+								break;
 							}
 							if (wc.building[k] == 0 && wc.surface[k] == se.itssimple.realearth.osm.OsmDetail.FOOTWAY * 8 + se.itssimple.realearth.osm.OsmDetail.TILES) {
 								walks++;
@@ -2598,7 +2653,7 @@ final class SelfTest {
 										continue;
 									}
 									BlockPos road = new BlockPos(cx * 16 + x, t.topSolidY[k], cz * 16 + z);
-									double roadTop = road.getY() + chunk.getBlockState(road).getShape(chunk, road).max(Direction.Axis.Y);
+									double roadTop = topFace(chunk, road);
 									for (Direction d : Direction.Plane.HORIZONTAL) {
 										int nx = x + d.getStepX();
 										int nz = z + d.getStepZ();
@@ -2609,7 +2664,7 @@ final class SelfTest {
 										}
 										BlockPos beside = new BlockPos(cx * 16 + nx, t.topSolidY[n], cz * 16 + nz);
 										edges++;
-										level += Math.abs(beside.getY() + chunk.getBlockState(beside).getShape(chunk, beside).max(Direction.Axis.Y) - roadTop) < 0.25 ? 1 : 0;
+										level += Math.abs(topFace(chunk, beside) - roadTop) < 0.25 ? 1 : 0;
 									}
 								}
 							}

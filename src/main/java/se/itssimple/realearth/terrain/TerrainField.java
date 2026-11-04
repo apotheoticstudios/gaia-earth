@@ -935,6 +935,11 @@ public final class TerrainField implements AutoCloseable {
 				Buildings.plan(this, terrain, candidates, tiles, details, sx, sy, onGlobe, chunkX, chunkZ, config.storeyMeters, config.maxFloors);
 				se.itssimple.realearth.Perf.stop("terrain.buildings", started);
 			}
+			if (smoothRoads()) {
+				for (int k = 0; k < n * n; k++) {
+					smoothRoad(terrain, k);
+				}
+			}
 			return terrain;
 		}
 	}
@@ -1129,14 +1134,69 @@ public final class TerrainField implements AutoCloseable {
 		}
 	}
 
+	/** Over how many blocks a gently climbing way rises a block: a sixteenth a block. */
+	private static final double RAMP_BLOCKS = 16;
+
+	/** Whether this world's roads climb in sixteenths of a block (road version 6). */
+	private boolean smoothRoads() {
+		return map != null && map.roadVersion() >= 6;
+	}
+
+	/**
+	 * A column laid in Saro's asphalt or sidewalk climbs with its way in sixteenths ({@link ChunkTerrain#roadHeight}),
+	 * not whole blocks. Where the way climbs a block in RAMP_BLOCKS or more its surface follows it; gentler, it lies at a
+	 * whole block, level with the ground beside, and climbs a sixteenth a block round where the ground steps. A kerb
+	 * sets it two sixteenths lower.
+	 */
+	private void smoothRoad(ChunkTerrain t, int k) {
+		if (!saroPaved(t, k)) {
+			return;
+		}
+		double lat = t.latitude[k];
+		double y = toY(t.groundMeters[k], lat);
+		// Blocks climbed a block along the way.
+		double climb = t.grade[k] * (toY(t.groundMeters[k] + 0.5, lat) - toY(t.groundMeters[k] - 0.5, lat)) / projection.blocksPerMeter(lat);
+		double w = Math.min(0.5, climb * RAMP_BLOCKS / 2);
+		double floor = Math.floor(y);
+		double rise = w <= 0 ? (y - floor >= 0.5 ? 1 : 0) : Math.max(0, Math.min(1, (y - floor - 0.5 + w) / (2 * w)));
+		int surface = (int) Math.round((floor + rise) * 16) - (t.kerb[k] ? 2 : 0);
+		t.topSolidY[k] = Math.floorDiv(surface - 1, 16);
+		t.roadHeight[k] = (byte) (surface - 16 * t.topSolidY[k]);
+	}
+
+	/** Whether the generator lays a column in Saro's asphalt or sidewalk (EarthChunkGenerator.column): dry, outside buildings. */
+	private static boolean saroPaved(ChunkTerrain t, int k) {
+		byte way = t.way[k];
+		int s = t.surface[k];
+		if (way == se.itssimple.realearth.osm.Ways.NONE || se.itssimple.realearth.osm.Ways.isRail(way) || t.building[k] != 0
+			|| t.waterTopY[k] != Integer.MIN_VALUE) {
+			return false;
+		}
+		if (t.marking[k] != 0 && se.itssimple.realearth.osm.Ways.isPaved(way)) {
+			return (t.marking[k] & 3) != Markings.BAR;
+		}
+		if (s != 0) {
+			return s / 8 != OsmDetail.STEPS && (s % 8 == OsmDetail.TILES || s % 8 == OsmDetail.ASPHALT && s / 8 != OsmDetail.CYCLEWAY);
+		}
+		return se.itssimple.realearth.osm.Ways.isPaved(way);
+	}
+
 	/** Metres to blocks. The top solid block's upper face sits at the nearest whole Y to the ground. */
 	private void finishColumn(ChunkTerrain t, int k) {
 		int top = (int) Math.round(toY(t.groundMeters[k], t.latitude[k])) - 1;
 		if (!Float.isNaN(t.deckMeters[k])) {
-			int deck = (int) Math.round(toY(t.deckMeters[k], t.latitude[k])) - 1;
+			double y = toY(t.deckMeters[k], t.latitude[k]);
+			int deck = (int) Math.round(y) - 1;
+			// A road deck climbs in sixteenths, as the ramps onto it do (smoothRoad).
+			int surface = (int) Math.round(y * 16);
+			boolean smooth = smoothRoads() && se.itssimple.realearth.osm.Ways.isPaved(t.deckWay[k]);
+			if (smooth) {
+				deck = Math.floorDiv(surface - 1, 16);
+			}
 			int below = Math.max(top, t.waterMeters[k] != t.waterMeters[k] ? top : (int) Math.round(toY(t.waterMeters[k], t.latitude[k])) - 1);
 			// A deck clears what is under it by at least two blocks, or it is no bridge.
 			t.deckY[k] = deck > below + 2 ? deck : below + 3;
+			t.deckHeight[k] = (byte) (smooth && deck > below + 2 ? surface - 16 * deck : 0);
 		}
 		t.topSolidY[k] = top;
 		if (!Float.isNaN(t.waterMeters[k])) {

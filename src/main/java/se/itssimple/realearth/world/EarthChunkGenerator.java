@@ -418,7 +418,8 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 					continue;
 				}
 				boolean rail = Ways.isRail(t.deckWay[k]);
-				chunk.setBlockState(new BlockPos(x, y, z), rail ? block(Blocks.STONE_BRICKS) : waySurface(t.deckWay[k], baseX + x, baseZ + z), 0);
+				chunk.setBlockState(new BlockPos(x, y, z), rail ? block(Blocks.STONE_BRICKS)
+					: RoadBlocks.high(waySurface(t.deckWay[k], baseX + x, baseZ + z), t.deckHeight[k]), 0);
 				for (int up = 1; up <= 3; up++) {
 					chunk.setBlockState(new BlockPos(x, y + up, z), AIR, 0);
 				}
@@ -444,6 +445,16 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 		TownFeatures.place(chunk, t, baseX, baseZ, buildingTop);
 		StreetLife.place(chunk, t, baseX, baseZ, buildingTop);
 		se.itssimple.realearth.Perf.stop("fill.buildings", painting);
+		// What stands on a road or pavement laid part of a block high (a lamp, a bench, a bin) stands on a full block of it.
+		for (int z = 0; z < 16; z++) {
+			for (int x = 0; x < 16; x++) {
+				int k = ChunkTerrain.index(x, z);
+				BlockPos top = new BlockPos(x, t.topSolidY[k], z);
+				if (t.roadHeight[k] > 0 && t.roadHeight[k] < 16 && !chunk.getBlockState(top.above()).isAir()) {
+					chunk.setBlockState(top, RoadBlocks.high(chunk.getBlockState(top), 16), 0);
+				}
+			}
+		}
 
 		Heightmap oceanFloor = chunk.getOrCreateHeightmapUnprimed(Heightmap.Types.OCEAN_FLOOR_WG);
 		Heightmap worldSurface = chunk.getOrCreateHeightmapUnprimed(Heightmap.Types.WORLD_SURFACE_WG);
@@ -523,9 +534,13 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 	 * Asphalt on the ground set two sixteenths low beside pavements (ChunkTerrain.kerb), so they, a full block, stand a
 	 * kerb above it: about 12 cm at a block a metre. Elsewhere it is a full block, level with the ground. Saro's variant
 	 * N is (16 - N) sixteenths tall: up to road version 4 every road on the ground was variant 14, a sliver two sixteenths
-	 * tall, so it lay most of a block below the ground beside it; those worlds keep it.
+	 * tall, so it lay most of a block below the ground beside it; those worlds keep it. From road version 6 asphalt and
+	 * sidewalk are as high as the terrain says (ChunkTerrain.roadHeight, the kerb in it), so ways climb in sixteenths.
 	 */
-	private static BlockState kerbed(BlockState surface, boolean kerb) {
+	private static BlockState kerbed(BlockState surface, boolean kerb, int height) {
+		if (height > 0) {
+			return RoadBlocks.high(surface, height);
+		}
 		if (RoadBlocks.ASPHALT == null || !surface.is(RoadBlocks.ASPHALT.getBlock()) || roadVersion() < 3) {
 			return surface;
 		}
@@ -724,7 +739,7 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 		byte way = t.way[k];
 		if (way != Ways.NONE) {
 			BlockState surface = kerbed(t.marking[k] != 0 && Ways.isPaved(way) ? paint(t.marking[k])
-				: t.surface[k] != 0 ? surveyed(t.surface[k]) : waySurface(way, worldX, worldZ), t.kerb[k]);
+				: t.surface[k] != 0 ? surveyed(t.surface[k]) : waySurface(way, worldX, worldZ), t.kerb[k], t.roadHeight[k]);
 			BlockState under = Ways.isPaved(way) ? STONE : Ways.isRail(way) ? block(Blocks.GRAVEL) : dirt;
 			return new Column(top, waterTop, surface, under, 2, STONE, shore, way == Ways.RAIL ? railShape(t, x, z, false) : null);
 		}

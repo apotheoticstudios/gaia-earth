@@ -28,10 +28,19 @@ final class RoadBlocks {
 			.getOptional(net.minecraft.resources.Identifier.fromNamespaceAndPath("saros_road_blocks_mod", name)).map(Block::defaultBlockState).orElse(null);
 	}
 
-	/** This world's road version (WorldSettings.roadVersion): from 1 asphalt and markings, from 3 kerbs, from 4 street furniture, from 5 roads level with the ground. */
+	/** This world's road version (WorldSettings.roadVersion): from 1 asphalt and markings, from 3 kerbs, from 4 street furniture, from 5 roads level with the ground, from 6 roads climbing in sixteenths. */
 	static int roadVersion() {
 		TerrainField field = RealEarth.terrain();
 		return field == null || field.map() == null ? 0 : field.map().roadVersion();
+	}
+
+	/**
+	 * Saro's asphalt or sidewalk {@code sixteenths} high (1 to 16; its variant N is 16 - N sixteenths tall, "default" a
+	 * full block); anything else, or 0, unchanged.
+	 */
+	static BlockState high(BlockState state, int sixteenths) {
+		boolean saro = ASPHALT != null && state.is(ASPHALT.getBlock()) || SIDEWALK != null && state.is(SIDEWALK.getBlock());
+		return !saro || sixteenths <= 0 ? state : with(state, "variant", sixteenths >= 16 ? "default" : Integer.toString(16 - sixteenths));
 	}
 
 	/** The state with a property of the mod's set by name, unchanged where it has no such property or value. */

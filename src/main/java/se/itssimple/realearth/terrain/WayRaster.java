@@ -158,6 +158,7 @@ final class WayRaster {
 					t.surface[k] = way.surface(); // an overlay's surveyed surface, drawn after, wins
 					// Where its pavements are laid (the loop below): the same street, on built-up land.
 					t.kerb[k] = way.sides() != 0 && (t.cover[k] & 0xFF) == se.itssimple.realearth.landcover.WorldCover.BUILT;
+					t.grade[k] = lifted ? 1f : grade(tiles, near, spacing);
 					double side = (sx[k] - near[1]) * near[6] - (sy[k] - near[2]) * near[5];
 					across[k] = (side < 0 ? -near[0] : near[0]) * spacing;
 					along[k] = near[3] * spacing;
@@ -212,6 +213,7 @@ final class WayRaster {
 					t.way[k] = Ways.PATH;
 					t.surface[k] = (byte) (se.itssimple.realearth.osm.OsmDetail.FOOTWAY * 8 + se.itssimple.realearth.osm.OsmDetail.TILES);
 					target[k] = TerrainField.splineHeight(tiles, near[1], near[2]);
+					t.grade[k] = grade(tiles, near, spacing);
 				}
 			}
 		}
@@ -274,6 +276,7 @@ final class WayRaster {
 				&& (deck[k] - target[k]) * perMeter < DECK_MIN_BLOCKS) {
 				target[k] = Math.max(deck[k], target[k]);
 				raised[k] = true;
+				t.grade[k] = 1f;
 				t.way[k] = (byte) Math.max(t.way[k], t.deckWay[k]);
 				t.deckWay[k] = Ways.NONE;
 				deck[k] = Double.NaN;
@@ -302,6 +305,14 @@ final class WayRaster {
 				t.groundMeters[k] = (float) target[k];
 			}
 		}
+	}
+
+	/** The ground's slope along a way at its nearest point to a column ({@link #nearest}'s out), metres a metre over 8 m; 0 off the tiles. */
+	private static float grade(Map<Long, ProcessedTile> tiles, double[] near, double spacing) {
+		double d = 4 / spacing;
+		double ahead = TerrainField.splineHeight(tiles, near[1] + near[5] * d, near[2] + near[6] * d);
+		double behind = TerrainField.splineHeight(tiles, near[1] - near[5] * d, near[2] - near[6] * d);
+		return Double.isNaN(ahead) || Double.isNaN(behind) ? 0f : (float) (Math.abs(ahead - behind) / 8);
 	}
 
 	private static boolean isRail(OsmWater.Way way) {

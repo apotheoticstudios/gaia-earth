@@ -244,7 +244,9 @@ public final class EarthTrees {
 		BlockState ground = region.getBlockState(pos.below());
 		boolean pit = false;
 		if (!ground.is(BlockTags.SUBSTRATE_OVERWORLD) && !ground.is(BlockTags.SAND)) {
-			if (!mapped || !ground.isCollisionShapeFullBlock(region, pos.below()) || ground.is(BlockTags.LOGS) || ground.is(BlockTags.LEAVES)) {
+			// Paving part of a block high (Saro's, where a street climbs) takes a pit too: it fills the block.
+			boolean paving = ground.isCollisionShapeFullBlock(region, pos.below()) || RoadBlocks.high(ground, 16) != ground;
+			if (!mapped || !paving || ground.is(BlockTags.LOGS) || ground.is(BlockTags.LEAVES)) {
 				count("spot: ground " + ground.getBlock().getDescriptionId());
 				return;
 			}

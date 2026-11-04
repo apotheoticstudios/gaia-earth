@@ -45,6 +45,15 @@ public final class ChunkTerrain {
 	public final byte[] marking = new byte[SPAN * SPAN];
 	/** Road columns set a kerb below the pavement beside them: a town street with pavements (Ways.sides), a surveyed carriageway. */
 	public final boolean[] kerb = new boolean[SPAN * SPAN];
+	/** How steeply a road or pavement climbs along its way at each column, metres a metre (1 on ramps and bridges). */
+	public final float[] grade = new float[SPAN * SPAN];
+	/**
+	 * Height of a road or pavement column's top block in sixteenths, 1 to 16, where it is laid in Saro's blocks of that
+	 * height so the way climbs in sixteenths (road version 6, TerrainField.smoothRoad); 0 for a plain full block.
+	 */
+	public final byte[] roadHeight = new byte[SPAN * SPAN];
+	/** The same for a road bridge's deck block. */
+	public final byte[] deckHeight = new byte[SPAN * SPAN];
 	/** Way carried on a bridge deck above the column, NONE for none. */
 	public final byte[] deckWay = new byte[SPAN * SPAN];
 	/** Bridge deck surface in metres, NaN where there is none. */
