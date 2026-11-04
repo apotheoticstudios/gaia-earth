@@ -302,13 +302,19 @@ final class SelfTest {
 					check(hi - lo <= block * 0.25 * 0.05 / 40 + 1e-4, "%.0f m at %.2f, %.2f is as cold on every map (%.4f to %.4f; a block is %.1f m)",
 						q[2], q[0], q[1], lo, hi, block);
 				}
-				// Snow just above the snowline whatever the biome, rain well below it; cold biomes stay cold.
+				// Snow just above the snowline whatever the biome, rain well below it.
 				double line = BiomePicker.snowlineMeters(46.0, 8.0);
 				check(BiomePicker.heightTemperature(0.8F, line + 200, 46.0, 8.0) < 0.15F
 					&& BiomePicker.heightTemperature(0.8F, line - 200, 46.0, 8.0) >= 0.15F,
 					"plains turn from rain to snow within 200 m of the snowline (%.0f m)", line);
 				check(BiomePicker.heightTemperature(0.8F, 100, 59.33, 18.07) == 0.8F, "low ground keeps its biome's temperature");
-				check(BiomePicker.heightTemperature(-0.5F, 0, 59.33, 18.07) == -0.5F, "snowy biomes stay snowy at sea level");
+				// As at the end of summer: tundra's snowy plains thaw below the snowline, an ice cap's climate keeps its snow.
+				double tundra = BiomePicker.snowlineMeters(71.29, -156.79);
+				check(BiomePicker.heightTemperature(0.0F, tundra - 1000, 71.29, -156.79) >= 0.15F,
+					"snowy plains on Utqiagvik's tundra thaw 1,000 m below the snowline (%.0f m)", tundra);
+				double iceCap = BiomePicker.snowlineMeters(-80.0, 0.0);
+				check(BiomePicker.heightTemperature(0.8F, iceCap - 1000, -80.0, 0.0) < 0.15F,
+					"Antarctica's ice-cap climate keeps its snow 1,000 m below the snowline (%.0f m)", iceCap);
 				// No step where the vertical scale starts to ease (2,800 m on a one-metre map).
 				Projection one = maps.get(2);
 				float below = at.apply(one, new double[] {28.0, 86.9, 2799.5, 0.5});

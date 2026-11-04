@@ -234,7 +234,8 @@ public final class LodSampler {
 				if (biome == Biomes.STONY_PEAKS || biome == Biomes.WINDSWEPT_GRAVELLY_HILLS) {
 					yield "minecraft:stone";
 				}
-				if (biome == Biomes.SNOWY_PLAINS || biome == Biomes.SNOWY_TAIGA) {
+				// Tundra thaws below the snowline (BiomePicker.heightTemperature); an ice cap's climate keeps its snow.
+				if ((biome == Biomes.SNOWY_PLAINS || biome == Biomes.SNOWY_TAIGA) && Koppen.iceCap(climate)) {
 					yield "minecraft:snow_block";
 				}
 				yield "minecraft:grass_block";

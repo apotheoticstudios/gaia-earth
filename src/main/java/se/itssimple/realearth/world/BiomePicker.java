@@ -49,14 +49,21 @@ public final class BiomePicker {
 	private static final double COOLING_PER_METER = 0.25 * 0.05 / 40.0;
 
 	/**
-	 * A biome's temperature at a real elevation, which decides snow and ice. Whatever the biome's own
-	 * temperature, rain turns to snow at the same snowline that decides the snowy biomes, give or take
-	 * 150 m so the edge is ragged; below it the air cools towards it at about 6.5 C per km, and biomes
-	 * that are colder already stay as they are.
+	 * A biome's temperature at a real elevation, which decides snow and ice, as at the end of summer everywhere: snow lies
+	 * above the real snowline (give or take 150 m, so the edge is ragged), and where the climate is an ice cap's (no month
+	 * above freezing) at any height. Whatever the biome -- tundra's snowy plains thaw below the snowline as real tundra
+	 * does in summer. Below the line the air warms at about 6.5 C per km, and a warmer biome keeps its own temperature.
 	 */
 	public static float heightTemperature(float base, double meters, double latitude, double longitude) {
 		double snowline = snowlineMeters(latitude, longitude) + 150.0 * GeoNoise.sample(latitude, longitude, 2.0, 23);
-		return (float) Math.min(base, SNOW_TEMPERATURE + COOLING_PER_METER * (snowline - meters));
+		double t = SNOW_TEMPERATURE + COOLING_PER_METER * (snowline - meters);
+		Koppen koppen = Koppen.get();
+		// No month above freezing can't be 1,500 m (some 10 C) below the summer snowline: only nearer is the climate looked up.
+		if (t >= SNOW_TEMPERATURE && t < SNOW_TEMPERATURE + COOLING_PER_METER * 1500.0 && koppen != null
+			&& Koppen.iceCap(koppen.classAt(latitude, longitude))) {
+			t = Math.min(t, SNOW_TEMPERATURE - COOLING_PER_METER * 100.0); // as cold as 100 m above the snowline, at least
+		}
+		return t < SNOW_TEMPERATURE ? (float) Math.min(base, t) : (float) Math.max(SNOW_TEMPERATURE, Math.min(base, t));
 	}
 
 	public static ResourceKey<Biome> pick(double latitude, double longitude, double groundMeters, boolean water, boolean lake,
