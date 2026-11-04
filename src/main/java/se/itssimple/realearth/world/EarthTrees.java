@@ -88,8 +88,10 @@ public final class EarthTrees {
 	private static final double TREELINE_BAND = 200.0;
 	/** At the treeline trees grow stunted: this share of their usual height. */
 	private static final double TREELINE_HEIGHT = 0.6;
-	/** A tree grown taller keeps at least this share of its height as crown, as close-grown trees do. */
+	/** A tree grown taller gets bare trunk up to this share of its height: the map's trees, grown in the open. */
 	private static final double MAX_BOLE = 0.55;
+	/** And a forest's, grown close: shaded, they shed their low branches, as a kauri or a beech stands clear for half its height and more. */
+	private static final double FOREST_BOLE = 0.65;
 	/** A tree grown shorter keeps at least this much bare trunk under its crown. */
 	private static final int MIN_BOLE = 2;
 	private static final Map<String, List<ResourceKey<ConfiguredFeature<?, ?>>>> VANILLA = Map.of(
@@ -170,6 +172,15 @@ public final class EarthTrees {
 		return false;
 	}
 
+	/**
+	 * Blocks a metre for trees: the map's, but never less than one. Where the map is drawn smaller than 1:1 (south of its
+	 * scale latitude) trees keep their real height and spacing, as a building keeps a storey the player fits in: a forest
+	 * shrunk with the map is short and crowded to walk through.
+	 */
+	public static double scale(double blocksPerMeter) {
+		return Math.max(1.0, blocksPerMeter);
+	}
+
 	/** Grows a chunk's trees; before vanilla's decoration, so its snow settles on them. */
 	public static void fill(WorldGenLevel level, ChunkGenerator generator, ChunkAccess chunk) {
 		TerrainField field = RealEarth.terrain();
@@ -182,7 +193,8 @@ public final class EarthTrees {
 		TreeDensity density = TreeDensity.get();
 		double perHectare = density == null ? 0 : density.perHectare(t.latitude[centre], t.longitude[centre]);
 		double metres = Math.sqrt(10_000 / (perHectare > 0 ? perHectare : DEFAULT_PER_HECTARE));
-		double spacing = Math.clamp(metres * field.projection().blocksPerMeter(t.latitude[centre]), MIN_SPACING, MAX_SPACING);
+		double scale = scale(field.projection().blocksPerMeter(t.latitude[centre]));
+		double spacing = Math.clamp(metres * scale, MIN_SPACING, MAX_SPACING);
 		Index trees = index(region.getServer());
 		int x0 = pos.getMinBlockX();
 		int z0 = pos.getMinBlockZ();
@@ -193,14 +205,14 @@ public final class EarthTrees {
 				int x = (int) Math.floor((i + cell.nextDouble()) * spacing);
 				int z = (int) Math.floor((j + cell.nextDouble()) * spacing);
 				if (x >= x0 && x < x0 + 16 && z >= z0 && z < z0 + 16) {
-					growAt(region, generator, t, trees, x, z, spacing, field.projection().blocksPerMeter(t.latitude[centre]),
+					growAt(region, generator, t, trees, x, z, spacing, scale,
 						RandomSource.create(cell.nextLong()), (byte) -1);
 				}
 			}
 		}
 		// And the single trees the map has, outside its forests: street trees, park trees.
 		for (ChunkTerrain.MappedTree tree : t.mappedTrees) {
-			growAt(region, generator, t, trees, tree.x(), tree.z(), spacing, field.projection().blocksPerMeter(t.latitude[centre]),
+			growAt(region, generator, t, trees, tree.x(), tree.z(), spacing, scale,
 				RandomSource.create(region.getSeed() ^ (tree.x() * 341873128712L + tree.z() * 132897987541L)), tree.leaves());
 		}
 	}
@@ -285,7 +297,7 @@ public final class EarthTrees {
 				return;
 			}
 			if (template != null) {
-				int grown = place(region, template, tree, pos, height, random);
+				int grown = place(region, template, tree, pos, height, mapped ? MAX_BOLE : FOREST_BOLE, random);
 				if (pit && grown > 0) {
 					region.setBlock(pos.below(), net.minecraft.world.level.block.Blocks.COARSE_DIRT.defaultBlockState(), 2);
 				}
@@ -406,19 +418,20 @@ public final class EarthTrees {
 
 	/**
 	 * Builds the tree with its trunk's foot at {@code pos}, turned and mirrored at random, and grown towards
-	 * {@code height} blocks: a tree shorter than that gets a longer trunk under its crown, keeping at least
-	 * {@link #MAX_BOLE}'s complement of its height as crown; a taller one loses trunk under its crown, down to
-	 * {@link #MIN_BOLE} -- where the map is drawn smaller than 1:1 every version may be too tall. Like a vanilla
+	 * {@code height} blocks: a tree shorter than that gets a longer trunk under its crown, bare for at most
+	 * {@code maxBole} of its height; a taller one loses trunk under its crown, down to {@link #MIN_BOLE} -- a stunted
+	 * tree at the treeline. Like a vanilla
 	 * tree it needs room for its trunk, and
 	 * only fills air, plants, and leaves where it has wood; its roots only go into natural ground. Returns its
 	 * height, or 0 when it had no room.
 	 */
-	private static int place(WorldGenRegion region, StructureTemplate template, Tree tree, BlockPos pos, int height, RandomSource random) {
+	private static int place(WorldGenRegion region, StructureTemplate template, Tree tree, BlockPos pos, int height, double maxBole,
+		RandomSource random) {
 		List<StructureTemplate.StructureBlockInfo> blocks = ((StructureTemplateAccessor) template).realearth$palettes().get(0).blocks();
 		Shape shape = SHAPES.computeIfAbsent(tree.id, id -> shape(blocks, tree.base.getY()));
 		int bole = shape.crownBase - tree.base.getY();
 		int extra = height < tree.height ? -Math.min(tree.height - height, Math.max(0, bole - MIN_BOLE))
-			: shape.trunk.isEmpty() ? 0 : (int) Math.clamp((MAX_BOLE * tree.height - bole) / (1 - MAX_BOLE), 0, height - tree.height);
+			: shape.trunk.isEmpty() ? 0 : (int) Math.clamp((maxBole * tree.height - bole) / (1 - maxBole), 0, height - tree.height);
 		for (int dy = 0; dy < Math.min(tree.height + extra, 6); dy++) {
 			if (!TreeFeature.validTreePos(region, pos.above(dy))) {
 				return 0;

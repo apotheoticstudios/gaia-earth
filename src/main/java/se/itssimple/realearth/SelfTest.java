@@ -1980,13 +1980,14 @@ final class SelfTest {
 						}
 					}
 				}
-				double hectares = wooded / Math.pow(field.projection().blocksPerMeter(lat), 2) / 10_000;
+				// Hectares as trees see them: real ones, where the map is drawn smaller (EarthTrees.scale).
+				double hectares = wooded / Math.pow(se.itssimple.realearth.world.EarthTrees.scale(field.projection().blocksPerMeter(lat)), 2) / 10_000;
 				double measured = (real + vanilla) / hectares;
 				double expected = se.itssimple.realearth.landcover.TreeDensity.get().perHectare(lat, lon);
 				log("%s: %d trees on %.1f ha of woodland, %.0f a hectare (%.1f m apart); the real world has %.0f (%.1f m apart)", f.name(),
 					real + vanilla, hectares, measured, Math.sqrt(10_000 / measured), expected, Math.sqrt(10_000 / expected));
 				// Trunks stand at least MIN_SPACING blocks apart: where blocks are larger than metres that caps a hectare's trees.
-				double most = 10_000 / Math.pow(se.itssimple.realearth.world.EarthTrees.MIN_SPACING / field.projection().blocksPerMeter(lat), 2);
+				double most = 10_000 / Math.pow(se.itssimple.realearth.world.EarthTrees.MIN_SPACING / se.itssimple.realearth.world.EarthTrees.scale(field.projection().blocksPerMeter(lat)), 2);
 				check(measured > 0.4 * Math.min(expected, most) && measured < 1.5 * expected, "%s's trees stand as close as real ones (at most %.0f a hectare at this scale)",
 					f.name(), most);
 				Map<String, long[]> perfAfter = Perf.snapshot();
@@ -2008,7 +2009,7 @@ final class SelfTest {
 						meanHeight.put(species, h / n);
 					}
 				});
-				log("%s: average height in blocks: %s (%.2f blocks a metre)", f.name(), meanHeight, field.projection().blocksPerMeter(lat));
+				log("%s: average height in blocks: %s (%.2f blocks a metre)", f.name(), meanHeight, se.itssimple.realearth.world.EarthTrees.scale(field.projection().blocksPerMeter(lat)));
 				f.tall().forEach((species, least) -> check(meanHeight.getOrDefault(species, 0L) >= least,
 					"%s's %s grow as tall as real ones (%d blocks on average, at least %d)", f.name(), species, meanHeight.getOrDefault(species, 0L), least));
 			}));
