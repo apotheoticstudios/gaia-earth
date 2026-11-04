@@ -124,16 +124,36 @@ net lies flat without overlapping (all trees tried, cheapest first) passes 0.24 
 (0.003%), against 5.3 million for BTE's vertices (its cut through Scandinavia to East Asia, which BTE works round
 by moving a piece). Held at 0.99 in Stockholm, 0.77 million.
 
-**Still open:** whether the start must be within 1% (Stockholm held at 0.99: three points fewer people within 3%,
-and three times as many near seams and vertices) or the tuned fit stands (Stockholm 2.4% small, inside the 3% band
-like nearly everyone).
+**Decided (2026-11-04): the tuned fit, best for everyone.** Stockholm is 2.4% small, inside the 3% band like nearly
+everyone, rather than held within 1% at the cost of three points fewer people within 3% and three times as many
+near seams and vertices.
+
+## Built (2026-11-04): `geo/Icosahedral`
+
+The projection itself, exact both ways, not yet used by worlds:
+- **The face map:** in stereographic coordinates z from a face's centre, a conformal map onto a flat surface whose
+  cone points z_i have 300 degrees has `dw = C * prod (1 - z / z_i)^(-1/6) dz` (the Schwarz-Christoffel formula
+  for polyhedra, of which the closed-form scale is the modulus). A position is one line integral by 40-point
+  Gauss-Legendre quadrature, near a vertex from the vertex, with its singularity taken out by u = z_v + (z - z_v) s^6;
+  the inverse is Newton's method on it. No interpolated table, unlike BTE's.
+- **The net:** unfolded from one face across the 19 joined edges, turned so north is up at Stockholm, centred: 46.1
+  by 28.2 million blocks, inside Minecraft's world border (30 million either way). North turns elsewhere: London
+  16 degrees, New York -56, Tokyo -65, Sydney -19.
+- **Measured** (self-test, pure checks):
+  - block to latitude and longitude and back within a micrometre;
+  - conformal, north and east within 1e-6 of each other;
+  - the scale the closed form's within 1e-7;
+  - no seam on 13 land routes walked in 1 km steps (53,000 km: London to Tokyo, Paris to Cape Town, New York to
+    Los Angeles to Bogota to Buenos Aires, Delhi to Singapore, across Australia and Africa), while a walk round the
+    equator crosses 3, as any loop that splits the vertices must.
+- **Speed:** about 6 microseconds a point from latitude and longitude, 35 back.
 
 **Next:**
-1. The face map itself: the forward and inverse map of a face, exact (the Schwarz-Christoffel integral of the
-   (2, 3, 6) triangle against Klein's icosahedral function, which the closed-form scale already comes from) rather
-   than BTE's interpolated table, so positions are exact to well under a block across a 7,000 km face.
-2. The net: the 20 faces laid out along the chosen cut, north's turn on each face, and what lies past a seam.
-3. Then steps 1 to 3 of "What it touches" below: the projection interface and every caller.
+1. What lies past a seam: `geo` returns null there today. Ocean to the edge of the net, and roads, rivers and
+   coasts stopping cleanly at it.
+2. Steps 1 to 3 of "What it touches" below: the projection interface and every caller. Per-column cost matters
+   there: exact at a chunk's corners and interpolated between would cost a few tens of microseconds a chunk, and a
+   conformal map is smooth enough over 16 blocks for that to be exact to a fraction of a millimetre.
 
 ## What it touches
 

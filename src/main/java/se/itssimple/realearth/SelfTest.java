@@ -74,6 +74,33 @@ final class SelfTest {
 		RealEarth.LOGGER.info("[selftest] " + String.format(Locale.ROOT, format, args));
 	}
 
+	/** The seams a great-circle walk in 1 km steps crosses: steps of more than 1.5 km on the map (a block is about a metre). */
+	private static int seamsWalked(se.itssimple.realearth.geo.Icosahedral ico, double lat0, double lon0, double lat1, double lon1) {
+		double[] a = unitVector(lat0, lon0), b = unitVector(lat1, lon1);
+		double angle = Math.acos(Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2])));
+		int steps = (int) Math.ceil(greatCircleKm(lat0, lon0, lat1, lon1));
+		double[] prev = null;
+		int seams = 0;
+		for (int i = 0; i <= steps; i++) {
+			double t = (double) i / steps, s0 = Math.sin((1 - t) * angle) / Math.sin(angle), s1 = Math.sin(t * angle) / Math.sin(angle);
+			double[] q = {a[0] * s0 + b[0] * s1, a[1] * s0 + b[1] * s1, a[2] * s0 + b[2] * s1};
+			double[] block = ico.block(Math.toDegrees(Math.asin(q[2])), Math.toDegrees(Math.atan2(q[1], q[0])));
+			seams += prev != null && Math.hypot(block[0] - prev[0], block[1] - prev[1]) > 1500 ? 1 : 0;
+			prev = block;
+		}
+		return seams;
+	}
+
+	private static double[] unitVector(double lat, double lon) {
+		double la = Math.toRadians(lat), lo = Math.toRadians(lon);
+		return new double[] {Math.cos(la) * Math.cos(lo), Math.cos(la) * Math.sin(lo), Math.sin(la)};
+	}
+
+	private static double greatCircleKm(double lat0, double lon0, double lat1, double lon1) {
+		double[] a = unitVector(lat0, lon0), b = unitVector(lat1, lon1);
+		return 6371.0088 * Math.acos(Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2])));
+	}
+
 	private static void check(boolean ok, String format, Object... args) {
 		String line = String.format(Locale.ROOT, format, args);
 		log("%s %s", ok ? "ok  " : "FAIL", line);
@@ -189,6 +216,46 @@ final class SelfTest {
 					"Mercator: true shapes at the Grand Canyon (%.3f blocks per metre north-south, %.3f east-west)", ns, ew);
 				double wrapped = m.longitudeAt(m.blockX(10.0, 179.9) + 10000, 10.0);
 				check(wrapped < -179.0, "Mercator: flying east past 180 degrees carries on at %.2f", wrapped);
+			}
+			{
+				// The tuned icosahedral projection (docs/PROJECTION-PLAN.md; not yet used by worlds): exact both ways,
+				// conformal on the ellipsoid, its scale the closed form's, north up at the start, inside the world border, and
+				// its seams off every land route walked in 1 km steps, though a walk round the equator must cross one.
+				se.itssimple.realearth.geo.Icosahedral ico = se.itssimple.realearth.geo.Icosahedral.TUNED;
+				java.util.Random random = new java.util.Random(7);
+				double trip = 0, offScale = 0, shape = 0;
+				for (int i = 0; i < 2000; i++) {
+					double pLat = Math.max(-89.9, Math.min(89.9, Math.toDegrees(Math.asin(2 * random.nextDouble() - 1))));
+					double pLon = 360 * random.nextDouble() - 180;
+					double s = Math.sin(Math.toRadians(pLat)), w = Math.sqrt(1 - 0.00669437999014 * s * s);
+					double north = 6_378_137.0 * (1 - 0.00669437999014) / (w * w * w) * Math.PI / 180;
+					double east = 6_378_137.0 / w * Math.cos(Math.toRadians(pLat)) * Math.PI / 180;
+					double[] b = ico.block(pLat, pLon), bn = ico.block(pLat + 1e-6, pLon), be = ico.block(pLat, pLon + 1e-6);
+					double[] g = ico.geo(b[0], b[1]);
+					trip = Math.max(trip, g == null ? Double.MAX_VALUE
+						: Math.hypot((g[0] - pLat) * north, (Projection.wrapLongitude(g[1] - pLon)) * east));
+					double kn = Math.hypot(bn[0] - b[0], bn[1] - b[1]) / (1e-6 * north), ke = Math.hypot(be[0] - b[0], be[1] - b[1]) / (1e-6 * east);
+					offScale = Math.max(offScale, Math.abs(kn / ico.blocksPerMeter(pLat, pLon) - 1));
+					shape = Math.max(shape, Math.abs(kn / ke - 1));
+				}
+				check(trip < 0.001, "icosahedral: block and back to latitude and longitude within %.1e m at 2000 points", trip);
+				check(offScale < 1e-5 && shape < 1e-4, "icosahedral: conformal (north and east within %.1e), at the closed form's scale (within %.1e)", shape, offScale);
+				double[] extent = ico.halfExtent();
+				check(Math.abs(ico.north(59.3293, 18.0686)) < 1e-6 && Math.max(extent[0], extent[1]) < 29_999_984,
+					"icosahedral: north up at Stockholm, %.4f blocks a metre there; the net %.1f by %.1f million blocks, inside the world border",
+					ico.blocksPerMeter(59.3293, 18.0686), 2 * extent[0] / 1e6, 2 * extent[1] / 1e6);
+				double[][][] routes = {{{51.51, -0.13}, {55.76, 37.62}}, {{55.76, 37.62}, {39.90, 116.40}}, {{39.90, 116.40}, {35.68, 139.69}},
+					{{48.86, 2.35}, {30.04, 31.24}}, {{30.04, 31.24}, {-33.92, 18.42}}, {{40.71, -74.01}, {34.05, -118.24}}, {{34.05, -118.24}, {4.71, -74.07}},
+					{{4.71, -74.07}, {-34.60, -58.38}}, {{28.61, 77.21}, {1.35, 103.82}}, {{-8.65, 115.22}, {-9.45, 147.18}},
+					{{-31.95, 115.86}, {-33.87, 151.21}}, {{6.52, 3.38}, {-1.29, 36.82}}, {{43.65, -79.38}, {49.28, -123.12}}};
+				int seams = 0;
+				double walked = 0;
+				for (double[][] r : routes) {
+					seams += seamsWalked(ico, r[0][0], r[0][1], r[1][0], r[1][1]);
+					walked += greatCircleKm(r[0][0], r[0][1], r[1][0], r[1][1]);
+				}
+				int equator = seamsWalked(ico, 0, -180, 0, -60) + seamsWalked(ico, 0, -60, 0, 60) + seamsWalked(ico, 0, 60, 0, 180);
+				check(seams == 0 && equator > 0, "icosahedral: no seam on %d land routes (%.0f km in 1 km steps); %d round the equator", routes.length, walked, equator);
 			}
 			{
 				// The snowline (from RGI 7.0 glaciers and CHELSA climate) against published glacier equilibrium lines:
