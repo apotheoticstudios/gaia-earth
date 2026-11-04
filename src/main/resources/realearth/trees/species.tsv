@@ -52,7 +52,7 @@ ceratonia_siliqua,s_carob	oak,acacia	Csa,BSh	low	34..40	-10..40	2	6..15
 prunus_amygdalus	acacia,oak	Cs,BS	low	34..42	-10..45	1	4..8
 picea_mariana	spruce	Dfc,Dfd,Dsc,Dwc,ET,Dfb	*	46..70	-170..-52	6	5..15
 picea_mariana	swamp	Dfc,Dfb	*	45..68	-170..-52	4	5..15
-picea_glauca	spruce	Dfc,Dfb,Dfd,Dsc,ET	*	45..70	-170..-52	6	15..30
+picea_glauca	spruce	Dfc,Dfb,Dfd,Dsc,Dwc,ET	*	45..70	-170..-52	6	15..30
 abies_balsamea,balsam_fir_l,balsam_fir_light_l,balsam_fir_light_m,balsam_fir_light_s,balsam_fir_m,balsam_fir_s	spruce	Dfb,Dfc,Cfb	*	42..60	-100..-52	4	14..20
 larix_laricina,tamarack_l,tamarack_m,tamarack_s,tamarack_yellow_l,tamarack_yellow_m,tamarack_yellow_s	spruce	Dfc,Dfb	*	45..68	-150..-52	2	10..20
 larix_laricina	swamp	Dfc,Dfb	*	45..68	-150..-52	3	10..20
@@ -65,10 +65,10 @@ abies_lasiocarpa	spruce,birch,oak	Dfc,Dfb,Dsc,Dsb,ET,Cfc,Csb	high	32..49	-117.5.
 abies_lasiocarpa	spruce,birch,oak	Dfc,Dfb,Dsc,Dsb,ET,Cfc,Csb	high	42..64	-142..-104	6	15..30
 abies_lasiocarpa	spruce	Dfc,Dfb,Dsc,Dsb	mid	32..49	-117.5..-104	2	15..30
 abies_lasiocarpa	spruce	Dfc,Dfb,Dsc,Dsb	mid	42..64	-142..-104	2	15..30
-betula_papyrifera,paper_birch_m,paper_birch_s,paper_birch_yellow_m,paper_birch_yellow_s	birch	Dfc,Dfb,Dfa,Dsb,Dsc	*	42..68	-165..-52	6	15..25
+betula_papyrifera,paper_birch_m,paper_birch_s,paper_birch_yellow_m,paper_birch_yellow_s	birch	Dfc,Dfb,Dfa,Dsb,Dsc,Dwc	*	42..68	-165..-52	6	15..25
 betula_alleghaniensis	birch,oak,dark_oak	Dfb,Dfa,Cfb	low,mid	41..49	-96..-60	3	20..30
 betula_alleghaniensis	birch,oak,dark_oak,spruce	Dfb,Cfb,Cfa,Dfa	mid,high	35..41	-85..-76	2	20..30
-populus_tremuloides,quaking_aspen_m,quaking_aspen_s,quaking_aspen_yellow_m,quaking_aspen_yellow_s	birch	Dfc,Dfb,Dsb,Dsc,BSk	*	31..68	-165..-100	5	15..25
+populus_tremuloides,quaking_aspen_m,quaking_aspen_s,quaking_aspen_yellow_m,quaking_aspen_yellow_s	birch	Dfc,Dfb,Dsb,Dsc,Dwc,BSk	*	31..68	-165..-100	5	15..25
 populus_tremuloides	birch	Dfc,Dfb,Dfa,Cfb	*	40..68	-100..-60	5	15..25
 pinus_strobus	spruce	Dfb,Dfa,Cfb	*	34..50	-95..-62	4	30..45
 pinus_resinosa	spruce	Dfb,Dfa,Dfc	low,mid	41..50	-97..-60	3	20..35
@@ -655,3 +655,4 @@ epicharis_parasitica	jungle	Af,Am	low	-11..20	95..156	1	15..30
 cinnamomum_burmannii,indonesiancinnamon	jungle,dark_oak	Af,Am	low,mid	-10..20	95..125	1	10..15
 quercus_robur	oak,dark_oak	Df,Ds,Cfa,Cfb	low,mid	38..45	45..50	3	20..35
 pinus_sylvestris	spruce	Df,Ds,Cfb	low,mid	38..45	45..50	3	20..30
+pinus_pumila	spruce,birch	Df,Dw,Ds,ET	low	55..72	-180..-170	4	1..5
