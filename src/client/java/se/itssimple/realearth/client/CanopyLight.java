@@ -18,7 +18,7 @@ import net.minecraft.world.level.levelgen.Heightmap;
 
 /** Filtered canopy skylight and its falloff through the surrounding air. */
 public final class CanopyLight {
-	private static final int BRIGHTEST_SHADE = 14;
+	static final int BRIGHTEST_SHADE = 14;
 	private static final int SPREAD = BRIGHTEST_SHADE - 1;
 	private static final int MESH_BORDER = 2; // Sodium samples two blocks beyond the section.
 	static final int LIGHT_BORDER = MESH_BORDER + SPREAD;
@@ -43,7 +43,7 @@ public final class CanopyLight {
 		for (int y = top; y >= bottom;) {
 			int sectionY = (y >> 4) - (minY >> 4);
 			PalettedContainerRO<BlockState> blocks;
-			if (sectionY < 3) {
+			if (sections != null && sectionY < 3) {
 				blocks = sections[LevelSlice.getLocalSectionIndex(dx, sectionY, dz)].getBlockData();
 			} else {
 				// The canopy itself may be above the mesh's snapshot.
@@ -85,6 +85,7 @@ public final class CanopyLight {
 	public static final class SectionCache {
 		private final ClientLevel level;
 		private ClonedChunkSection[] sections;
+		private ChunkAccess[] liveChunks;
 		private byte[] samples;
 		private IntArrayList[] queues;
 		private int minX;
@@ -98,11 +99,15 @@ public final class CanopyLight {
 		}
 
 		public void reset(ChunkRenderContext context) {
-			SectionPos origin = context.getOrigin();
+			reset(context.getOrigin());
+			sections = context.getSections();
+		}
+
+		void reset(SectionPos origin) {
 			minX = origin.minBlockX() - LIGHT_BORDER;
 			minY = origin.minBlockY() - LIGHT_BORDER;
 			minZ = origin.minBlockZ() - LIGHT_BORDER;
-			sections = context.getSections();
+			sections = null;
 			built = false;
 			hasLight = false;
 		}
@@ -130,8 +135,29 @@ public final class CanopyLight {
 			return hasLight ? Math.max(vanilla, samples[index(x, y, z)]) : vanilla;
 		}
 
+		/** Render-thread callers can sample a section even when it contains no terrain mesh. */
+		byte[] copyInterior() {
+			if (!built) {
+				build();
+			}
+			if (!hasLight) {
+				return null;
+			}
+			byte[] interior = new byte[16 * 16 * 16];
+			for (int z = 0; z < 16; z++) {
+				for (int x = 0; x < 16; x++) {
+					System.arraycopy(samples, index(x + LIGHT_BORDER, LIGHT_BORDER, z + LIGHT_BORDER),
+						interior, (z * 16 + x) * 16, 16);
+				}
+			}
+			return interior;
+		}
+
 		private void build() {
 			built = true;
+			if (sections == null && liveChunks == null) {
+				liveChunks = new ChunkAccess[9];
+			}
 			// The padded grid spans exactly the center chunk and its eight neighbors.
 			int firstChunkX = minX >> 4;
 			int firstChunkZ = minZ >> 4;
@@ -142,6 +168,9 @@ public final class CanopyLight {
 					int chunkX = firstChunkX + dx;
 					int chunkZ = firstChunkZ + dz;
 					ChunkAccess chunk = level.getChunkSource().getChunk(chunkX, chunkZ, ChunkStatus.FULL, false);
+					if (sections == null) {
+						liveChunks[dz * 3 + dx] = chunk;
+					}
 					if (chunk == null || !hasHeightmaps(chunk)) {
 						continue;
 					}
@@ -180,6 +209,9 @@ public final class CanopyLight {
 				spread();
 			}
 			sections = null;
+			if (liveChunks != null) {
+				Arrays.fill(liveChunks, null);
+			}
 		}
 
 		private void spread() {
@@ -252,8 +284,17 @@ public final class CanopyLight {
 			if (level.isOutsideBuildHeight(y)) {
 				return true;
 			}
-			int section = LevelSlice.getLocalSectionIndex((x >> 4) - (minX >> 4), (y >> 4) - (minY >> 4),
-				(z >> 4) - (minZ >> 4));
+			int dx = (x >> 4) - (minX >> 4);
+			int dz = (z >> 4) - (minZ >> 4);
+			if (sections == null) {
+				ChunkAccess chunk = liveChunks[dz * 3 + dx];
+				if (chunk == null) {
+					return true;
+				}
+				LevelChunkSection section = chunk.getSection(chunk.getSectionIndex(y));
+				return !section.hasOnlyAir() && blocksSpill(section.getBlockState(x & 15, y & 15, z & 15));
+			}
+			int section = LevelSlice.getLocalSectionIndex(dx, (y >> 4) - (minY >> 4), dz);
 			PalettedContainerRO<BlockState> blocks = sections[section].getBlockData();
 			return blocks != null && blocksSpill(blocks.get(x & 15, y & 15, z & 15));
 		}

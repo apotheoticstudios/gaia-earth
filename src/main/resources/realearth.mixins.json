@@ -25,6 +25,7 @@
   },
   "client": [
     "CanopyBlockUpdateMixin",
+    "CanopyEntityRendererMixin",
     "CanopySodiumSliceMixin",
     "ClientLevelDataMixin",
     "ClientShutdownWatchdogMixin",

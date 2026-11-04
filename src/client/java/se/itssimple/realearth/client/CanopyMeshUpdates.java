@@ -15,11 +15,14 @@ public final class CanopyMeshUpdates {
 	}
 
 	static void install() {
+		CanopyEntityLight.install();
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
+			CanopyEntityLight.setLevel(client.level);
 			if (pendingLevel != null && pendingLevel == client.level) {
 				var sections = DIRTY_SECTIONS.iterator();
 				while (sections.hasNext()) {
 					long section = sections.nextLong();
+					CanopyEntityLight.invalidateSection(pendingLevel, section);
 					client.levelRenderer.setSectionDirty(SectionPos.x(section), SectionPos.y(section), SectionPos.z(section));
 				}
 			}
