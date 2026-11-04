@@ -1893,12 +1893,12 @@ final class SelfTest {
 				Map<String, Long> heightsBefore = se.itssimple.realearth.world.EarthTrees.heights();
 				Map<String, long[]> perfBefore = Perf.snapshot();
 				// Somewhere new in the forest each run, as trees only grow in chunks not generated before; and wooded, as forests
-				// have clearings, lakes, fields and burns: the first of a few tries whose middle chunk is a third forest (a mapped
+				// have clearings, lakes, fields and burns: the first of up to 24 tries whose middle chunk is a third forest (a mapped
 				// wood the land cover shows as trees, where trees grow), or else the most wooded try, as mapped woods can be small.
 				double lat = f.lat();
 				double lon = f.lon();
 				int mostWooded = -1;
-				for (int attempt = 0; attempt < 8 && mostWooded < 256 / 3; attempt++) {
+				for (int attempt = 0; attempt < 24 && mostWooded < 256 / 3; attempt++) {
 					double tryLat = f.lat() + (Math.random() - 0.5) * 0.04;
 					double tryLon = f.lon() + (Math.random() - 0.5) * 0.08;
 					ChunkTerrain middle = field.chunk((int) field.projection().blockX(tryLat, tryLon) >> 4, (int) field.projection().blockZ(tryLat) >> 4).join();

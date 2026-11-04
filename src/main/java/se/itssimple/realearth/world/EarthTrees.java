@@ -256,8 +256,9 @@ public final class EarthTrees {
 		double meters = t.groundMeters[k];
 		String zone = meters >= treeline - TREELINE_BAND ? "high" : meters >= treeline / 2 ? "mid" : "low";
 		List<Row> rows = new ArrayList<>();
+		String climate = Koppen.code(t.climate[k] & 0xFF);
 		for (Row row : trees.rows) {
-			if (row.matches(kind, Koppen.code(t.climate[k] & 0xFF), zone, lat, lon)) {
+			if (row.matches(kind, climate, zone, lat, lon)) {
 				rows.add(row);
 			}
 		}
@@ -275,10 +276,10 @@ public final class EarthTrees {
 				return;
 			}
 			if (template != null) {
-				if (pit) {
+				int grown = place(region, template, tree, pos, height, random);
+				if (pit && grown > 0) {
 					region.setBlock(pos.below(), net.minecraft.world.level.block.Blocks.COARSE_DIRT.defaultBlockState(), 2);
 				}
-				int grown = place(region, template, tree, pos, height, random);
 				count(grown > 0 ? row.species : "no room");
 				if (mapped && grown > 0) {
 					count("spot mapped: grown");
@@ -290,7 +291,9 @@ public final class EarthTrees {
 		if (pit) {
 			region.setBlock(pos.below(), net.minecraft.world.level.block.Blocks.COARSE_DIRT.defaultBlockState(), 2);
 		}
-		growVanilla(region, generator, kind, pos, random);
+		if (!growVanilla(region, generator, kind, pos, random) && pit) {
+			region.setBlock(pos.below(), ground, 2); // no room after all: the paving stays whole
+		}
 	}
 
 	/**
@@ -375,16 +378,18 @@ public final class EarthTrees {
 		return fit.get(random.nextInt(near));
 	}
 
-	/** A vanilla tree of the kind, where no species fits or none is installed. */
-	private static void growVanilla(WorldGenRegion region, ChunkGenerator generator, String kind, BlockPos pos, RandomSource random) {
+	/** A vanilla tree of the kind, where no species fits or none is installed; whether it grew. */
+	private static boolean growVanilla(WorldGenRegion region, ChunkGenerator generator, String kind, BlockPos pos, RandomSource random) {
 		List<ResourceKey<ConfiguredFeature<?, ?>>> keys = VANILLA.get(kind);
 		var feature = region.registryAccess().lookupOrThrow(Registries.CONFIGURED_FEATURE).get(keys.get(random.nextInt(keys.size())));
 		if (feature.isEmpty()) {
-			return;
+			return false;
 		}
 		GROWING.set(Boolean.TRUE);
 		try {
-			count(feature.get().value().place(region, generator, random, pos) ? "vanilla " + kind : "no room");
+			boolean grown = feature.get().value().place(region, generator, random, pos);
+			count(grown ? "vanilla " + kind : "no room");
+			return grown;
 		} finally {
 			GROWING.remove();
 		}
