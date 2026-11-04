@@ -5,7 +5,9 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.Biomes;
 import se.itssimple.realearth.climate.Koppen;
+import se.itssimple.realearth.data.Http;
 import se.itssimple.realearth.landcover.WorldCover;
+import se.itssimple.realearth.osm.MapPainter;
 import se.itssimple.realearth.terrain.TerrainField;
 import se.itssimple.realearth.world.BiomePicker;
 
@@ -78,6 +80,7 @@ public final class LodSampler {
 			elevation[k] = columnSize <= SMOOTHED_BELOW ? field.smoothedElevationAt(lat[k], lon[k]) : field.elevationAt(lat[k], lon[k], zoom);
 		}
 
+		boolean[] wooded = woods(lat, lon, columnSize);
 		Column[] out = new Column[n];
 		for (int j = 0; j < width; j++) {
 			for (int i = 0; i < width; i++) {
@@ -94,7 +97,56 @@ public final class LodSampler {
 				// see-through, and a shallower lake reads as the sand under it.
 				double ground = sea ? e : inland ? e - Math.max(2.0, 4.0 / field.projection().blocksPerMeter(lat[k])) : e;
 				double water = sea ? 0 : inland ? e : Double.NaN;
-				out[k] = column(lat[k], lon[k], ground, water, inland, rise, c, climate);
+				out[k] = column(lat[k], lon[k], ground, water, inland, rise, c, climate, wooded[k]);
+			}
+		}
+		return out;
+	}
+
+	/** The map tiles' wood masks (MapPainter.woods) by zoom, x and y, an empty one for a tile the map hasn't: 64 KB each. */
+	private static final java.util.Map<Long, byte[]> WOODS = java.util.Collections.synchronizedMap(new java.util.LinkedHashMap<>(64, 0.75f, true) {
+		@Override
+		protected boolean removeEldestEntry(java.util.Map.Entry<Long, byte[]> eldest) {
+			return size() > 64;
+		}
+	});
+
+	/**
+	 * Which columns lie in the map's woods, where forest trees grow: from the map's tiles at the zoom whose pixels are about a
+	 * column across, so a coarse column sees the woods the map draws at its scale. None without a map.
+	 */
+	private boolean[] woods(double[] lat, double[] lon, int columnSize) throws Exception {
+		boolean[] out = new boolean[lat.length];
+		var map = field.map();
+		if (map == null || lat.length == 0) {
+			return out;
+		}
+		double mid = clampLat(lat[lat.length / 2]);
+		double columnMeters = columnSize / field.projection().blocksPerMeter(mid);
+		int zoom = (int) Math.max(7, Math.min(14,
+			Math.round(Math.log(40_075_016.686 * Math.cos(Math.toRadians(mid)) / (MapPainter.SIZE * columnMeters)) / Math.log(2))));
+		int n = 1 << zoom;
+		for (int k = 0; k < lat.length; k++) {
+			double fx = (lon[k] + 180) / 360 * n;
+			double fy = (1 - Math.log(Math.tan(Math.PI / 4 + Math.toRadians(clampLat(lat[k])) / 2)) / Math.PI) / 2 * n;
+			int tx = Math.floorMod((int) Math.floor(fx), n);
+			int ty = Math.max(0, Math.min(n - 1, (int) Math.floor(fy)));
+			long key = ((long) zoom << 40) | ((long) tx << 20) | ty;
+			byte[] mask = WOODS.get(key);
+			if (mask == null) {
+				try {
+					mask = MapPainter.woods(map.raw(zoom, tx, ty), zoom, zoom, tx, ty);
+				} catch (Http.Missing e) {
+					mask = new byte[0];
+				} catch (java.io.IOException e) {
+					throw new TerrainField.Unavailable(); // stored for good by the LOD mod: asked again later rather than forest left out
+				}
+				WOODS.put(key, mask);
+			}
+			if (mask.length > 0) {
+				int px = Math.min(MapPainter.SIZE - 1, (int) ((fx - Math.floor(fx)) * MapPainter.SIZE));
+				int py = Math.min(MapPainter.SIZE - 1, (int) ((fy - Math.floor(fy)) * MapPainter.SIZE));
+				out[k] = mask[py * MapPainter.SIZE + px] != 0;
 			}
 		}
 		return out;
@@ -136,7 +188,7 @@ public final class LodSampler {
 			int idx = se.itssimple.realearth.terrain.ChunkTerrain.index(lx, lz);
 			boolean wet = !Float.isNaN(t.waterMeters[idx]) && t.waterTopY[idx] != Integer.MIN_VALUE;
 			out[k] = column(t.latitude[idx], t.longitude[idx], t.groundMeters[idx], wet ? t.waterMeters[idx] : Double.NaN, t.lake[idx],
-				t.slope(lx, lz), t.cover[idx] & 0xFF, t.climate[idx] & 0xFF);
+				t.slope(lx, lz), t.cover[idx] & 0xFF, t.climate[idx] & 0xFF, t.wood[idx]);
 			var plan = t.building[idx] == 0 ? null : t.plans.get(t.building[idx] - 1);
 			if (plan != null) {
 				// Near the player, buildings stand in the distant terrain too, as solid blocks to their roofs.
@@ -158,7 +210,9 @@ public final class LodSampler {
 		return out;
 	}
 
-	private Column column(double lat, double lon, double ground, double water, boolean lake, double rise, int cover, int climate) {
+	/** A column; {@code wooded} where it lies in one of the map's woods, as forest trees grow only there (EarthTrees). */
+	private Column column(double lat, double lon, double ground, double water, boolean lake, double rise, int cover, int climate,
+		boolean wooded) {
 		boolean sea = !Double.isNaN(water) && !lake && water <= 0.5;
 		boolean inland = !Double.isNaN(water) && !sea;
 		ResourceKey<Biome> biome = BiomePicker.pick(lat, lon, ground, sea || inland, inland, Double.isNaN(water) ? 0 : water, climate, cover);
@@ -173,13 +227,14 @@ public final class LodSampler {
 		String leaves = null;
 		// Forest canopies only on coarse columns. Next to real chunks (which have real trees) a solid
 		// block of leaves stands up as a wall at the edge of the loaded area.
-		if (CANOPY && columnSize >= CANOPY_FROM && cover == WorldCover.TREES && waterTop == Integer.MIN_VALUE && rise < 1.2) {
+		boolean forest = cover == WorldCover.TREES && wooded;
+		if (CANOPY && columnSize >= CANOPY_FROM && forest && waterTop == Integer.MIN_VALUE && rise < 1.2) {
 			canopyHeight = canopyHeight(biome);
 			leaves = leaves(biome);
 		}
 		// Finer columns get no canopy (it would stand as a wall next to real chunks), but their forests
 		// still look like forest: the leaves lie flat on the ground, the same colour as the canopy beyond.
-		if (CANOPY && leaves == null && cover == WorldCover.TREES && waterTop == Integer.MIN_VALUE && rise < 1.2) {
+		if (CANOPY && leaves == null && forest && waterTop == Integer.MIN_VALUE && rise < 1.2) {
 			surface = leaves(biome);
 		}
 		String under = switch (surface) {

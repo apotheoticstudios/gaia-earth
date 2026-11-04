@@ -327,6 +327,11 @@ public final class OsmWater {
 		}
 	}
 
+	/** Whether a landcover feature is one of the map's woods: a wood or forest, a mangrove, or a swamp (wooded wetland). */
+	public static boolean wood(String cls, String subclass) {
+		return "wood".equals(cls) || "mangrove".equals(subclass) || "swamp".equals(subclass);
+	}
+
 	private static Shapes convert(List<VectorTile.Feature> features, int tileX, int tileY, int roadVersion) {
 		double samplesPerTile = (double) Mercator.TILE_SIZE * (1 << (Mercator.ZOOM - ZOOM));
 		List<Area> areas = new ArrayList<>();
@@ -420,9 +425,8 @@ public final class OsmWater {
 				continue;
 			}
 			String subclass = f.string("subclass");
-			// The map's woods, mangroves and swamps (wooded wetland), kept with the parks as "wood": forest trees grow only where
-			// they and the land cover agree.
-			boolean wood = f.layer().equals("landcover") && ("wood".equals(cls) || "mangrove".equals(subclass) || "swamp".equals(subclass));
+			// The map's woods, kept with the parks as "wood": forest trees grow only where they and the land cover agree.
+			boolean wood = f.layer().equals("landcover") && wood(cls, subclass);
 			boolean park = wood || f.layer().equals("landcover") && PARKS.contains(subclass)
 				|| f.layer().equals("landuse") && GREEN_LANDUSE.contains(cls);
 			if (f.layer().equals("landcover") && !park) {

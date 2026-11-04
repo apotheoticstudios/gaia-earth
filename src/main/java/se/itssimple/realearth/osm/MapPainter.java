@@ -93,6 +93,22 @@ public final class MapPainter {
 		return paint(data, dataZoom, zoom, x, y, null);
 	}
 
+	/**
+	 * Which pixels of tile {@code zoom/x/y} lie in the map's woods (see OsmWater.wood), non-zero there, from the vector tile at
+	 * {@code dataZoom} that holds it (as for {@link #paint}): where forest trees grow, for distant terrain's canopy.
+	 */
+	public static byte[] woods(byte[] data, int dataZoom, int zoom, int x, int y) throws IOException {
+		int parts = 1 << (zoom - dataZoom);
+		byte[] woods = new byte[SIZE * SIZE];
+		for (VectorTile.Feature f : VectorTile.decode(data, Set.of("landcover"))) {
+			if (f.type() == VectorTile.POLYGON && OsmWater.wood(f.string("class"), f.string("subclass"))) {
+				double side = (double) f.extent() / parts;
+				Rasterizer.fill(rings(f), (x & (parts - 1)) * side, (y & (parts - 1)) * side, SIZE, SIZE / side, woods, WOOD);
+			}
+		}
+		return woods;
+	}
+
 	/** The same, hill-shaded from {@code metres}, the ground's height under each pixel (null for none). */
 	public static int[] paint(byte[] data, int dataZoom, int zoom, int x, int y, float[] metres) throws IOException {
 		int levels = zoom - dataZoom;
