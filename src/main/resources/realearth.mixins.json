@@ -27,6 +27,7 @@
     "CanopyBlockUpdateMixin",
     "CanopySodiumSliceMixin",
     "ClientLevelDataMixin",
+    "ClientShutdownWatchdogMixin",
     "RiverRenderRegionMixin",
     "SodiumRiverRenderRegionMixin"
   ]

@@ -1,13 +1,13 @@
 package se.itssimple.realearth.mixin;
 
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
+import net.caffeinemc.mods.sodium.client.world.LevelSlice;
+import net.caffeinemc.mods.sodium.client.world.cloned.ChunkRenderContext;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.LightLayer;
-import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -16,11 +16,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import se.itssimple.realearth.RealEarth;
 import se.itssimple.realearth.client.CanopyLight;
 
-@Pseudo
-@Mixin(targets = "net.caffeinemc.mods.sodium.client.world.LevelSlice", remap = false)
+@Mixin(value = LevelSlice.class, remap = false)
 public abstract class CanopySodiumSliceMixin {
 	@Shadow @Final private ClientLevel level;
-	@Shadow private BoundingBox volume;
 
 	@Unique private CanopyLight.SectionCache realearth$canopyLight;
 
@@ -32,9 +30,16 @@ public abstract class CanopySodiumSliceMixin {
 	}
 
 	@Inject(method = "copyData", at = @At("TAIL"))
-	private void realearth$resetCanopyLight(CallbackInfo ci) {
+	private void realearth$resetCanopyLight(ChunkRenderContext context, CallbackInfo ci) {
 		if (realearth$canopyLight != null) {
-			realearth$canopyLight.reset(volume.minX(), volume.minY(), volume.minZ());
+			realearth$canopyLight.reset(context);
+		}
+	}
+
+	@Inject(method = "reset", at = @At("TAIL"))
+	private void realearth$releaseCanopyLight(CallbackInfo ci) {
+		if (realearth$canopyLight != null) {
+			realearth$canopyLight.clear();
 		}
 	}
 

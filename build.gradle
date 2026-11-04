@@ -113,7 +113,7 @@ dependencies {
 
 	// The metadata JAR lets Fabric enforce Sodium on clients while accepting dedicated servers.
 	runtimeOnly files(clientRequirements)
-	clientRuntimeOnly "maven.modrinth:sodium:mc26.1.1-0.8.9-fabric"
+	clientImplementation "maven.modrinth:sodium:mc26.1.1-0.8.9-fabric"
 
 	// Optional development-client mods.
 	clientPerformance "maven.modrinth:lithium:mc26.1.2-0.24.7-fabric"

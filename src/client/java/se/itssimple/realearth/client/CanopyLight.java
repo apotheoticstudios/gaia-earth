@@ -2,12 +2,17 @@ package se.itssimple.realearth.client;
 
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import java.util.Arrays;
+import net.caffeinemc.mods.sodium.client.world.LevelSlice;
+import net.caffeinemc.mods.sodium.client.world.cloned.ChunkRenderContext;
+import net.caffeinemc.mods.sodium.client.world.cloned.ClonedChunkSection;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.block.LeavesBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.LevelChunkSection;
+import net.minecraft.world.level.chunk.PalettedContainerRO;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.level.levelgen.Heightmap;
 
@@ -28,16 +33,25 @@ public final class CanopyLight {
 	private CanopyLight() {
 	}
 
-	private static boolean fillColumn(ChunkAccess chunk, int x, int z, int top, int bottom, int minY, byte[] samples, int offset) {
+	private static boolean fillColumn(ChunkAccess chunk, int x, int z, int top, int bottom, int minY,
+			byte[] samples, int offset, ClonedChunkSection[] sections, int dx, int dz) {
 		int maxY = minY + WIDTH - 1;
 		// Air between the canopy and the ground carries the filtered light without further loss.
 		int transmitted = BRIGHTEST_SHADE + 1;
 		int leaves = 0;
 		boolean seeded = false;
 		for (int y = top; y >= bottom;) {
-			LevelChunkSection section = chunk.getSection(chunk.getSectionIndex(y));
+			int sectionY = (y >> 4) - (minY >> 4);
+			PalettedContainerRO<BlockState> blocks;
+			if (sectionY < 3) {
+				blocks = sections[LevelSlice.getLocalSectionIndex(dx, sectionY, dz)].getBlockData();
+			} else {
+				// The canopy itself may be above the mesh's snapshot.
+				LevelChunkSection section = chunk.getSection(chunk.getSectionIndex(y));
+				blocks = section.hasOnlyAir() ? null : section.getStates();
+			}
 			int sectionBottom = Math.max(y & ~15, bottom);
-			if (section.hasOnlyAir()) {
+			if (blocks == null) {
 				if (transmitted <= BRIGHTEST_SHADE && sectionBottom <= maxY) {
 					Arrays.fill(samples, offset + sectionBottom - minY, offset + Math.min(y, maxY) - minY + 1,
 						(byte) transmitted);
@@ -47,7 +61,7 @@ public final class CanopyLight {
 				continue;
 			}
 			for (; y >= sectionBottom; y--) {
-				int filter = filter(section.getBlockState(x, y & 15, z));
+				int filter = filter(blocks.get(x, y & 15, z));
 				if (filter == BLOCKED) {
 					return seeded;
 				}
@@ -70,24 +84,32 @@ public final class CanopyLight {
 	/** Reused by a Sodium mesh worker. The outer border covers every source that can reach its samples. */
 	public static final class SectionCache {
 		private final ClientLevel level;
-		private final ChunkAccess[] chunks = new ChunkAccess[9];
+		private ClonedChunkSection[] sections;
 		private byte[] samples;
 		private IntArrayList[] queues;
 		private int minX;
 		private int minY;
 		private int minZ;
-		private boolean built;
+		private boolean built = true;
 		private boolean hasLight;
 
 		public SectionCache(ClientLevel level) {
 			this.level = level;
 		}
 
-		public void reset(int x, int y, int z) {
-			minX = x - SPREAD;
-			minY = y - SPREAD;
-			minZ = z - SPREAD;
+		public void reset(ChunkRenderContext context) {
+			SectionPos origin = context.getOrigin();
+			minX = origin.minBlockX() - LIGHT_BORDER;
+			minY = origin.minBlockY() - LIGHT_BORDER;
+			minZ = origin.minBlockZ() - LIGHT_BORDER;
+			sections = context.getSections();
 			built = false;
+			hasLight = false;
+		}
+
+		public void clear() {
+			sections = null;
+			built = true;
 			hasLight = false;
 		}
 
@@ -120,7 +142,6 @@ public final class CanopyLight {
 					int chunkX = firstChunkX + dx;
 					int chunkZ = firstChunkZ + dz;
 					ChunkAccess chunk = level.getChunkSource().getChunk(chunkX, chunkZ, ChunkStatus.FULL, false);
-					chunks[dz * 3 + dx] = chunk;
 					if (chunk == null || !hasHeightmaps(chunk)) {
 						continue;
 					}
@@ -134,7 +155,7 @@ public final class CanopyLight {
 							int localX = x - chunkStartX;
 							int localZ = z - chunkStartZ;
 							int top = chunk.getHeight(Heightmap.Types.WORLD_SURFACE, localX, localZ);
-							if (top < minY) {
+							if (top < minY || chunk.isOutsideBuildHeight(top)) {
 								continue;
 							}
 							int bottom = Math.max(minY, shadeBottom(chunk, localX, localZ, top));
@@ -149,7 +170,8 @@ public final class CanopyLight {
 								}
 								preparedSamples = true;
 							}
-							hasLight |= fillColumn(chunk, localX, localZ, top, bottom, minY, samples, index(x, 0, z));
+							hasLight |= fillColumn(chunk, localX, localZ, top, bottom, minY, samples, index(x, 0, z),
+								sections, dx, dz);
 						}
 					}
 				}
@@ -157,7 +179,7 @@ public final class CanopyLight {
 			if (hasLight) {
 				spread();
 			}
-			Arrays.fill(chunks, null);
+			sections = null;
 		}
 
 		private void spread() {
@@ -227,12 +249,13 @@ public final class CanopyLight {
 			int x = minX + cell / WIDTH % WIDTH;
 			int y = minY + cell % WIDTH;
 			int z = minZ + cell / PLANE;
-			ChunkAccess chunk = chunks[((z >> 4) - (minZ >> 4)) * 3 + (x >> 4) - (minX >> 4)];
-			if (chunk == null || chunk.isOutsideBuildHeight(y)) {
+			if (level.isOutsideBuildHeight(y)) {
 				return true;
 			}
-			LevelChunkSection section = chunk.getSection(chunk.getSectionIndex(y));
-			return !section.hasOnlyAir() && filter(section.getBlockState(x & 15, y & 15, z & 15)) == BLOCKED;
+			int section = LevelSlice.getLocalSectionIndex((x >> 4) - (minX >> 4), (y >> 4) - (minY >> 4),
+				(z >> 4) - (minZ >> 4));
+			PalettedContainerRO<BlockState> blocks = sections[section].getBlockData();
+			return blocks != null && blocksSpill(blocks.get(x & 15, y & 15, z & 15));
 		}
 	}
 
@@ -259,7 +282,12 @@ public final class CanopyLight {
 	}
 
 	public static boolean changesSpread(BlockState before, BlockState after) {
-		return (filter(before) == BLOCKED) != (filter(after) == BLOCKED);
+		return blocksSpill(before) != blocksSpill(after);
+	}
+
+	private static boolean blocksSpill(BlockState state) {
+		return !state.getFluidState().isEmpty()
+			|| (!(state.getBlock() instanceof LeavesBlock) && (state.getLightDampening() > 0 || state.canOcclude()));
 	}
 
 	private static int filter(BlockState state) {
