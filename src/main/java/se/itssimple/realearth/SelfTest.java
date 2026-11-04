@@ -159,6 +159,14 @@ final class SelfTest {
 				check(se.itssimple.realearth.osm.OsmTrees.meters(se.itssimple.realearth.osm.OsmTrees.tags("{\"height\":\"12 m\"}")) == 12f
 						&& Float.isNaN(se.itssimple.realearth.osm.OsmTrees.meters(se.itssimple.realearth.osm.OsmTrees.tags("{\"height\":\"0.5\"}"))),
 					"a mapped tree's height is read in metres");
+				// A mapped row of trees: one every step along it, from half a step in, and only those inside its tile.
+				java.util.List<double[]> straight = se.itssimple.realearth.osm.OsmTrees.along(new int[] {0, 0, 100, 0}, 10, 4096);
+				java.util.List<double[]> edge = se.itssimple.realearth.osm.OsmTrees.along(new int[] {-50, 0, 50, 0}, 10, 4096);
+				java.util.List<double[]> corner = se.itssimple.realearth.osm.OsmTrees.along(new int[] {0, 0, 10, 0, 10, 10}, 4, 4096);
+				java.util.function.BiPredicate<Double, Double> near = (u, v) -> Math.abs(u - v) < 1e-9;
+				check(straight.size() == 10 && near.test(straight.get(0)[0], 5.0) && near.test(straight.get(9)[0], 95.0) && edge.size() == 5
+						&& near.test(edge.get(0)[0], 5.0) && corner.size() == 5 && near.test(corner.get(3)[0], 10.0) && near.test(corner.get(3)[1], 4.0),
+					"a mapped row of trees has one every step along it, inside its tile");
 			}
 			{
 				// Road markings: a European primary road at a block a metre (7.5 m wide), and where centre lines are yellow.

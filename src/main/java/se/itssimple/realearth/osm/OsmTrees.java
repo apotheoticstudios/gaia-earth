@@ -103,7 +103,8 @@ public final class OsmTrees {
 				}
 				continue;
 			}
-			if (f.type() != VectorTile.POINT || !"tree".equals(f.string("class"))) {
+			boolean row = f.type() == VectorTile.LINE && "tree_row".equals(f.string("class"));
+			if (!row && (f.type() != VectorTile.POINT || !"tree".equals(f.string("class")))) {
 				continue;
 			}
 			double scale = samplesPerTile / f.extent();
@@ -111,10 +112,15 @@ public final class OsmTrees {
 			byte leaves = leaves(tags);
 			String taxon = taxon(tags);
 			float meters = meters(tags);
+			// A row of trees, an avenue's or a hedgerow's: a tree every ROW_METERS along it.
+			double step = ROW_METERS / (Mercator.sampleSpacingMeters(Mercator.latitudeOfSampleY((tileY + 0.5) * samplesPerTile)) * scale);
 			for (int[] p : f.parts()) {
-				for (int i = 0; i + 1 < p.length; i += 2) {
-					trees.add(new Tree(tileX * samplesPerTile + p[i] * scale - 0.5, tileY * samplesPerTile + p[i + 1] * scale - 0.5, leaves,
-						taxon, meters));
+				List<double[]> at = row ? along(p, step, f.extent()) : new ArrayList<>();
+				for (int i = 0; !row && i + 1 < p.length; i += 2) {
+					at.add(new double[] {p[i], p[i + 1]});
+				}
+				for (double[] q : at) {
+					trees.add(new Tree(tileX * samplesPerTile + q[0] * scale - 0.5, tileY * samplesPerTile + q[1] * scale - 0.5, leaves, taxon, meters));
 				}
 			}
 		}
@@ -147,6 +153,34 @@ public final class OsmTrees {
 			return ZEBRA;
 		}
 		return americas ? LINES : ZEBRA;
+	}
+
+	/** How far apart trees stand along a row the map has, in metres, as an avenue's or a hedgerow's commonly do. */
+	public static final double ROW_METERS = 8.0;
+
+	/**
+	 * Points every {@code step} along a line ({@code line} as a feature's part, x and y in tile units), from half a step in;
+	 * only those inside the tile ({@code extent} square), as the line's part in the tile's margin is a neighbour's.
+	 */
+	public static List<double[]> along(int[] line, double step, int extent) {
+		List<double[]> out = new ArrayList<>();
+		double next = step / 2;
+		double walked = 0;
+		for (int i = 0; i + 3 < line.length; i += 2) {
+			double dx = line[i + 2] - line[i];
+			double dy = line[i + 3] - line[i + 1];
+			double length = Math.hypot(dx, dy);
+			for (; next <= walked + length; next += step) {
+				double u = (next - walked) / length;
+				double x = line[i] + dx * u;
+				double y = line[i + 1] + dy * u;
+				if (x >= 0 && x < extent && y >= 0 && y < extent) {
+					out.add(new double[] {x, y});
+				}
+			}
+			walked += length;
+		}
+		return out;
 	}
 
 	/** A feature's OSM tags, from their JSON; null where there are none or they can't be read. */
