@@ -1848,6 +1848,12 @@ final class SelfTest {
 					"minecraft:fossil_lower", "minecraft:desert_well");
 				check(structural.stream().noneMatch(placed::contains) && placed.contains("minecraft:blue_ice") && placed.contains("minecraft:ore_diamond"),
 					"Earth's biomes decorate without dungeons, fossils or desert wells, and keep their blue ice and ores (%d features)", placed.size());
+				// Nor vanilla's made-up vegetation: its trees and fallen logs, huge mushrooms, bamboo, cacti, wild pumpkins and melons.
+				java.util.List<String> madeUp = placed.stream().filter(k -> k.startsWith("minecraft:trees_") || k.equals("minecraft:dark_forest_vegetation")
+					|| k.startsWith("minecraft:bamboo") || k.startsWith("minecraft:patch_cactus") || k.equals("minecraft:patch_pumpkin")
+					|| k.startsWith("minecraft:patch_melon")).toList();
+				check(madeUp.isEmpty() && placed.contains("minecraft:flower_default") && placed.contains("minecraft:patch_grass_plain"),
+					"Earth's biomes grow no vanilla trees, huge mushrooms, bamboo, cacti, pumpkins or melons, and keep their flowers and grass %s", madeUp);
 			}
 		}));
 

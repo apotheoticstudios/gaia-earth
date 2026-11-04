@@ -86,17 +86,26 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 
 	/** Vanilla's natural formations in the structure decoration steps: frozen oceans' blue ice, ice spikes. */
 	private static final Set<String> NATURAL_IN_STRUCTURE_STEPS = Set.of("minecraft:blue_ice", "minecraft:ice_spike", "minecraft:ice_patch");
+	/**
+	 * Vanilla's vegetation of its made-up biomes, which real places don't have: huge mushrooms (in dark_forest_vegetation),
+	 * bamboo thickets in every jungle, cacti in every desert, pumpkins and melons growing wild. Vanilla's trees ("trees_...")
+	 * go too, with the fallen logs they bring: Earth grows its own (EarthTrees).
+	 */
+	private static final Set<String> MADE_UP_VEGETATION = Set.of("minecraft:dark_forest_vegetation", "minecraft:bamboo", "minecraft:bamboo_light",
+		"minecraft:bamboo_vegetation", "minecraft:patch_cactus_desert", "minecraft:patch_cactus_decorated", "minecraft:patch_pumpkin",
+		"minecraft:patch_melon", "minecraft:patch_melon_sparse");
 
 	public EarthChunkGenerator(BiomeSource biomeSource) {
-		super(biomeSource, Util.memoize(EarthChunkGenerator::withoutStructures));
+		super(biomeSource, Util.memoize(EarthChunkGenerator::decoration));
 	}
 
 	/**
 	 * A biome's decoration without what Minecraft, and mods, file under structures: dungeons, fossils,
 	 * desert wells (the underground and surface structure steps, and the strongholds step), keeping the
-	 * natural formations vanilla puts there. Decided once per biome, so nothing is checked per chunk.
+	 * natural formations vanilla puts there; and without its made-up vegetation (MADE_UP_VEGETATION, vanilla's
+	 * trees). Decided once per biome, so nothing is checked per chunk.
 	 */
-	private static BiomeGenerationSettings withoutStructures(Holder<Biome> biome) {
+	private static BiomeGenerationSettings decoration(Holder<Biome> biome) {
 		BiomeGenerationSettings settings = biome.value().getGenerationSettings();
 		BiomeGenerationSettings.PlainBuilder kept = new BiomeGenerationSettings.PlainBuilder();
 		settings.getCarvers().forEach(kept::addCarver);
@@ -104,8 +113,11 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 		for (int step = 0; step < steps.size(); step++) {
 			boolean structures = step == GenerationStep.Decoration.UNDERGROUND_STRUCTURES.ordinal()
 				|| step == GenerationStep.Decoration.SURFACE_STRUCTURES.ordinal() || step == GenerationStep.Decoration.STRONGHOLDS.ordinal();
+			boolean vegetation = step == GenerationStep.Decoration.VEGETAL_DECORATION.ordinal();
 			for (Holder<PlacedFeature> feature : steps.get(step)) {
-				if (!structures || feature.unwrapKey().map(k -> NATURAL_IN_STRUCTURE_STEPS.contains(k.identifier().toString())).orElse(false)) {
+				String key = feature.unwrapKey().map(k -> k.identifier().toString()).orElse("");
+				boolean madeUp = vegetation && (MADE_UP_VEGETATION.contains(key) || key.startsWith("minecraft:trees_"));
+				if ((!structures || NATURAL_IN_STRUCTURE_STEPS.contains(key)) && !madeUp) {
 					kept.addFeature(step, feature);
 				}
 			}
