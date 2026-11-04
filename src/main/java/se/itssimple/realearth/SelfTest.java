@@ -1898,19 +1898,26 @@ final class SelfTest {
 				double lat = f.lat();
 				double lon = f.lon();
 				int mostWooded = -1;
-				for (int attempt = 0; attempt < 24 && mostWooded < 256 / 3; attempt++) {
-					double tryLat = f.lat() + (Math.random() - 0.5) * 0.04;
-					double tryLon = f.lon() + (Math.random() - 0.5) * 0.08;
-					ChunkTerrain middle = field.chunk((int) field.projection().blockX(tryLat, tryLon) >> 4, (int) field.projection().blockZ(tryLat) >> 4).join();
-					int wooded = 0;
-					for (int k = 0; k < 256; k++) {
-						wooded += middle.coverAt(k & 15, k >> 4) == se.itssimple.realearth.landcover.WorldCover.TREES
-							&& middle.wood[ChunkTerrain.index(k & 15, k >> 4)] ? 1 : 0;
+				// Eight tries at a time, loaded together: one after another, slow downloads would hold the server past the watchdog.
+				for (int batch = 0; batch < 3 && mostWooded < 256 / 3; batch++) {
+					double[][] tries = new double[8][];
+					List<java.util.concurrent.CompletableFuture<ChunkTerrain>> loading = new java.util.ArrayList<>();
+					for (int t = 0; t < 8; t++) {
+						tries[t] = new double[] {f.lat() + (Math.random() - 0.5) * 0.04, f.lon() + (Math.random() - 0.5) * 0.08};
+						loading.add(field.chunk((int) field.projection().blockX(tries[t][0], tries[t][1]) >> 4, (int) field.projection().blockZ(tries[t][0]) >> 4));
 					}
-					if (wooded > mostWooded) {
-						mostWooded = wooded;
-						lat = tryLat;
-						lon = tryLon;
+					for (int t = 0; t < 8 && mostWooded < 256 / 3; t++) {
+						ChunkTerrain middle = loading.get(t).join();
+						int wooded = 0;
+						for (int k = 0; k < 256; k++) {
+							wooded += middle.coverAt(k & 15, k >> 4) == se.itssimple.realearth.landcover.WorldCover.TREES
+								&& middle.wood[ChunkTerrain.index(k & 15, k >> 4)] ? 1 : 0;
+						}
+						if (wooded > mostWooded) {
+							mostWooded = wooded;
+							lat = tries[t][0];
+							lon = tries[t][1];
+						}
 					}
 				}
 				int cx0 = (int) field.projection().blockX(lat, lon) >> 4;

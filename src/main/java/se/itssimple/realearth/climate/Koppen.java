@@ -40,6 +40,9 @@ public final class Koppen {
 	};
 
 	private static final double PIXELS_PER_DEGREE = 120.0;
+	/** How far a lookup may wander, in pixels, and the size of the wandering's features: edges wind across about a pixel. */
+	private static final double WARP_PIXELS = 1.2;
+	private static final double WARP_KM = 3.0;
 
 	private static volatile Koppen instance;
 
@@ -89,10 +92,15 @@ public final class Koppen {
 		return k;
 	}
 
-	/** Climate class at a place, nearest 1 km pixel. */
+	/**
+	 * Climate class at a place: the 1 km pixel under it, looked up a smoothly varying fraction of a pixel away, so climates
+	 * meet along ragged lines rather than the grid's straight edges (snowy tundra beside green land in squares).
+	 */
 	public int classAt(double latitude, double longitude) {
-		int x = (int) Math.floor((longitude + 180.0) * PIXELS_PER_DEGREE);
-		int y = (int) Math.floor((90.0 - latitude) * PIXELS_PER_DEGREE);
+		double warpX = WARP_PIXELS * se.itssimple.realearth.world.GeoNoise.sample(latitude, longitude, WARP_KM, 41);
+		double warpY = WARP_PIXELS * se.itssimple.realearth.world.GeoNoise.sample(latitude, longitude, WARP_KM, 43);
+		int x = (int) Math.floor((longitude + 180.0) * PIXELS_PER_DEGREE + warpX);
+		int y = (int) Math.floor((90.0 - latitude) * PIXELS_PER_DEGREE + warpY);
 		x = Math.floorMod(x, width);
 		y = Math.max(0, Math.min(height - 1, y));
 		byte[] tile = tile((y / tileSize) * tilesAcross + x / tileSize);
