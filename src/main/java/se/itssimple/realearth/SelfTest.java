@@ -1874,6 +1874,9 @@ final class SelfTest {
 				java.util.Set.of("picea_abies", "eucalyptus_regnans", "agathis_australis", "eucalyptus_pilularis"), Map.of("eucalyptus_marginata", 9)),
 			new Forest("Darwin's savanna woodland", -12.25, 131.04, java.util.Set.of("eucalyptus_tetrodonta", "eucalyptus_miniata"),
 				java.util.Set.of("eucalyptus_regnans", "acacia_aneura", "picea_abies", "agathis_australis"), Map.of()),
+			new Forest("New Guinea's lowland rainforest on the Fly", -7.79, 142.86,
+				java.util.Set.of("alstonia_scholaris", "pterocarpus_indicus", "intsia_biguja", "eucalyptus_deglupta", "tetrameles_nudiflora", "ficus_virens"),
+				java.util.Set.of("picea_abies", "quercus_robur", "eucalyptus_regnans", "eucalyptus_marginata", "agathis_australis"), Map.of()),
 			new Forest("Waipoua's kauri forest", -35.6, 173.55,
 				java.util.Set.of("agathis_australis", "dacrydium_cupressinum", "beilschmiedia_tawa", "podocarpus_totara"),
 				java.util.Set.of("eucalyptus_regnans", "acacia_aneura", "picea_abies", "eucalyptus_marginata"), Map.of("agathis_australis", 15)),
@@ -1982,7 +1985,10 @@ final class SelfTest {
 				double expected = se.itssimple.realearth.landcover.TreeDensity.get().perHectare(lat, lon);
 				log("%s: %d trees on %.1f ha of woodland, %.0f a hectare (%.1f m apart); the real world has %.0f (%.1f m apart)", f.name(),
 					real + vanilla, hectares, measured, Math.sqrt(10_000 / measured), expected, Math.sqrt(10_000 / expected));
-				check(measured > 0.4 * expected && measured < 1.5 * expected, "%s's trees stand as close as real ones", f.name());
+				// Trunks stand at least MIN_SPACING blocks apart: where blocks are larger than metres that caps a hectare's trees.
+				double most = 10_000 / Math.pow(se.itssimple.realearth.world.EarthTrees.MIN_SPACING / field.projection().blocksPerMeter(lat), 2);
+				check(measured > 0.4 * Math.min(expected, most) && measured < 1.5 * expected, "%s's trees stand as close as real ones (at most %.0f a hectare at this scale)",
+					f.name(), most);
 				Map<String, long[]> perfAfter = Perf.snapshot();
 				java.util.function.Function<String, double[]> spent = stage -> {
 					long[] a = perfAfter.getOrDefault(stage, new long[2]);

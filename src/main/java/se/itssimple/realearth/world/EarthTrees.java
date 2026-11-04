@@ -78,7 +78,7 @@ public final class EarthTrees {
 	/** Trees a hectare where the density map has none but the land cover shows trees (towns, its coasts): 10 m apart. */
 	private static final double DEFAULT_PER_HECTARE = 100;
 	/** Spacing in blocks: never closer than trunks can stand, never so far that a wood is empty. */
-	private static final double MIN_SPACING = 2.5;
+	public static final double MIN_SPACING = 2.5;
 	private static final double MAX_SPACING = 40;
 	/** In close stands only trees whose crowns reach at most this many spacings from the trunk grow. */
 	private static final double REACH_PER_SPACING = 1.5;
