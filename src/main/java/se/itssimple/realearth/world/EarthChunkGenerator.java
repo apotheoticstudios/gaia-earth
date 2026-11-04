@@ -440,6 +440,36 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 			}
 		}
 
+		// Road version 7: what holds bridges up (BridgeStructure), where there is air or water, and railings along their decks'
+		// sides, in their material.
+		if (roadVersion() >= 7) {
+			for (int z = 0; z < 16; z++) {
+				for (int x = 0; x < 16; x++) {
+					int k = ChunkTerrain.index(x, z);
+					int[] fill = t.bridgeFill[k];
+					for (int i = 0; fill != null && i < fill.length; i += 3) {
+						BlockState b = structure(fill[i + 2]);
+						for (int y = Math.max(minY + 5, fill[i]); y <= fill[i + 1] && y < VerticalScale.MAX_Y - 1; y++) {
+							BlockPos at = new BlockPos(x, y, z);
+							BlockState there = chunk.getBlockState(at);
+							if (there.isAir() || !there.getFluidState().isEmpty()) {
+								chunk.setBlockState(at, b, 0);
+								deckTop[z * 16 + x] = Math.max(deckTop[z * 16 + x], y);
+							}
+						}
+					}
+					if (railing(t, x, z)) {
+						BlockPos deck = new BlockPos(x, t.deckY[k], z);
+						chunk.setBlockState(deck, RoadBlocks.high(chunk.getBlockState(deck), 16), 0);
+						if (chunk.getBlockState(deck.above()).isAir()) {
+							chunk.setBlockState(deck.above(), railingState(t, x, z), 0);
+							deckTop[z * 16 + x] = Math.max(deckTop[z * 16 + x], t.deckY[k] + 1);
+						}
+					}
+				}
+			}
+		}
+
 		// Buildings, then the life between them: wells, farms, lamps, bells.
 		long painting = se.itssimple.realearth.Perf.start();
 		int[] buildingTop = BuildingPainter.paint(chunk, t, baseX, baseZ);
@@ -546,6 +576,68 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 			return surface;
 		}
 		return roadVersion() < 5 ? RoadBlocks.with(surface, "variant", "14") : kerb ? RoadBlocks.with(surface, "variant", "2") : surface;
+	}
+
+	/** A bridge's structural block by its material (ChunkTerrain.STEEL...). */
+	private static BlockState structure(int material) {
+		return block(switch (material) {
+			case ChunkTerrain.STEEL -> Blocks.IRON_BLOCK;
+			case ChunkTerrain.STONE -> Blocks.STONE_BRICKS;
+			case ChunkTerrain.BRICK -> Blocks.BRICKS;
+			case ChunkTerrain.WOOD -> Blocks.SPRUCE_PLANKS;
+			default -> Blocks.LIGHT_GRAY_CONCRETE;
+		});
+	}
+
+	private static final int[][] SIDES = {{0, -1}, {1, 0}, {0, 1}, {-1, 0}};
+
+	/**
+	 * Whether a road deck column lies along its deck's side: beside neither more deck about as high nor a way on the ground
+	 * it carries on to (so a deck's ends stay open). Rail decks have none (the track may run along their edge).
+	 */
+	private static boolean railing(ChunkTerrain t, int x, int z) {
+		int k = ChunkTerrain.index(x, z);
+		if (t.deckY[k] == Integer.MIN_VALUE || t.deckWay[k] == Ways.NONE || Ways.isRail(t.deckWay[k])) {
+			return false;
+		}
+		for (int[] d : SIDES) {
+			int nx = x + d[0];
+			int nz = z + d[1];
+			if (nx < -1 || nx > 16 || nz < -1 || nz > 16) {
+				continue;
+			}
+			int n = ChunkTerrain.index(nx, nz);
+			boolean deck = t.deckY[n] != Integer.MIN_VALUE && t.deckWay[n] != Ways.NONE && Math.abs(t.deckY[n] - t.deckY[k]) <= 1;
+			boolean road = t.way[n] != Ways.NONE && t.topSolidY[n] >= t.deckY[k] - 1;
+			if (!deck && !road) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/** A railing in its bridge's material, joined to the railing beside it: iron bars, a brick or stone wall, a wooden fence. */
+	private static BlockState railingState(ChunkTerrain t, int x, int z) {
+		BlockState b = block(switch (t.bridgeMaterial[ChunkTerrain.index(x, z)]) {
+			case ChunkTerrain.STONE -> Blocks.STONE_BRICK_WALL;
+			case ChunkTerrain.BRICK -> Blocks.BRICK_WALL;
+			case ChunkTerrain.WOOD -> Blocks.SPRUCE_FENCE;
+			default -> Blocks.IRON_BARS;
+		});
+		boolean north = railing(t, x, z - 1);
+		boolean east = railing(t, x + 1, z);
+		boolean south = railing(t, x, z + 1);
+		boolean west = railing(t, x - 1, z);
+		if (b.hasProperty(BlockStateProperties.NORTH_WALL)) {
+			var low = net.minecraft.world.level.block.state.properties.WallSide.LOW;
+			var none = net.minecraft.world.level.block.state.properties.WallSide.NONE;
+			boolean straight = north == south && east == west && north != east;
+			return b.setValue(BlockStateProperties.NORTH_WALL, north ? low : none).setValue(BlockStateProperties.EAST_WALL, east ? low : none)
+				.setValue(BlockStateProperties.SOUTH_WALL, south ? low : none).setValue(BlockStateProperties.WEST_WALL, west ? low : none)
+				.setValue(BlockStateProperties.UP, !straight);
+		}
+		return b.setValue(BlockStateProperties.NORTH, north).setValue(BlockStateProperties.EAST, east).setValue(BlockStateProperties.SOUTH, south)
+			.setValue(BlockStateProperties.WEST, west);
 	}
 
 	/** A road marking's block (see Markings): a white or yellow line, laid along the road. */

@@ -40,7 +40,9 @@ public final class WorldSettings {
 	 * beside town streets, and kerbs; 4 adds the street furniture the map has (lamps, benches, bollards, hydrants,
 	 * bicycle stands) and puts street lamps on the pavement, Saro's; 5 lays roads level with the ground beside them, a kerb
 	 * below their pavements only (3 and 4 built every road on the ground most of a block low); 6 has roads, pavements and
-	 * road bridges climb in sixteenths of a block, in Saro's blocks of each height, rather than in whole blocks.
+	 * road bridges climb in sixteenths of a block, in Saro's blocks of each height, rather than in whole blocks; 7 builds each
+	 * bridge a bridge overlay describes as it really is (docs/BRIDGES-PLAN.md): its outline, measured or cited deck heights,
+	 * piers, arches and girders in its material, and railings along every road bridge's sides.
 	 */
 	public int roadVersion;
 
@@ -77,7 +79,7 @@ public final class WorldSettings {
 		settings.startLongitude = defaults.startLongitude;
 		settings.lidarUrl = defaults.lidarUrl == null ? "" : defaults.lidarUrl;
 		settings.waterSurfaceVersion = 3;
-		settings.roadVersion = 6;
+		settings.roadVersion = 7;
 		if (settings.projection.equals("sinusoidal")) {
 			settings.originLatitude = defaults.startLatitude;
 			settings.originLongitude = defaults.startLongitude;

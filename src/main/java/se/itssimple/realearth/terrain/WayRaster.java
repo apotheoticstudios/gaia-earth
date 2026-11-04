@@ -132,6 +132,7 @@ final class WayRaster {
 							if (kind >= t.deckWay[k]) {
 								deck[k] = d;
 								t.deckWay[k] = kind;
+								t.surveyedDeck[k] = run.facts != null;
 							}
 							continue;
 						}
@@ -190,6 +191,77 @@ final class WayRaster {
 		}
 		if (rails) {
 			RailTracks.joinEnds(t);
+		}
+		// Road version 7: a bridge the overlay outlines is as wide as its outline: its deck fills it where it stands clear, and
+		// nearer the ground (at its ends) its surface does, on filled ground at the deck's height.
+		for (Bridges.Run run : new java.util.LinkedHashSet<>(bridges.runOf.values())) {
+			if (!roads || run.rail || run.facts == null || run.main != run || run.facts.maxX() < minSX || run.facts.minX() > maxSX || run.facts.maxY() < minSY || run.facts.minY() > maxSY) {
+				continue;
+			}
+			for (int k = 0; k < n * n; k++) {
+				if (!onGlobe[k] || !Double.isNaN(deck[k]) || !BuildingPlan.contains(run.facts.rings(), sx[k], sy[k])) {
+					continue;
+				}
+				nearest(run.points, sx[k], sy[k], near);
+				double d = run.heightAt(near[3]);
+				if (Double.isNaN(d)) {
+					continue;
+				}
+				if (!Float.isNaN(t.waterMeters[k]) || (d - t.groundMeters[k]) * perMeter >= DECK_MIN_BLOCKS) {
+					deck[k] = d;
+					t.deckWay[k] = run.kind;
+					t.surveyedDeck[k] = true;
+				} else if (t.way[k] == Ways.NONE && d > t.groundMeters[k]) {
+					target[k] = d;
+					raised[k] = true;
+					t.way[k] = run.kind;
+					t.grade[k] = 1f;
+				}
+			}
+		}
+		// Road version 7: where an overlay surveys a bridge's deck and measures its top (the BGT and AHN, in the Netherlands), the
+		// deck is there, at its measured top by each column (Bridges.deckTop): a deck over the water, the surface it carries raised to it
+		// nearer the ground. So a bridge is as wide as surveyed, also where the map carries its street over without calling it
+		// a bridge; carrying the way that crosses it, else the way at its ends, else (the map has none) a path.
+		for (se.itssimple.realearth.osm.OsmDetail.BridgePart p : !roads || bridges.overlay == null ? List.<se.itssimple.realearth.osm.OsmDetail.BridgePart>of()
+			: bridges.overlay.parts()) {
+			if (!p.kind().equals("deck") || p.maxX() < minSX || p.minX() > maxSX || p.maxY() < minSY || p.minY() > maxSY) {
+				continue;
+			}
+			List<double[]> tops = bridges.overlay.heights().stream().filter(h -> h[0] >= p.minX() && h[0] <= p.maxX() && h[1] >= p.minY() && h[1] <= p.maxY()
+				&& BuildingPlan.contains(p.rings(), h[0], h[1])).toList();
+			if (tops.isEmpty()) {
+				continue;
+			}
+			byte carried = Ways.NONE;
+			byte beside = Ways.NONE;
+			double reach = 3 / spacing;
+			// Track crossing it is the railway's to lay (RailTracks); the rest of the deck carries the roads and paths on it.
+			for (int k = 0; k < n * n; k++) {
+				byte here = (byte) Math.max(Ways.isRail(t.way[k]) ? 0 : t.way[k], Ways.isRail(t.deckWay[k]) ? 0 : t.deckWay[k]);
+				if (onGlobe[k] && BuildingPlan.contains(p.rings(), sx[k], sy[k])) {
+					carried = (byte) Math.max(carried, here);
+				} else if (onGlobe[k] && sx[k] >= p.minX() - reach && sx[k] <= p.maxX() + reach && sy[k] >= p.minY() - reach && sy[k] <= p.maxY() + reach) {
+					beside = (byte) Math.max(beside, here);
+				}
+			}
+			carried = carried != Ways.NONE ? carried : beside != Ways.NONE ? beside : Ways.PATH;
+			for (int k = 0; k < n * n; k++) {
+				if (!onGlobe[k] || !Double.isNaN(deck[k]) || Ways.isRail(t.way[k]) || !BuildingPlan.contains(p.rings(), sx[k], sy[k])) {
+					continue;
+				}
+				double d = Bridges.deckTop(tops, sx[k], sy[k], 3 / spacing);
+				if (!Float.isNaN(t.waterMeters[k]) || (d - t.groundMeters[k]) * perMeter >= DECK_MIN_BLOCKS) {
+					deck[k] = d;
+					t.deckWay[k] = t.way[k] != Ways.NONE ? t.way[k] : carried;
+					t.surveyedDeck[k] = true;
+				} else if (d > t.groundMeters[k]) {
+					target[k] = d;
+					raised[k] = true;
+					t.way[k] = t.way[k] != Ways.NONE ? t.way[k] : carried;
+					t.grade[k] = 1f;
+				}
+			}
 		}
 		// Pavements either side of town streets (built-up land only), past a grass verge where the region has one, at the
 		// street's height; where the map has its own footway there, it stays.

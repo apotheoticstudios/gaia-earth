@@ -28,7 +28,10 @@ final class RoadBlocks {
 			.getOptional(net.minecraft.resources.Identifier.fromNamespaceAndPath("saros_road_blocks_mod", name)).map(Block::defaultBlockState).orElse(null);
 	}
 
-	/** This world's road version (WorldSettings.roadVersion): from 1 asphalt and markings, from 3 kerbs, from 4 street furniture, from 5 roads level with the ground, from 6 roads climbing in sixteenths. */
+	/**
+	 * This world's road version (WorldSettings.roadVersion): from 1 asphalt and markings, from 3 kerbs, from 4 street
+	 * furniture, from 5 roads level with the ground, from 6 roads climbing in sixteenths, from 7 bridges as they really are.
+	 */
 	static int roadVersion() {
 		TerrainField field = RealEarth.terrain();
 		return field == null || field.map() == null ? 0 : field.map().roadVersion();

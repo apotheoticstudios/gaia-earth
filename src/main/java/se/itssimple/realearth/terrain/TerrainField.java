@@ -673,6 +673,32 @@ public final class TerrainField implements AutoCloseable {
 				}
 			}
 			List<Bridges.Run> chunkRuns = runs;
+			// The bridge overlays under every run within reach (road version 7), whole: a bridge is laid alike in every chunk.
+			Map<Long, CompletableFuture<OsmDetail.BridgeTile>> bridgeTiles = new HashMap<>();
+			OsmDetail bridgeDetail = map == null || map.roadVersion() < 7 ? null : map.detail();
+			double perOverlayTile = (double) Mercator.TILE_SIZE * (1 << (Mercator.ZOOM - OsmWater.ZOOM));
+			// And under the chunk itself, for decks the overlay surveys where the map has no bridge.
+			for (int k : bridgeDetail == null ? new int[0] : new int[] {0, ChunkTerrain.SPAN - 1, ChunkTerrain.SPAN * (ChunkTerrain.SPAN - 1),
+				ChunkTerrain.SPAN * ChunkTerrain.SPAN - 1}) {
+				int bx = (int) Math.floor((sx[k] + 0.5) / perOverlayTile);
+				int by = (int) Math.floor((sy[k] + 0.5) / perOverlayTile);
+				if (onGlobe[k]) {
+					bridgeTiles.computeIfAbsent(((long) bx << 32) | (by & 0xFFFFFFFFL), key -> bridgeDetail.bridges(bx, by).copy()
+						.completeOnTimeout(OsmDetail.BridgeTile.EMPTY, DETAIL_WAIT_S, TimeUnit.SECONDS));
+				}
+			}
+			for (Bridges.Run r : bridgeDetail == null ? List.<Bridges.Run>of() : runs) {
+				if (nearChunk(r, chunkMinX, chunkMinY, chunkMaxX, chunkMaxY)) {
+					for (int tx = (int) Math.floor((r.minX + 0.5) / perOverlayTile); tx <= (int) Math.floor((r.maxX + 0.5) / perOverlayTile); tx++) {
+						for (int ty = (int) Math.floor((r.minY + 0.5) / perOverlayTile); ty <= (int) Math.floor((r.maxY + 0.5) / perOverlayTile); ty++) {
+							int bx = tx;
+							int by = ty;
+							bridgeTiles.computeIfAbsent(((long) tx << 32) | (ty & 0xFFFFFFFFL), key -> bridgeDetail.bridges(bx, by).copy()
+								.completeOnTimeout(OsmDetail.BridgeTile.EMPTY, DETAIL_WAIT_S, TimeUnit.SECONDS));
+						}
+					}
+				}
+			}
 			// The roofs and parts of the buildings still to plan, from their map tiles' detail. Overpass
 			// can be slow: not waited for past DETAIL_WAIT_S (a copy times out, not the shared request);
 			// a chunk built without it is listed for repair.
@@ -732,6 +758,7 @@ public final class TerrainField implements AutoCloseable {
 			waits.addAll(treeTiles.values());
 			waits.addAll(roadTiles.values());
 			waits.addAll(surfaceTiles.values());
+			waits.addAll(bridgeTiles.values());
 			return CompletableFuture.allOf(waits.toArray(CompletableFuture[]::new)).thenApplyAsync(w -> {
 				Map<Long, ProcessedTile> all2 = new HashMap<>();
 				withBuildings.forEach((key, f) -> all2.put(key, f.join()));
@@ -741,8 +768,9 @@ public final class TerrainField implements AutoCloseable {
 				List<OsmTrees.Tile> trees = treeTiles.values().stream().map(CompletableFuture::join).toList();
 				List<OsmRoads.Segment> segments = roadTiles.values().stream().flatMap(f -> f.join().segments().stream()).toList();
 				List<OsmDetail.Surface> surfaces = surfaceTiles.values().stream().flatMap(f -> f.join().stream()).toList();
+				OsmDetail.BridgeTile bridgeData = Bridges.merge(bridgeTiles.values().stream().map(CompletableFuture::join).toList());
 				ChunkTerrain built = build(terrain, all2, needed.keySet(), coverLookup.join(), shapes, candidates, details, trees, surfaces, segments,
-					chunkRuns, sx, sy, onGlobe, chunkX, chunkZ);
+					chunkRuns, bridgeData, sx, sy, onGlobe, chunkX, chunkZ);
 				se.itssimple.realearth.Perf.stop("terrain", started);
 				se.itssimple.realearth.data.Net.waited("everything (chunk ready)", System.nanoTime() - asked, built.degraded);
 				return built;
@@ -753,9 +781,10 @@ public final class TerrainField implements AutoCloseable {
 	/** The chunk's terrain from everything fetched for it. */
 	private ChunkTerrain build(ChunkTerrain terrain, Map<Long, ProcessedTile> tiles, java.util.Set<Long> own, WorldCover.Lookup landCover,
 		List<OsmWater.Shapes> shapes, List<Buildings.Candidate> candidates, Map<Long, OsmDetail.Tile> details, List<OsmTrees.Tile> trees,
-		List<OsmDetail.Surface> surfaces, List<OsmRoads.Segment> segments, List<Bridges.Run> runs, double[] sx, double[] sy, boolean[] onGlobe,
-		int chunkX, int chunkZ) {
+		List<OsmDetail.Surface> surfaces, List<OsmRoads.Segment> segments, List<Bridges.Run> runs, OsmDetail.BridgeTile bridgeData, double[] sx,
+		double[] sy, boolean[] onGlobe, int chunkX, int chunkZ) {
 		int n = ChunkTerrain.SPAN;
+		Bridges.Network bridges = null;
 		{
 			terrain.degraded = landCover.degraded() || tiles.values().stream().anyMatch(t -> t.degraded)
 				|| details.values().stream().anyMatch(OsmDetail.Tile::failed);
@@ -920,7 +949,7 @@ public final class TerrainField implements AutoCloseable {
 					long y0 = minY;
 					long x1 = maxX;
 					long y1 = maxY;
-					Bridges.Network bridges = Bridges.network(this, tiles, ways, runs, r -> nearChunk(r, x0, y0, x1, y1));
+					bridges = Bridges.network(this, tiles, ways, runs, r -> nearChunk(r, x0, y0, x1, y1), bridgeData);
 					// Where each line of track on the ground ends, its rail's Y: a tunnel's track comes out to meet it.
 					Map<Long, Integer> railEnds = new HashMap<>();
 					WayRaster.apply(this, terrain, tiles, sx, sy, onGlobe, ways, segments, bridges, chunkX, chunkZ, config.useRoads, config.useRailways,
@@ -938,6 +967,9 @@ public final class TerrainField implements AutoCloseable {
 			}
 			for (int k = 0; k < n * n; k++) {
 				finishColumn(terrain, k);
+			}
+			if (bridges != null && map != null && map.roadVersion() >= 7) {
+				BridgeStructure.apply(this, terrain, tiles, bridges, sx, sy, onGlobe);
 			}
 			if (!candidates.isEmpty()) {
 				long started = se.itssimple.realearth.Perf.start();
@@ -1203,9 +1235,11 @@ public final class TerrainField implements AutoCloseable {
 				deck = Math.floorDiv(surface - 1, 16);
 			}
 			int below = Math.max(top, t.waterMeters[k] != t.waterMeters[k] ? top : (int) Math.round(toY(t.waterMeters[k], t.latitude[k])) - 1);
-			// A deck clears what is under it by at least two blocks, or it is no bridge.
-			t.deckY[k] = deck > below + 2 ? deck : below + 3;
-			t.deckHeight[k] = (byte) (smooth && deck > below + 2 ? surface - 16 * deck : 0);
+			// A deck clears what is under it by at least two blocks, or it is no bridge; from road version 7 by one (a deck is
+			// laid where its overlay measures it, and canal bridges stand that low).
+			int clear = t.surveyedDeck[k] ? 0 : 2;
+			t.deckY[k] = deck > below + clear ? deck : below + clear + 1;
+			t.deckHeight[k] = (byte) (smooth && deck > below + clear ? surface - 16 * deck : 0);
 		}
 		t.topSolidY[k] = top;
 		if (!Float.isNaN(t.waterMeters[k])) {

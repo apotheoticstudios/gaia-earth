@@ -72,3 +72,31 @@ game, licence first) and plugs into `DATA-SOURCES-PLAN.md`'s overlays, like the 
 5. Superstructures: Västerbron's arches first, Delft's bascules, then beams, trusses, suspension and cable-stayed.
 6. Railings and materials.
 7. Widen: the US inventory, PLATEAU, swissTLM3D; and what to build where no overlay covers a bridge.
+
+## Where it stands (2026-11-05)
+
+Built (road version 7):
+- **The overlay** for central Delft and for Västerbron and Tranebergsbron (`tools/overlay/bridges.py`).
+- **The deck** fills its outline and every surveyed deck (BGT). It lies at AHN's measured top where measured, as the
+  lowest top within 3 m, since AHN's surface model reads railings and trees over a deck above it. Elsewhere it clears
+  the main span by the cited clearance and climbs at a road's gradient (5 %, railways 2.5 %). A bridge's runs share
+  its longest run's deck.
+- **Under it:** piers where surveyed or mapped, else between its spans; girders a twentieth of their span deep, or a
+  slab.
+- **Arches:** a masonry barrel filled to the deck, kept open above the water; two steel or concrete ribs on posts
+  where the deck stands a tenth of the span above the arch's feet; over the deck, ribs and hangers, where it doesn't.
+- **Railings** along every road deck's sides, in the bridge's material.
+
+Checked in `SelfTest`:
+- Delft: 82 % of AHN's measured deck points within a block of the deck built there.
+- The Jeronymusbrug: a brick humpback, open over the canal, railed.
+- Västerbron: its arch 26 m clear of Riddarfjärden; 167 and 204 m between its piers (cited 168 and 204); every deck
+  column over the water standing on its structure; railings.
+
+Not yet:
+- Bascule leaves: Koepoortbrug is built as a fixed beam.
+- Trusses, suspension towers and cables, cable-stayed pylons and stays.
+- Arches and piers for surveyed decks the map has no bridge for (they get the deck and railings only).
+- Delft's bridges' materials: the data mostly has none, so a humpback is taken as brick.
+- Measured decks in Sweden: Lantmäteriet's lidar, behind a login.
+- Railings on railway bridges.

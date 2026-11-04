@@ -41,6 +41,25 @@ public final class OsmDetail {
 	public record Surface(List<double[]> rings, byte code, double minX, double minY, double maxX, double maxY) {
 	}
 
+	/**
+	 * A bridge from an overlay (tools/overlay/bridges.py): its outline in global z15 sample coordinates and what the data
+	 * says of it, "" or 0 where nothing does: structure (beam, arch, humpback, truss, suspension, cable_stayed...), how it
+	 * opens (bascule, lift, swing), material, sizes in metres, and its spans' lengths from its north or west end.
+	 */
+	public record Bridge(List<double[]> rings, String name, String structure, String movable, String material, double lengthMeters,
+		double heightMeters, double clearanceMeters, double[] spans, double mainSpanMeters, double widthMeters, String osm, double minX,
+		double minY, double maxX, double maxY) {
+	}
+
+	/** A bridge's part from an overlay: a deck, pier, abutment or sill as surveyed, or a mapped pier (a point: one x, y). */
+	public record BridgePart(List<double[]> rings, String kind, boolean movable, double minX, double minY, double maxX, double maxY) {
+	}
+
+	/** The overlays' bridges reaching into a z14 tile, their parts, and measured deck tops: x, y in samples, metres above sea level. */
+	public record BridgeTile(List<Bridge> bridges, List<BridgePart> parts, List<double[]> heights) {
+		public static final BridgeTile EMPTY = new BridgeTile(List.of(), List.of(), List.of());
+	}
+
 	/** Surface kinds. */
 	public static final int ROAD = 1, FOOTWAY = 2, CYCLEWAY = 3, PARKING = 4, STEPS = 5;
 	/** Surface materials. */
@@ -68,6 +87,12 @@ public final class OsmDetail {
 	private final Map<Long, CompletableFuture<List<Surface>>> surfaceCache = new LinkedHashMap<>(32, 0.75f, true) {
 		@Override
 		protected boolean removeEldestEntry(Map.Entry<Long, CompletableFuture<List<Surface>>> eldest) {
+			return size() > 32;
+		}
+	};
+	private final Map<Long, CompletableFuture<BridgeTile>> bridgeCache = new LinkedHashMap<>(32, 0.75f, true) {
+		@Override
+		protected boolean removeEldestEntry(Map.Entry<Long, CompletableFuture<BridgeTile>> eldest) {
 			return size() > 32;
 		}
 	};
@@ -150,6 +175,92 @@ public final class OsmDetail {
 				return List.copyOf(out);
 			}, downloads));
 		}
+	}
+
+	/** The overlays' bridges in a z14 map tile (see {@link Bridge}); none, at once, without overlays. */
+	public CompletableFuture<BridgeTile> bridges(int x, int y) {
+		List<PmTiles> list = overlays;
+		if (list.isEmpty()) {
+			return CompletableFuture.completedFuture(BridgeTile.EMPTY);
+		}
+		int n = 1 << OsmWater.ZOOM;
+		int wx = Math.floorMod(x, n);
+		int wy = Math.max(0, Math.min(n - 1, y));
+		synchronized (bridgeCache) {
+			return bridgeCache.computeIfAbsent(((long) wx << 32) | wy, k -> CompletableFuture.supplyAsync(() -> {
+				List<Bridge> bridges = new ArrayList<>();
+				List<BridgePart> parts = new ArrayList<>();
+				List<double[]> heights = new ArrayList<>();
+				for (PmTiles overlay : list) {
+					try {
+						byte[] data = overlay.tile(OsmWater.ZOOM, wx, wy);
+						if (data != null) {
+							BridgeTile t = parseBridges(VectorTile.decode(data, Set.of("bridges", "bridge_parts", "bridge_heights")), wx, wy);
+							bridges.addAll(t.bridges());
+							parts.addAll(t.parts());
+							heights.addAll(t.heights());
+						}
+					} catch (IOException | RuntimeException e) {
+						RealEarth.LOGGER.warn("Bridge overlay {} unreadable for map tile {}/{}/{}: {}", overlay.url(), OsmWater.ZOOM, wx, wy, e.toString());
+					}
+				}
+				return new BridgeTile(List.copyOf(bridges), List.copyOf(parts), List.copyOf(heights));
+			}, downloads));
+		}
+	}
+
+	/** An overlay's bridges, their parts and measured deck tops. */
+	static BridgeTile parseBridges(List<VectorTile.Feature> features, int tileX, int tileY) {
+		List<Bridge> bridges = new ArrayList<>();
+		List<BridgePart> parts = new ArrayList<>();
+		List<double[]> heights = new ArrayList<>();
+		for (VectorTile.Feature f : features) {
+			List<double[]> rings = rings(f, tileX, tileY);
+			if (rings.isEmpty()) {
+				continue;
+			}
+			double[] box = box(rings);
+			switch (f.layer()) {
+				case "bridges" -> {
+					String spans = String.valueOf(f.string("spans"));
+					double[] lengths = spans.isBlank() || spans.equals("null") ? new double[0]
+						: java.util.Arrays.stream(spans.split(";")).mapToDouble(Double::parseDouble).toArray();
+					bridges.add(new Bridge(rings, text(f, "name"), text(f, "structure"), text(f, "movable"), text(f, "material"), metres(f, "length"),
+						metres(f, "height"), metres(f, "clearance"), lengths, metres(f, "main_span"), metres(f, "width"), text(f, "osm"), box[0], box[1],
+						box[2], box[3]));
+				}
+				case "bridge_parts" -> parts.add(new BridgePart(rings, text(f, "kind"), "yes".equals(f.string("movable")), box[0], box[1], box[2], box[3]));
+				case "bridge_heights" -> heights.add(new double[] {rings.get(0)[0], rings.get(0)[1], f.number("h")});
+				default -> {
+				}
+			}
+		}
+		return new BridgeTile(bridges, parts, heights);
+	}
+
+	/** A size in metres, 0 where the overlay has none. */
+	private static double metres(VectorTile.Feature f, String key) {
+		double v = f.number(key);
+		return Double.isNaN(v) ? 0 : v;
+	}
+
+	private static String text(VectorTile.Feature f, String key) {
+		String s = f.string(key);
+		return s == null ? "" : s;
+	}
+
+	/** The box round rings of interleaved x, y: min x, min y, max x, max y. */
+	private static double[] box(List<double[]> rings) {
+		double[] box = {Double.MAX_VALUE, Double.MAX_VALUE, -Double.MAX_VALUE, -Double.MAX_VALUE};
+		for (double[] r : rings) {
+			for (int i = 0; i + 1 < r.length; i += 2) {
+				box[0] = Math.min(box[0], r[i]);
+				box[1] = Math.min(box[1], r[i + 1]);
+				box[2] = Math.max(box[2], r[i]);
+				box[3] = Math.max(box[3], r[i + 1]);
+			}
+		}
+		return box;
 	}
 
 	/** An overlay's surfaces, by their kind and material names. */

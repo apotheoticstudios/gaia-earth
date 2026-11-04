@@ -54,6 +54,15 @@ public final class ChunkTerrain {
 	public final byte[] roadHeight = new byte[SPAN * SPAN];
 	/** The same for a road bridge's deck block. */
 	public final byte[] deckHeight = new byte[SPAN * SPAN];
+	/**
+	 * Road version 7: what holds a bridge up in each column (BridgeStructure), as Y from, Y to and material triples, built
+	 * where there is air or water; null for nothing. And each deck column's material, for its railing (0 unknown).
+	 */
+	public final int[][] bridgeFill = new int[SPAN * SPAN][];
+	public final byte[] bridgeMaterial = new byte[SPAN * SPAN];
+	/** Deck columns of a bridge an overlay describes, laid at its measured or cited height: they clear what is under them by a block, not three. */
+	public final boolean[] surveyedDeck = new boolean[SPAN * SPAN];
+	public static final byte STEEL = 1, CONCRETE = 2, STONE = 3, BRICK = 4, WOOD = 5;
 	/** Way carried on a bridge deck above the column, NONE for none. */
 	public final byte[] deckWay = new byte[SPAN * SPAN];
 	/** Bridge deck surface in metres, NaN where there is none. */

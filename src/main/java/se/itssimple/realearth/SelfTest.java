@@ -1459,6 +1459,22 @@ final class SelfTest {
 		return out;
 	}
 
+	/** Whether a column carries a bridge deck. */
+	private static boolean isDeck(ChunkTerrain c, int k) {
+		return c.deckY[k] != Integer.MIN_VALUE && c.deckWay[k] != se.itssimple.realearth.osm.Ways.NONE;
+	}
+
+	/** Whether (x, y) lies inside a ring of interleaved x, y, by ray casting. */
+	private static boolean insideRing(double[] r, double x, double y) {
+		boolean inside = false;
+		for (int i = 0, j = r.length - 2; i < r.length; j = i, i += 2) {
+			if ((r[i + 1] > y) != (r[j + 1] > y) && x < (r[j] - r[i]) * (y - r[i + 1]) / (r[j + 1] - r[i + 1]) + r[i]) {
+				inside = !inside;
+			}
+		}
+		return inside;
+	}
+
 	/** Y of a block's top face: its own Y and its shape's height (Saro's road blocks come in sixteenths). */
 	private static double topFace(LevelChunk chunk, BlockPos pos) {
 		return pos.getY() + chunk.getBlockState(pos).getShape(chunk, pos).max(Direction.Axis.Y);
@@ -2183,6 +2199,229 @@ final class SelfTest {
 				check(paired >= 50 && close * 10 >= paired * 8, "Delft's buildings are as tall as measured (%d of %d)", close, paired);
 			} catch (Exception e) {
 				check(false, "Delft's measured buildings: %s", e);
+			}
+		}));
+
+		phases.add(Map.entry("Bridges: Delft's canal bridges", () -> {
+			// Bridges from a bridge overlay (tools/overlay/bridges.py), where one is installed (road version 7): every deck at
+			// AHN's measured top, within a block (the lowest measured within 3 m: AHN's surface model reads railings and trees
+			// over a deck above it, never below); the Jeronymusbrug, a humpback, over the canal: the water open under its arch,
+			// brick spandrels at the arch's sides (a deck two blocks over the water leaves no room for brick at its crown), a
+			// brick railing along its sides.
+			TerrainField field = RealEarth.terrain();
+			var detail = field.map() == null ? null : field.map().detail();
+			if (RealEarth.config().buildingOverlays.isBlank() || detail == null || field.map().roadVersion() < 7) {
+				log("no bridge overlay installed; Delft's bridges not checked");
+				return;
+			}
+			try {
+				int tx = (int) Math.floor(Mercator.sampleX(4.3575) / (Mercator.TILE_SIZE * 2));
+				int ty = (int) Math.floor(Mercator.sampleY(52.0110) / (Mercator.TILE_SIZE * 2));
+				var data = detail.bridges(tx, ty).get(120, java.util.concurrent.TimeUnit.SECONDS);
+				if (data.heights().isEmpty()) {
+					log("the bridge overlays measure no decks in central Delft; Delft's bridges not checked");
+					return;
+				}
+				int measured = 0;
+				int close = 0;
+				Map<Integer, Integer> off = new java.util.TreeMap<>();
+				for (double[] h : data.heights()) {
+					double lat = Mercator.latitudeOfSampleY(h[1]);
+					double lon = (h[0] + 0.5) / Mercator.SAMPLES_PER_AXIS * 360.0 - 180.0;
+					int bx = (int) Math.floor(field.projection().blockX(lat, lon));
+					int bz = (int) Math.floor(field.projection().blockZ(lat));
+					// Its column, or (a measured point is placed within about a metre, a deck's outline exactly) the nearest deck
+					// column beside it where its own has none.
+					ChunkTerrain c = field.chunkBlocking(bx >> 4, bz >> 4, 120);
+					int k = ChunkTerrain.index(bx & 15, bz & 15);
+					for (int i = 0; i < 9 && !isDeck(c, k); i++) {
+						ChunkTerrain n = field.chunkBlocking((bx + i % 3 - 1) >> 4, (bz + i / 3 - 1) >> 4, 120);
+						int nk = ChunkTerrain.index((bx + i % 3 - 1) & 15, (bz + i / 3 - 1) & 15);
+						if (isDeck(n, nk)) {
+							c = n;
+							k = nk;
+						}
+					}
+					if (c.building[k] != 0) {
+						continue;
+					}
+					boolean deck = isDeck(c, k);
+					double top = deck ? c.deckY[k] + (c.deckHeight[k] == 0 ? 1 : c.deckHeight[k] / 16.0)
+						: c.topSolidY[k] + (c.roadHeight[k] == 0 ? 1 : c.roadHeight[k] / 16.0);
+					double spacing = Mercator.sampleSpacingMeters(lat);
+					double truth = data.heights().stream().filter(o -> Math.hypot(o[0] - h[0], o[1] - h[1]) * spacing <= 3).mapToDouble(o -> o[2]).min()
+						.orElse(h[2]);
+					double diff = top - field.toY(truth, lat);
+					measured++;
+					close += Math.abs(diff) <= 1 ? 1 : 0;
+					off.merge((int) Math.round(diff), 1, Integer::sum);
+				}
+				log("Delft: %d measured deck points, %d within a block of what is built there; built minus measured, in blocks: %s", measured, close, off);
+				check(measured > 500 && close * 10 >= measured * 8, "Delft's bridge decks lie at their measured heights, within a block (%d of %d AHN points)",
+					close, measured);
+				int bx0 = (int) Math.floor(field.projection().blockX(52.0111941, 4.356339));
+				int bz0 = (int) Math.floor(field.projection().blockZ(52.0111941));
+				int decks = 0;
+				int brick = 0;
+				int open = 0;
+				int walls = 0;
+				for (int dx = -6; dx <= 6; dx++) {
+					for (int dz = -6; dz <= 6; dz++) {
+						int bx = bx0 + dx;
+						int bz = bz0 + dz;
+						ChunkTerrain c = field.chunkBlocking(bx >> 4, bz >> 4, 120);
+						LevelChunk chunk = earth.getChunk(bx >> 4, bz >> 4);
+						int k = ChunkTerrain.index(bx & 15, bz & 15);
+						if (c.deckY[k] == Integer.MIN_VALUE || c.deckWay[k] == se.itssimple.realearth.osm.Ways.NONE || c.waterTopY[k] == Integer.MIN_VALUE) {
+							continue;
+						}
+						decks++;
+						brick += chunk.getBlockState(new BlockPos(bx, c.deckY[k] - 1, bz)).is(Blocks.BRICKS) ? 1 : 0;
+						open += chunk.getBlockState(new BlockPos(bx, c.waterTopY[k], bz)).is(Blocks.WATER) ? 1 : 0;
+						walls += chunk.getBlockState(new BlockPos(bx, c.deckY[k] + 1, bz)).is(Blocks.BRICK_WALL) ? 1 : 0;
+					}
+				}
+				log("the Jeronymusbrug: %d deck columns over the canal, %d with brick under the deck, %d open to the water, %d with a brick railing",
+					decks, brick, open, walls);
+				check(decks >= 6 && brick > 0 && open * 10 >= decks * 8 && walls > 0,
+					"the Jeronymusbrug is a brick humpback over the open canal, railed (%d of %d open, %d brick spandrel, %d railing)", open, decks, brick, walls);
+			} catch (Exception e) {
+				check(false, "Delft's bridges: %s", e);
+			}
+		}));
+
+		phases.add(Map.entry("Bridges: Västerbron's arches", () -> {
+			// Västerbron from a bridge overlay, where one is installed (road version 7), against its cited sizes
+			// (tools/overlay/bridge_facts.tsv): its arch over Riddarfjärden clears the water by 26 m; between their piers its
+			// arches span 168 and 204 m; every deck column over the water stands on something; railings along its sides.
+			TerrainField field = RealEarth.terrain();
+			var detail = field.map() == null ? null : field.map().detail();
+			if (RealEarth.config().buildingOverlays.isBlank() || detail == null || field.map().roadVersion() < 7) {
+				log("no bridge overlay installed; Västerbron not checked");
+				return;
+			}
+			try {
+				int tx = (int) Math.floor(Mercator.sampleX(18.0262) / (Mercator.TILE_SIZE * 2));
+				int ty = (int) Math.floor(Mercator.sampleY(59.3228) / (Mercator.TILE_SIZE * 2));
+				var vb = detail.bridges(tx, ty).get(120, java.util.concurrent.TimeUnit.SECONDS).bridges().stream()
+					.filter(b -> "Västerbron".equals(b.name()) && b.spans().length > 0).findFirst().orElse(null);
+				if (vb == null) {
+					log("the bridge overlays have no Västerbron; not checked");
+					return;
+				}
+				// Its long axis: the outline's two points farthest apart.
+				double[] ring = vb.rings().get(0);
+				double[] a = {0, 0};
+				double[] b = {0, 0};
+				double far = -1;
+				for (int i = 0; i < ring.length; i += 2) {
+					for (int j = i + 2; j < ring.length; j += 2) {
+						double d = Math.hypot(ring[i] - ring[j], ring[i + 1] - ring[j + 1]);
+						if (d > far) {
+							far = d;
+							a = new double[] {ring[i], ring[i + 1]};
+							b = new double[] {ring[j], ring[j + 1]};
+						}
+					}
+				}
+				double ux = (b[0] - a[0]) / far;
+				double uy = (b[1] - a[1]) / far;
+				double spacing = Mercator.sampleSpacingMeters(Mercator.latitudeOfSampleY(a[1]));
+				double perMeter = field.projection().blocksPerMeter(Mercator.latitudeOfSampleY(a[1]));
+				java.util.Set<Long> chunks = new java.util.LinkedHashSet<>();
+				for (double m = 0; m <= far * spacing; m += 4) {
+					double sxm = a[0] + ux * m / spacing;
+					double sym = a[1] + uy * m / spacing;
+					double lat = Mercator.latitudeOfSampleY(sym);
+					double lon = (sxm + 0.5) / Mercator.SAMPLES_PER_AXIS * 360.0 - 180.0;
+					int cx = (int) Math.floor(field.projection().blockX(lat, lon)) >> 4;
+					int cz = (int) Math.floor(field.projection().blockZ(lat)) >> 4;
+					for (int dx = -1; dx <= 1; dx++) {
+						for (int dz = -1; dz <= 1; dz++) {
+							chunks.add(ChunkPos.pack(cx + dx, cz + dz));
+						}
+					}
+				}
+				int overWater = 0;
+				int standing = 0;
+				int bestClear = 0;
+				List<Double> piers = new ArrayList<>();
+				for (long key : chunks) {
+					ChunkTerrain c = field.chunkBlocking(ChunkPos.getX(key), ChunkPos.getZ(key), 120);
+					for (int k16 = 0; k16 < 256; k16++) {
+						int k = ChunkTerrain.index(k16 & 15, k16 >> 4);
+						double sx = Mercator.sampleX(c.longitude[k]);
+						double sy = Mercator.sampleY(c.latitude[k]);
+						if (c.deckY[k] == Integer.MIN_VALUE || c.deckWay[k] == se.itssimple.realearth.osm.Ways.NONE || !insideRing(ring, sx, sy)) {
+							continue;
+						}
+						// A pier stands from what is under the deck up to it; an arch's lowest block is below the deck's slab.
+						int base = c.waterTopY[k] != Integer.MIN_VALUE ? c.waterTopY[k] : c.topSolidY[k];
+						int arch = Integer.MAX_VALUE;
+						boolean pier = false;
+						int[] fill = c.bridgeFill[k];
+						for (int i = 0; fill != null && i < fill.length; i += 3) {
+							pier |= fill[i] <= base + 1 && fill[i + 1] >= c.deckY[k] - 1;
+							if (fill[i] < c.deckY[k] - 1) {
+								arch = Math.min(arch, fill[i]);
+							}
+						}
+						if (pier) {
+							piers.add(((sx - a[0]) * ux + (sy - a[1]) * uy) * spacing);
+						}
+						if (c.waterTopY[k] != Integer.MIN_VALUE) {
+							overWater++;
+							standing += fill != null ? 1 : 0;
+							if (!pier && arch != Integer.MAX_VALUE) {
+								bestClear = Math.max(bestClear, arch - c.waterTopY[k] - 1);
+							}
+						}
+					}
+				}
+				// Its piers in groups along it, and the lengths between them.
+				piers.sort(null);
+				List<Double> centres = new ArrayList<>();
+				for (int i = 0, j = 0; i < piers.size(); i = j) {
+					while (j < piers.size() && piers.get(j) - piers.get(i) <= 8) {
+						j++;
+					}
+					centres.add((piers.get(i) + piers.get(j - 1)) / 2);
+				}
+				List<Long> gaps = new ArrayList<>();
+				for (int i = 1; i < centres.size(); i++) {
+					gaps.add(Math.round(centres.get(i) - centres.get(i - 1)));
+				}
+				boolean has168 = gaps.stream().anyMatch(g -> Math.abs(g - 168) <= 168 * 0.05);
+				boolean has204 = gaps.stream().anyMatch(g -> Math.abs(g - 204) <= 204 * 0.05);
+				log("Västerbron: %d deck columns over the water, %d standing on its structure; its arches at most %d blocks clear of the water; "
+					+ "metres between its piers along it: %s", overWater, standing, bestClear, gaps);
+				check(Math.abs(bestClear - Math.round(26 * perMeter)) <= 1, "Västerbron's arch clears Riddarfjärden by 26 m (cited), within a block (%d blocks)",
+					bestClear);
+				check(has168 && has204, "Västerbron's arches span 168 and 204 m (cited) between their piers (%s)", gaps);
+				check(overWater > 200 && standing * 10 >= overWater * 9, "Västerbron's deck stands on its arches over the water (%d of %d columns)", standing,
+					overWater);
+				// Railings, in the middle chunk along it.
+				double lat = Mercator.latitudeOfSampleY((a[1] + b[1]) / 2);
+				double lon = ((a[0] + b[0]) / 2 + 0.5) / Mercator.SAMPLES_PER_AXIS * 360.0 - 180.0;
+				int cx = (int) Math.floor(field.projection().blockX(lat, lon)) >> 4;
+				int cz = (int) Math.floor(field.projection().blockZ(lat)) >> 4;
+				int bars = 0;
+				for (int dx = -1; dx <= 1; dx++) {
+					for (int dz = -1; dz <= 1; dz++) {
+						ChunkTerrain c = field.chunkBlocking(cx + dx, cz + dz, 120);
+						LevelChunk chunk = earth.getChunk(cx + dx, cz + dz);
+						for (int k16 = 0; k16 < 256; k16++) {
+							int k = ChunkTerrain.index(k16 & 15, k16 >> 4);
+							if (c.deckY[k] != Integer.MIN_VALUE && chunk.getBlockState(new BlockPos((cx + dx) * 16 + (k16 & 15), c.deckY[k] + 1,
+								(cz + dz) * 16 + (k16 >> 4))).is(Blocks.IRON_BARS)) {
+								bars++;
+							}
+						}
+					}
+				}
+				check(bars >= 16, "Västerbron has railings along its sides (%d columns of iron bars in the 3 x 3 chunks at its middle)", bars);
+			} catch (Exception e) {
+				check(false, "Västerbron: %s", e);
 			}
 		}));
 

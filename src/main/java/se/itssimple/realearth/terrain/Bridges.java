@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import se.itssimple.realearth.geo.Mercator;
+import se.itssimple.realearth.osm.OsmDetail;
 import se.itssimple.realearth.osm.OsmWater;
 import se.itssimple.realearth.osm.Ways;
 
@@ -35,6 +36,9 @@ import se.itssimple.realearth.osm.Ways;
 final class Bridges {
 	/** Rise per run of a crest's flanks and of the ramps up to a deck: a block up every three or so. */
 	static final double GRADIENT = 0.3;
+	/** The same for a bridge the overlay describes (road version 7): as steep as real roads and railways climb. */
+	private static final double ROAD_GRADIENT = 0.05;
+	private static final double RAIL_GRADIENT = 0.025;
 	/** Half the length of a crest's level top, in blocks. */
 	private static final double CREST_BLOCKS = 3;
 	/** A deck's block stands at least this many blocks above the water's top block. */
@@ -62,6 +66,17 @@ final class Bridges {
 		final double[] points;
 		final double[] arc;
 		final boolean rail;
+		/** The way kind it carries, its members' highest. */
+		byte kind;
+		/** The overlay's bridge it is (road version 7, {@link #match}), or null; the measured deck tops and parts in its outline. */
+		OsmDetail.Bridge facts;
+		List<double[]> measured = List.of();
+		List<OsmDetail.BridgePart> parts = List.of();
+		/** Half its deck's width in samples, from its outline; and its spans (metres along it), once matched. */
+		double halfWidth;
+		/** The run whose deck the matched bridge's other runs follow: its longest (itself if it is), so a bridge has one deck. */
+		Run main;
+		List<Span> spans = List.of();
 		/** For each way of the run: where along the run it starts (samples), and whether it runs backwards. */
 		final Map<OsmWater.Way, double[]> members = new IdentityHashMap<>();
 		/** Deck height (metres) against arc length (samples), every {@link #STEP_BLOCKS} or so. */
@@ -157,6 +172,8 @@ final class Bridges {
 		final Map<OsmWater.Way, Run> runOf = new IdentityHashMap<>();
 		/** Height (metres) a ramp must reach at a node, by node key. */
 		final Map<Long, Double> anchors = new HashMap<>();
+		/** The bridge overlays round the chunk (road version 7), or null. */
+		OsmDetail.BridgeTile overlay;
 	}
 
 	static long node(double x, double y) {
@@ -284,6 +301,7 @@ final class Bridges {
 				// Each piece after the first starts at the point it shares with the one before.
 				double start = run.arc[Math.max(0, startPoint == 0 ? 0 : startPoint - 1)];
 				run.members.put((OsmWater.Way) piece[0], new double[] {start, (Boolean) piece[1] ? 1 : 0});
+				run.kind = (byte) Math.max(run.kind, ((OsmWater.Way) piece[0]).kind());
 			}
 			runs.add(run);
 		}
@@ -295,8 +313,9 @@ final class Bridges {
 	 * runs matter (those within reach of the chunk); their decks need the elevation along them.
 	 */
 	static Network network(TerrainField field, Map<Long, ProcessedTile> tiles, List<OsmWater.Way> ways, List<Run> runs,
-		java.util.function.Predicate<Run> near) {
+		java.util.function.Predicate<Run> near, OsmDetail.BridgeTile overlay) {
 		Network net = new Network();
+		net.overlay = overlay;
 		// Longest first, so a fork can start from the run it leaves.
 		List<Run> wanted = new ArrayList<>();
 		for (Run r : runs) {
@@ -316,6 +335,17 @@ final class Bridges {
 				}
 			}
 		}
+		// Each matched bridge's longest run is its main one; the others in its outline follow its deck.
+		Map<String, Run> mains = new HashMap<>();
+		for (Run r : wanted) {
+			match(r, overlay);
+			if (r.facts != null) {
+				mains.merge(r.facts.osm(), r, (a, b) -> b.length() > a.length() ? b : a);
+			}
+		}
+		for (Run r : wanted) {
+			r.main = r.facts == null ? null : mains.get(r.facts.osm());
+		}
 		Map<Long, double[]> onDecks = new HashMap<>();
 		List<Run> pending = new ArrayList<>(wanted);
 		while (!pending.isEmpty()) {
@@ -329,9 +359,19 @@ final class Bridges {
 			if (next == null) {
 				next = pending.get(0);
 			}
+			if (next.main != null && next.main != next && pending.contains(next.main)) {
+				next = next.main;
+			}
 			pending.remove(next);
 			Run r = next;
-			profile(field, tiles, ways, r, onDecks);
+			if (r.main == r) {
+				r.spans = layout(r, tiles);
+				profile(field, tiles, ways, r, onDecks);
+			} else if (r.main != null) {
+				follow(field, r, r.main);
+			} else {
+				profile(field, tiles, ways, r, onDecks);
+			}
 			for (int i = 0; i < r.points.length / 2; i++) {
 				onDecks.putIfAbsent(node(r.points[2 * i], r.points[2 * i + 1]), new double[] {r.heightAt(r.arc[i])});
 			}
@@ -419,7 +459,7 @@ final class Bridges {
 	}
 
 	private static void profile(TerrainField field, Map<Long, ProcessedTile> tiles, List<OsmWater.Way> ways, Run r, Map<Long, double[]> onDecks) {
-		String key = r.key();
+		String key = r.key() + (r.facts == null ? "" : "|" + r.facts.osm() + "|" + r.measured.size());
 		double[][] cached = PROFILES.get(key);
 		if (cached != null) {
 			r.profileArc = cached[0];
@@ -455,7 +495,11 @@ final class Bridges {
 		double abutment = Math.min(ABUTMENT_FRACTION * r.length(), MAX_ABUTMENT_BLOCKS / perMeter / spacing);
 		double waterClear = WATER_CLEARANCE_BLOCKS / perMeter;
 		double wayClear = WAY_CLEARANCE_BLOCKS / perMeter;
-		double maxLift = MAX_LIFT_BLOCKS / perMeter;
+		double maxLift = r.facts == null ? MAX_LIFT_BLOCKS / perMeter : Double.MAX_VALUE;
+		double gradient = r.facts == null ? GRADIENT : r.rail ? RAIL_GRADIENT : ROAD_GRADIENT;
+		// A cited clearance holds over the middle of the longest span, under its deck and the structure at its crown.
+		Span main = r.spans.stream().max(Comparator.comparingDouble(Span::length)).orElse(null);
+		double clearance = r.facts == null || main == null ? 0 : r.facts.clearanceMeters() + crownDepth(main.length());
 		for (int i = 0; i < n; i++) {
 			double s = r.length() * i / (n - 1);
 			arcAt[i] = s;
@@ -481,6 +525,13 @@ final class Bridges {
 					}
 				}
 			}
+			double m = s * spacing;
+			if (clearance > 0 && m > main.from() + main.length() / 3 && m < main.to() - main.length() / 3) {
+				double below = Double.isNaN(water) ? TerrainField.splineHeight(tiles, at[0], at[1]) : water;
+				if (!Double.isNaN(below)) {
+					rise = Math.max(rise, below + clearance - line[i]);
+				}
+			}
 			need[i] = Math.min(maxLift, Math.max(0, rise));
 		}
 
@@ -491,7 +542,7 @@ final class Bridges {
 			double lift = 0;
 			for (int j = 0; j < n; j++) {
 				if (need[j] > lift) {
-					lift = Math.max(lift, crestLift(need[j], Math.abs(arcAt[i] - arcAt[j]) * spacing, crest, GRADIENT));
+					lift = Math.max(lift, crestLift(need[j], Math.abs(arcAt[i] - arcAt[j]) * spacing, crest, gradient));
 				}
 			}
 			meters[i] = line[i] + lift;
@@ -500,18 +551,293 @@ final class Bridges {
 			double fromStart = arcAt[i] * spacing;
 			double fromEnd = (r.length() - arcAt[i]) * spacing;
 			if (startOnDeck != null) {
-				meters[i] = Math.max(entry - GRADIENT * fromStart, Math.min(entry + GRADIENT * fromStart, meters[i]));
+				meters[i] = Math.max(entry - gradient * fromStart, Math.min(entry + gradient * fromStart, meters[i]));
 			}
 			if (endOnDeck != null) {
-				meters[i] = Math.max(exit - GRADIENT * fromEnd, Math.min(exit + GRADIENT * fromEnd, meters[i]));
+				meters[i] = Math.max(exit - gradient * fromEnd, Math.min(exit + gradient * fromEnd, meters[i]));
 			}
 		}
+		measuredProfile(r, arcAt, meters);
 		r.profileArc = arcAt;
 		r.profileMeters = meters;
 		if (PROFILES.size() > 8192) {
 			PROFILES.clear();
 		}
 		PROFILES.put(key, new double[][] {arcAt, meters});
+	}
+
+	/** A span of a bridge the overlay describes: from and to, metres along its run from its start, and whether an arch carries it. */
+	record Span(double from, double to, boolean arch) {
+		double length() {
+			return to - from;
+		}
+	}
+
+	/** The overlays' tiles under a chunk's bridges as one, each bridge and part once (a polygon is in every tile it reaches). */
+	static OsmDetail.BridgeTile merge(List<OsmDetail.BridgeTile> tiles) {
+		Map<String, OsmDetail.Bridge> bridges = new java.util.LinkedHashMap<>();
+		Map<String, OsmDetail.BridgePart> parts = new java.util.LinkedHashMap<>();
+		List<double[]> heights = new ArrayList<>();
+		for (OsmDetail.BridgeTile t : tiles) {
+			t.bridges().forEach(b -> bridges.putIfAbsent(b.osm() + "@" + b.minX() + "," + b.minY(), b));
+			t.parts().forEach(p -> parts.putIfAbsent(p.kind() + "@" + p.minX() + "," + p.minY() + "," + p.maxX(), p));
+			heights.addAll(t.heights());
+		}
+		return new OsmDetail.BridgeTile(List.copyOf(bridges.values()), List.copyOf(parts.values()), heights);
+	}
+
+	/**
+	 * Matches a run to the overlay's bridge whose outline most of it lies in (three tenths at least), and takes the measured
+	 * deck tops in that outline and the parts round it.
+	 */
+	private static void match(Run r, OsmDetail.BridgeTile overlay) {
+		if (overlay == null || overlay.bridges().isEmpty()) {
+			return;
+		}
+		double[] at = new double[2];
+		int steps = Math.max(4, (int) Math.ceil(r.length()));
+		OsmDetail.Bridge best = null;
+		int bestIn = 0;
+		for (OsmDetail.Bridge b : overlay.bridges()) {
+			if (b.maxX() < r.minX || b.minX() > r.maxX || b.maxY() < r.minY || b.minY() > r.maxY) {
+				continue;
+			}
+			int in = 0;
+			for (int i = 0; i <= steps; i++) {
+				r.pointAt(r.length() * i / steps, at);
+				in += BuildingPlan.contains(b.rings(), at[0], at[1]) ? 1 : 0;
+			}
+			if (in > bestIn) {
+				bestIn = in;
+				best = b;
+			}
+		}
+		if (best == null || bestIn * 10 < (steps + 1) * 3) {
+			return;
+		}
+		OsmDetail.Bridge b = best;
+		r.facts = b;
+		r.measured = overlay.heights().stream().filter(h -> BuildingPlan.contains(b.rings(), h[0], h[1])).toList();
+		double margin = 3 / Mercator.sampleSpacingMeters(Mercator.latitudeOfSampleY(b.minY()));
+		r.parts = overlay.parts().stream().filter(p -> !p.kind().equals("deck") && p.maxX() >= b.minX() - margin && p.minX() <= b.maxX() + margin
+			&& p.maxY() >= b.minY() - margin && p.minY() <= b.maxY() + margin).toList();
+		// Half the deck's width: the outline's area over the length of run inside it.
+		double[] ring = b.rings().get(0);
+		double area = 0;
+		for (int i = 0, j = ring.length - 2; i < ring.length; j = i, i += 2) {
+			area += ring[j] * ring[i + 1] - ring[i] * ring[j + 1];
+		}
+		r.halfWidth = Math.abs(area) / 2 / Math.max(1e-9, r.length() * bestIn / (steps + 1)) / 2;
+	}
+
+	/** How deep a bridge's structure is at the crown of a span, metres: its deck and an arch's ring there (BridgeStructure). */
+	static double crownDepth(double spanMeters) {
+		return 1 + Math.max(1, spanMeters / 60);
+	}
+
+	/** The span a bridge usually has between piers, metres, where the data gives none: by its structure and material. */
+	static double usualSpan(OsmDetail.Bridge f) {
+		return f.structure().equals("humpback") || f.material().equals("stone") || f.material().equals("brick") ? 8
+			: f.material().equals("wood") ? 6 : f.material().equals("steel") ? 30 : 20;
+	}
+
+	/**
+	 * A matched bridge's spans, metres along its run: the cited ones (from the north or west end) over the water they fit
+	 * best; an arch over each other stretch of water if it is an arch bridge, beams of its usual span over it if not; and
+	 * beams of its usual span the rest of the way. The boundaries between them are its piers.
+	 */
+	static List<Span> layout(Run r, Map<Long, ProcessedTile> tiles) {
+		OsmDetail.Bridge f = r.facts;
+		double spacing = Mercator.sampleSpacingMeters(Mercator.latitudeOfSampleY((r.minY + r.maxY) / 2));
+		double total = r.length() * spacing;
+		List<double[]> wet = new ArrayList<>();
+		double[] at = new double[2];
+		double from = -1;
+		for (int i = 0, steps = (int) Math.ceil(total); i <= steps; i++) {
+			double m = Math.min(total, i);
+			r.pointAt(m / spacing, at);
+			boolean water = !Double.isNaN(TerrainField.waterSurface(tiles, at[0], at[1]));
+			if (water && from < 0) {
+				from = m;
+			}
+			if ((!water || i == steps) && from >= 0) {
+				double to = water ? m : m - 1;
+				if (!wet.isEmpty() && from - wet.get(wet.size() - 1)[1] <= 3) {
+					wet.get(wet.size() - 1)[1] = to;
+				} else if (to - from >= 2) {
+					wet.add(new double[] {from, to});
+				}
+				from = -1;
+			}
+		}
+		boolean arches = f.structure().equals("arch") || f.structure().equals("humpback");
+		double usual = usualSpan(f);
+		List<Span> placed = new ArrayList<>();
+		double[] cited = f.spans().length > 0 ? f.spans() : f.mainSpanMeters() > 0 ? new double[] {f.mainSpanMeters()} : new double[0];
+		if (cited.length > 0) {
+			double dx = r.points[r.points.length - 2] - r.points[0];
+			double dy = r.points[r.points.length - 1] - r.points[1];
+			// Sample y grows southward: the run starts at the north (or west) end if its other end lies further south (east).
+			boolean fromNorth = Math.abs(dy) >= Math.abs(dx) ? dy > 0 : dx > 0;
+			double length = java.util.Arrays.stream(cited).sum();
+			double[] home = wet.stream().max(Comparator.comparingDouble(w -> w[1] - w[0])).orElse(new double[] {0, total});
+			double a = Math.max(0, Math.min(total - length, (home[0] + home[1] - length) / 2));
+			for (int i = 0; i < cited.length; i++) {
+				double len = cited[fromNorth ? i : cited.length - 1 - i];
+				placed.add(new Span(a, Math.min(total, a + len), arches));
+				a += len;
+			}
+		}
+		for (double[] w : wet) {
+			double covered = 0;
+			for (Span s : placed) {
+				covered += Math.max(0, Math.min(s.to(), w[1]) - Math.max(s.from(), w[0]));
+			}
+			if (covered * 2 >= w[1] - w[0]) {
+				continue;
+			}
+			if (arches) {
+				placed.add(new Span(Math.max(0, w[0] - 0.5), Math.min(total, w[1] + 0.5), true));
+			} else {
+				beams(placed, w[0], w[1], usual);
+			}
+		}
+		placed.sort(Comparator.comparingDouble(Span::from));
+		List<Span> all = new ArrayList<>();
+		double reached = 0;
+		for (Span s : placed) {
+			if (s.to() <= reached) {
+				continue;
+			}
+			beams(all, reached, s.from(), usual);
+			all.add(new Span(Math.max(reached, s.from()), s.to(), s.arch()));
+			reached = s.to();
+		}
+		beams(all, reached, total, usual);
+		return List.copyOf(all);
+	}
+
+	/** Beams from a to b (metres), as few as keep each within {@code usual}. */
+	private static void beams(List<Span> out, double a, double b, double usual) {
+		if (b - a < 0.5) {
+			return;
+		}
+		int n = (int) Math.max(1, Math.ceil((b - a) / usual));
+		for (int i = 0; i < n; i++) {
+			out.add(new Span(a + (b - a) * i / n, a + (b - a) * (i + 1) / n, false));
+		}
+	}
+
+	/**
+	 * Where a matched bridge's deck is measured (AHN, through the overlay) along most of its run, the deck is laid there:
+	 * the lower quarter of the measured tops across it at each step (railings and trees over it read high, see
+	 * {@link #deckTop}), joined straight where a step has none, and on to the run's own ends.
+	 */
+	private static void measuredProfile(Run r, double[] arcAt, double[] meters) {
+		int n = arcAt.length;
+		if (r.measured.isEmpty() || n < 2) {
+			return;
+		}
+		List<List<Double>> bins = new ArrayList<>();
+		for (int i = 0; i < n; i++) {
+			bins.add(new ArrayList<>());
+		}
+		double[] q = new double[2];
+		for (double[] h : r.measured) {
+			project(r, h[0], h[1], q);
+			bins.get((int) Math.max(0, Math.min(n - 1, Math.round(q[0] / r.length() * (n - 1))))).add(h[2]);
+		}
+		double[] known = new double[n];
+		int count = 0;
+		for (int i = 0; i < n; i++) {
+			List<Double> b = bins.get(i);
+			known[i] = Double.NaN;
+			if (!b.isEmpty()) {
+				b.sort(null);
+				known[i] = b.get(b.size() / 4);
+				count++;
+			}
+		}
+		if (count * 10 < n * 3) {
+			return;
+		}
+		// The run's own ends stay where they are (on the ground, or on another deck); between, the measurements.
+		known[0] = Double.isNaN(known[0]) ? meters[0] : known[0];
+		known[n - 1] = Double.isNaN(known[n - 1]) ? meters[n - 1] : known[n - 1];
+		int last = 0;
+		for (int i = 1; i < n; i++) {
+			if (!Double.isNaN(known[i])) {
+				for (int j = last + 1; j < i; j++) {
+					known[j] = known[last] + (known[i] - known[last]) * (arcAt[j] - arcAt[last]) / (arcAt[i] - arcAt[last]);
+				}
+				last = i;
+			}
+		}
+		System.arraycopy(known, 0, meters, 0, n);
+	}
+
+	/** A run on a bridge whose main run is laid: its deck that one's, where each of its points lies along it. */
+	private static void follow(TerrainField field, Run r, Run main) {
+		double lat = Mercator.latitudeOfSampleY((r.minY + r.maxY) / 2);
+		double blocks = r.length() * Mercator.sampleSpacingMeters(lat) * field.projection().blocksPerMeter(lat);
+		int n = Math.max(2, (int) Math.ceil(blocks / STEP_BLOCKS) + 1);
+		double[] arcAt = new double[n];
+		double[] meters = new double[n];
+		double[] at = new double[2];
+		double[] q = new double[2];
+		for (int i = 0; i < n; i++) {
+			arcAt[i] = r.length() * i / (n - 1);
+			r.pointAt(arcAt[i], at);
+			project(main, at[0], at[1], q);
+			meters[i] = main.heightAt(q[0]);
+		}
+		r.spans = main.spans;
+		r.halfWidth = main.halfWidth;
+		r.profileArc = arcAt;
+		r.profileMeters = meters;
+	}
+
+	/**
+	 * A measured deck's top at (x, y), metres: the lowest of its measured tops within {@code reach} samples, else the nearest.
+	 * A surface model reads the highest thing in each cell, so railings at a deck's edges and trees over it read above the
+	 * deck and never below it.
+	 */
+	static double deckTop(List<double[]> tops, double x, double y, double reach) {
+		double lowest = Double.NaN;
+		double nearest = Double.NaN;
+		double best = Double.MAX_VALUE;
+		for (double[] h : tops) {
+			double d = Math.hypot(h[0] - x, h[1] - y);
+			if (d <= reach && !(h[2] >= lowest)) {
+				lowest = h[2];
+			}
+			if (d < best) {
+				best = d;
+				nearest = h[2];
+			}
+		}
+		return Double.isNaN(lowest) ? nearest : lowest;
+	}
+
+	/** Where (x, y) lies along a run: out[0] the arc length (samples) of its nearest point, out[1] the distance to it. */
+	static void project(Run r, double x, double y, double[] out) {
+		double best = Double.MAX_VALUE;
+		double along = 0;
+		for (int i = 0; i + 3 < r.points.length; i += 2) {
+			double ax = r.points[i];
+			double ay = r.points[i + 1];
+			double dx = r.points[i + 2] - ax;
+			double dy = r.points[i + 3] - ay;
+			double len2 = dx * dx + dy * dy;
+			double u = len2 > 0 ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / len2)) : 0;
+			double d = Math.hypot(x - ax - u * dx, y - ay - u * dy);
+			if (d < best) {
+				best = d;
+				along = r.arc[i / 2] + u * Math.sqrt(len2);
+			}
+		}
+		out[0] = along;
+		out[1] = best;
 	}
 
 	/**

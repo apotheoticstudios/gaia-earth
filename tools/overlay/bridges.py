@@ -257,7 +257,8 @@ def geotiff(blob):
 
 def deck_heights(ring):
     """AHN's surface model on a deck (a ring of lon, lat points): a point every two metres, (lon, lat, metres NAP), each
-    the lowest quarter of the half-metre cells in its square, so a car or a lamp on the deck doesn't lift it."""
+    the lowest quarter of the half-metre cells in its square, so a car or a lamp on the deck doesn't lift it, and where
+    those cells are (on a deck's edge a square's middle may be off the deck)."""
     rd = [wgs84_to_rd(lat, lon) for lon, lat in ring]
     x0, y0 = math.floor(min(p[0] for p in rd)) - 1, math.floor(min(p[1] for p in rd)) - 1
     x1, y1 = math.ceil(max(p[0] for p in rd)) + 1, math.ceil(max(p[1] for p in rd)) + 1
@@ -270,11 +271,11 @@ def deck_heights(ring):
         for c, h in enumerate(row):
             x, y = gx + (c + 0.5) * cell, gy - (r + 0.5) * cell
             if -100 < h < 400 and inside(x, y, rd):
-                bins.setdefault((math.floor(x / 2), math.floor(y / 2)), []).append(h)
+                bins.setdefault((math.floor(x / 2), math.floor(y / 2)), []).append((h, x, y))
     out = []
-    for (bx, by), hs in sorted(bins.items()):
-        hs.sort()
-        lat, lon = rd_to_wgs84(bx * 2 + 1, by * 2 + 1)
+    for _, cells in sorted(bins.items()):
+        hs = sorted(c[0] for c in cells)
+        lat, lon = rd_to_wgs84(sum(c[1] for c in cells) / len(cells), sum(c[2] for c in cells) / len(cells))
         out.append((lon, lat, round(hs[len(hs) // 4], 2)))
     return out
 
