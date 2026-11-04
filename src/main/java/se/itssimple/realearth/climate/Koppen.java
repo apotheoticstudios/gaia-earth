@@ -43,6 +43,8 @@ public final class Koppen {
 	/** How far a lookup may wander, in pixels, and the size of the wandering's features: edges wind across about a pixel. */
 	private static final double WARP_PIXELS = 1.2;
 	private static final double WARP_KM = 3.0;
+	/** How far, in pixels, land takes its climate from where the map draws the coast too far inland. */
+	private static final int COAST_PIXELS = 3;
 
 	private static volatile Koppen instance;
 
@@ -94,13 +96,29 @@ public final class Koppen {
 
 	/**
 	 * Climate class at a place: the 1 km pixel under it, looked up a smoothly varying fraction of a pixel away, so climates
-	 * meet along ragged lines rather than the grid's straight edges (snowy tundra beside green land in squares).
+	 * meet along ragged lines rather than the grid's straight edges (snowy tundra beside green land in squares). The map's
+	 * coastline is coarse, so where it says sea the nearest land within {@link #COAST_PIXELS} lends its climate: coastal
+	 * land gets its own, and only open sea is SEA.
 	 */
 	public int classAt(double latitude, double longitude) {
 		double warpX = WARP_PIXELS * se.itssimple.realearth.world.GeoNoise.sample(latitude, longitude, WARP_KM, 41);
 		double warpY = WARP_PIXELS * se.itssimple.realearth.world.GeoNoise.sample(latitude, longitude, WARP_KM, 43);
 		int x = (int) Math.floor((longitude + 180.0) * PIXELS_PER_DEGREE + warpX);
 		int y = (int) Math.floor((90.0 - latitude) * PIXELS_PER_DEGREE + warpY);
+		int c = pixel(x, y);
+		for (int r = 1; c == SEA && r <= COAST_PIXELS; r++) {
+			for (int dy = -r; dy <= r && c == SEA; dy++) {
+				for (int dx = -r; dx <= r && c == SEA; dx++) {
+					if (Math.abs(dx) == r || Math.abs(dy) == r) {
+						c = pixel(x + dx, y + dy);
+					}
+				}
+			}
+		}
+		return c;
+	}
+
+	private int pixel(int x, int y) {
 		x = Math.floorMod(x, width);
 		y = Math.max(0, Math.min(height - 1, y));
 		byte[] tile = tile((y / tileSize) * tilesAcross + x / tileSize);

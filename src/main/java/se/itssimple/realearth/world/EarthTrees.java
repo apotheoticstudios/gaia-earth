@@ -128,8 +128,9 @@ public final class EarthTrees {
 	private record Row(String species, Set<String> kinds, List<String> climates, Set<String> zones,
 		double lat0, double lat1, double lon0, double lon1, int weight, double height0, double height1) {
 
+		/** A row for this kind of tree here; any kind but mangroves alone for a null kind. */
 		boolean matches(String kind, String climate, String zone, double lat, double lon) {
-			return kinds.contains(kind) && (zones.contains("*") || zones.contains(zone))
+			return (kind == null ? !kinds.equals(Set.of("mangrove")) : kinds.contains(kind)) && (zones.contains("*") || zones.contains(zone))
 				&& lat >= lat0 && lat <= lat1 && lon >= lon0 && lon <= lon1
 				&& (climates.contains("*") || climates.stream().anyMatch(climate::startsWith));
 		}
@@ -260,6 +261,14 @@ public final class EarthTrees {
 		for (Row row : trees.rows) {
 			if (row.matches(kind, climate, zone, lat, lon)) {
 				rows.add(row);
+			}
+		}
+		// No species here stands in for the biome's kind of tree: any that grows here, before a vanilla tree; mangroves stay mangroves.
+		if (rows.isEmpty() && !kind.equals("mangrove")) {
+			for (Row row : trees.rows) {
+				if (row.matches(null, climate, zone, lat, lon)) {
+					rows.add(row);
+				}
 			}
 		}
 		if (!rows.isEmpty()) {
