@@ -55,8 +55,9 @@ import se.itssimple.realearth.terrain.TerrainField;
 /**
  * Earth's trees: where they stand, how close together, and of which species, from real data.
  *
- * Where: on the columns the land cover ({@link WorldCover}, 10 m) shows as trees, so forests, woods, hedgerows and
- * parks have them and fields don't; vanilla's own tree spots are left empty. How close: as many to a hectare as
+ * Where: in the woods and forests the map has, on the columns the land cover ({@link WorldCover}, 10 m) shows as trees
+ * -- both, as the land cover alone counts any square a tenth under canopy as tree cover, and a mapped wood takes in
+ * its clearings -- and at the single trees the map has elsewhere; vanilla's own tree spots are left empty. How close: as many to a hectare as
  * stand there in the real world ({@link TreeDensity}) -- about 3.5 m apart in a Swedish forest, 9 m in the
  * savanna -- scattered on a jittered grid, and where they stand close, the species' slimmer trees grow.
  *
@@ -196,7 +197,7 @@ public final class EarthTrees {
 				}
 			}
 		}
-		// And the single trees the map has, where the land cover shows no forest: street trees, park trees.
+		// And the single trees the map has, outside its forests: street trees, park trees.
 		for (ChunkTerrain.MappedTree tree : t.mappedTrees) {
 			growAt(region, generator, t, trees, tree.x(), tree.z(), spacing, field.projection().blocksPerMeter(t.latitude[centre]),
 				RandomSource.create(region.getSeed() ^ (tree.x() * 341873128712L + tree.z() * 132897987541L)), tree.leaves());
@@ -204,8 +205,8 @@ public final class EarthTrees {
 	}
 
 	/**
-	 * A tree at a spot of the grid, if the land cover shows trees there, or at a tree the map has ({@code leaves} its leaf
-	 * type, see OsmTrees; -1 for a spot of the grid), if it doesn't; and if the ground takes one.
+	 * A tree at a spot of the grid, if it is in a forest (a mapped wood the land cover shows as trees), or at a tree the map has
+	 * ({@code leaves} its leaf type, see OsmTrees; -1 for a spot of the grid), if it isn't; and if the ground takes one.
 	 */
 	private static void growAt(WorldGenRegion region, ChunkGenerator generator, ChunkTerrain t, Index trees, int x, int z, double spacing,
 		double blocksPerMeter, RandomSource random, byte leaves) {
@@ -214,14 +215,16 @@ public final class EarthTrees {
 		int k = ChunkTerrain.index(lx, lz);
 		int cover = t.cover[k] & 0xFF;
 		boolean mapped = leaves >= 0;
-		boolean forest = cover == WorldCover.TREES || cover == WorldCover.MANGROVES;
+		boolean treeCover = cover == WorldCover.TREES || cover == WorldCover.MANGROVES;
+		// A forest is where the land cover sees trees and the map has a wood: either alone puts trees where there are none.
+		boolean forest = treeCover && t.wood[k];
 		String spot = mapped ? "spot mapped" : "spot";
 		count(spot);
 		// A mapped tree may stand on a footpath or a square, as trees do in promenades and plazas.
 		boolean onWay = t.way[k] != 0 && !(mapped && t.way[k] == se.itssimple.realearth.osm.Ways.PATH);
 		if (forest == mapped || onWay || t.building[k] != 0 || t.hasWater(lx, lz)) {
 			// A forest's trees stand on the grid, at its real density; a mapped tree there would be one more.
-			count(spot + ": " + (forest == mapped ? (mapped ? "in a forest" : "cover " + cover) : "way/building/water"));
+			count(spot + ": " + (forest == mapped ? (mapped ? "in a forest" : treeCover ? "no mapped wood" : "cover " + cover) : "way/building/water"));
 			return;
 		}
 		BlockPos pos = new BlockPos(x, t.topSolidY[k] + 1, z);

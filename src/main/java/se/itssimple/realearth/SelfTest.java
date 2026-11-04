@@ -1824,7 +1824,7 @@ final class SelfTest {
 		}));
 
 		// Real trees, in forests from Tyresta's pines and spruces to Mesa Verde's junipers: a phase each, as one server task
-		// for them all would run past the watchdog.
+		// for them all would run past the watchdog. Each where the map has its woods: trees grow only in a mapped wood.
 		record Forest(String name, double lat, double lon, java.util.Set<String> expect, java.util.Set<String> foreign,
 			Map<String, Integer> tall) {
 		}
@@ -1849,13 +1849,13 @@ final class SelfTest {
 				Map.of("picea_mariana", 4)),
 			new Forest("the Landes forest", 44.2, -0.9, java.util.Set.of("pinus_pinaster"),
 				java.util.Set.of("picea_abies", "olea_europaea", "pinus_taeda"), Map.of("pinus_pinaster", 11)),
-			new Forest("Mesa Verde", 37.2, -108.5, java.util.Set.of("juniperus_monosperma", "pinus_ponderosa"),
+			new Forest("Mesa Verde", 37.16, -108.48, java.util.Set.of("juniperus_monosperma", "pinus_ponderosa"),
 				java.util.Set.of("picea_abies", "quercus_ilex", "pinus_sylvestris"), Map.of()),
 			new Forest("the central Amazon", -2.93, -59.95,
 				java.util.Set.of("bertholletia_excelsa", "hevea_brasiliensis", "ceiba_pentandra", "socratea_exorrhiza", "calophyllum_brasiliense",
 					"caropa_guianensis", "euterpe_oleracea"),
 				java.util.Set.of("picea_abies", "quercus_robur", "araucaria_araucana", "nothofagus_obliqua", "roystonea_regia"), Map.of()),
-			new Forest("the Araucaria highlands", -26.9, -51.3, java.util.Set.of("araucaria_angustifolia", "ocotea_porosa", "ilex_paraguariensis"),
+			new Forest("the Araucaria highlands", -25.3, -51.3,java.util.Set.of("araucaria_angustifolia", "ocotea_porosa", "ilex_paraguariensis"),
 				java.util.Set.of("picea_abies", "bertholletia_excelsa", "araucaria_araucana", "pinus_taeda"), Map.of("araucaria_angustifolia", 11)),
 			new Forest("the Valdivian rainforest", -40.1, -72.9,
 				java.util.Set.of("nothofagus_obliqua", "laurelia_sempervirens", "aextoxicon_punctatum", "drimys_winteri", "luma_apiculata"),
@@ -1866,13 +1866,13 @@ final class SelfTest {
 			new Forest("Western Australia's jarrah forest", -32.7, 116.1,
 				java.util.Set.of("eucalyptus_marginata", "corymbia_calophylla", "banksia_grandis", "allocasuarina_fraseriana"),
 				java.util.Set.of("picea_abies", "eucalyptus_regnans", "agathis_australis", "eucalyptus_pilularis"), Map.of("eucalyptus_marginata", 9)),
-			new Forest("Kakadu", -12.9, 132.6, java.util.Set.of("eucalyptus_tetrodonta", "eucalyptus_miniata"),
+			new Forest("Darwin's savanna woodland", -12.25, 131.04, java.util.Set.of("eucalyptus_tetrodonta", "eucalyptus_miniata"),
 				java.util.Set.of("eucalyptus_regnans", "acacia_aneura", "picea_abies", "agathis_australis"), Map.of()),
 			new Forest("Waipoua's kauri forest", -35.6, 173.55,
 				java.util.Set.of("agathis_australis", "dacrydium_cupressinum", "beilschmiedia_tawa", "podocarpus_totara"),
 				java.util.Set.of("eucalyptus_regnans", "acacia_aneura", "picea_abies", "eucalyptus_marginata"), Map.of("agathis_australis", 15)),
 			// Grown by tools/trees/generate.py, for species no pack has.
-			new Forest("the Snowy Mountains' snow gums", -36.4, 148.4, java.util.Set.of("eucalyptus_pauciflora", "eucalyptus_delegatensis"),
+			new Forest("the Snowy Mountains' snow gums", -36.37, 148.43, java.util.Set.of("eucalyptus_pauciflora", "eucalyptus_delegatensis"),
 				java.util.Set.of("picea_abies", "eucalyptus_regnans", "eucalyptus_marginata", "agathis_australis"), Map.of()),
 			new Forest("Colorado's subalpine forest", 40.3, -105.7, java.util.Set.of("picea_engelmannii", "abies_lasiocarpa", "pinus_contorta"),
 				java.util.Set.of("picea_abies", "quercus_robur", "pinus_taeda", "sequoia_sempervirens"), Map.of()),
@@ -1893,19 +1893,24 @@ final class SelfTest {
 				Map<String, Long> heightsBefore = se.itssimple.realearth.world.EarthTrees.heights();
 				Map<String, long[]> perfBefore = Perf.snapshot();
 				// Somewhere new in the forest each run, as trees only grow in chunks not generated before; and wooded, as forests
-				// have clearings, lakes, fields and burns: the first of a few tries whose middle chunk is a third tree cover.
+				// have clearings, lakes, fields and burns: the first of a few tries whose middle chunk is a third forest (a mapped
+				// wood the land cover shows as trees, where trees grow), or else the most wooded try, as mapped woods can be small.
 				double lat = f.lat();
 				double lon = f.lon();
-				for (int attempt = 0; attempt < 8; attempt++) {
-					lat = f.lat() + (Math.random() - 0.5) * 0.04 * (1 + attempt / 2);
-					lon = f.lon() + (Math.random() - 0.5) * 0.08 * (1 + attempt / 2);
-					ChunkTerrain middle = field.chunk((int) field.projection().blockX(lat, lon) >> 4, (int) field.projection().blockZ(lat) >> 4).join();
+				int mostWooded = -1;
+				for (int attempt = 0; attempt < 8 && mostWooded < 256 / 3; attempt++) {
+					double tryLat = f.lat() + (Math.random() - 0.5) * 0.04;
+					double tryLon = f.lon() + (Math.random() - 0.5) * 0.08;
+					ChunkTerrain middle = field.chunk((int) field.projection().blockX(tryLat, tryLon) >> 4, (int) field.projection().blockZ(tryLat) >> 4).join();
 					int wooded = 0;
 					for (int k = 0; k < 256; k++) {
-						wooded += middle.coverAt(k & 15, k >> 4) == se.itssimple.realearth.landcover.WorldCover.TREES ? 1 : 0;
+						wooded += middle.coverAt(k & 15, k >> 4) == se.itssimple.realearth.landcover.WorldCover.TREES
+							&& middle.wood[ChunkTerrain.index(k & 15, k >> 4)] ? 1 : 0;
 					}
-					if (wooded >= 256 / 3) {
-						break;
+					if (wooded > mostWooded) {
+						mostWooded = wooded;
+						lat = tryLat;
+						lon = tryLon;
 					}
 				}
 				int cx0 = (int) field.projection().blockX(lat, lon) >> 4;
@@ -1954,7 +1959,7 @@ final class SelfTest {
 						ChunkTerrain t = field.chunkIfReady(cx, cz);
 						for (int x = 0; t != null && x < 16; x++) {
 							for (int z = 0; z < 16; z++) {
-								wooded += t.coverAt(x, z) == se.itssimple.realearth.landcover.WorldCover.TREES ? 1 : 0;
+								wooded += t.coverAt(x, z) == se.itssimple.realearth.landcover.WorldCover.TREES && t.wood[ChunkTerrain.index(x, z)] ? 1 : 0;
 							}
 						}
 					}
@@ -2219,6 +2224,51 @@ final class SelfTest {
 			log("trees round Les Halles: %s", grown);
 			check(grown.getOrDefault("spot mapped: grown", 0L) > 20, "Paris grows the street trees the map has (%d)",
 				grown.getOrDefault("spot mapped: grown", 0L));
+		}));
+
+		phases.add(Map.entry("Real trees: the Uppsala plain's fields", () -> {
+			// Farmland with farmsteads, a wood's edge and tree cover the map has no wood for: a trunk stands only in a forest
+			// (a mapped wood the land cover shows as trees) or at a tree the map has.
+			TerrainField field = RealEarth.terrain();
+			int cx0 = (int) field.projection().blockX(59.7681, 17.5935) >> 4;
+			int cz0 = (int) field.projection().blockZ(59.7681) >> 4;
+			for (int cx = cx0 - 3; cx <= cx0 + 3; cx++) {
+				for (int cz = cz0 - 3; cz <= cz0 + 3; cz++) {
+					earth.getChunk(cx, cz);
+				}
+			}
+			int inForest = 0;
+			int stray = 0;
+			for (int cx = cx0 - 2; cx <= cx0 + 2; cx++) {
+				for (int cz = cz0 - 2; cz <= cz0 + 2; cz++) {
+					ChunkTerrain t = field.chunkIfReady(cx, cz);
+					LevelChunk c = earth.getChunk(cx, cz);
+					for (int x = 0; t != null && x < 16; x++) {
+						for (int z = 0; z < 16; z++) {
+							int k = ChunkTerrain.index(x, z);
+							BlockPos foot = new BlockPos(cx * 16 + x, t.topSolidY[k] + 1, cz * 16 + z);
+							// A trunk: logs standing three high from the ground (roots and fallen logs lie low; walls are buildings').
+							if (t.building[k] != 0 || !c.getBlockState(foot).is(net.minecraft.tags.BlockTags.LOGS)
+								|| !c.getBlockState(foot.above()).is(net.minecraft.tags.BlockTags.LOGS)
+								|| !c.getBlockState(foot.above(2)).is(net.minecraft.tags.BlockTags.LOGS)) {
+								continue;
+							}
+							boolean forest = false;
+							for (int dx = -1; dx <= 1; dx++) {
+								for (int dz = -1; dz <= 1; dz++) {
+									int n = ChunkTerrain.index(x + dx, z + dz);
+									forest |= t.coverAt(x + dx, z + dz) == se.itssimple.realearth.landcover.WorldCover.TREES && t.wood[n];
+								}
+							}
+							boolean mapped = t.mappedTrees.stream().anyMatch(m -> Math.abs(m.x() - foot.getX()) <= 1 && Math.abs(m.z() - foot.getZ()) <= 1);
+							inForest += forest ? 1 : 0;
+							stray += forest || mapped ? 0 : 1;
+						}
+					}
+				}
+			}
+			log("the Uppsala plain: %d trunk columns in forest, %d outside forest and the map's trees", inForest, stray);
+			check(stray == 0, "the Uppsala plain grows no trees where the real world has none (%d trunk columns)", stray);
 		}));
 
 		phases.add(Map.entry("Roads and railways", () -> {

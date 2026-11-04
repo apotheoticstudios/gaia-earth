@@ -103,6 +103,8 @@ public final class ChunkTerrain {
 	public final byte[] surface = new byte[SPAN * SPAN];
 	/** Columns in a park, garden or playground. */
 	public final boolean[] park = new boolean[SPAN * SPAN];
+	/** Columns in a wood, forest or mangrove the map has. */
+	public final boolean[] wood = new boolean[SPAN * SPAN];
 	/** What else the ground of a column is laid out as: {@link #CEMETERY}, {@link #ALLOTMENT}, {@link #FLOWERBED}, {@link #PITCH}, or 0. */
 	public final byte[] grounds = new byte[SPAN * SPAN];
 	public static final byte CEMETERY = 1;

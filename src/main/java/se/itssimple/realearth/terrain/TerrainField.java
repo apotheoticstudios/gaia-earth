@@ -816,6 +816,12 @@ public final class TerrainField implements AutoCloseable {
 						if (park.maxX() < sx0 || park.minX() > sx1 || park.maxY() < sy0 || park.minY() > sy1) {
 							continue;
 						}
+						if (park.cls().equals("wood")) {
+							for (int k = 0; k < n * n; k++) {
+								terrain.wood[k] |= onGlobe[k] && !terrain.wood[k] && BuildingPlan.contains(park.rings(), sx[k], sy[k]);
+							}
+							continue;
+						}
 						byte ground = switch (park.cls()) {
 							case "cemetery" -> ChunkTerrain.CEMETERY;
 							case "allotments" -> ChunkTerrain.ALLOTMENT;

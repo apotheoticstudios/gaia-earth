@@ -419,7 +419,10 @@ public final class OsmWater {
 				}
 				continue;
 			}
-			boolean park = f.layer().equals("landcover") && PARKS.contains(f.string("subclass"))
+			String subclass = f.string("subclass");
+			// The map's woods and mangroves, kept with the parks as "wood": forest trees grow only where they and the land cover agree.
+			boolean wood = f.layer().equals("landcover") && ("wood".equals(cls) || "mangrove".equals(subclass));
+			boolean park = wood || f.layer().equals("landcover") && PARKS.contains(subclass)
 				|| f.layer().equals("landuse") && GREEN_LANDUSE.contains(cls);
 			if (f.layer().equals("landcover") && !park) {
 				continue;
@@ -437,7 +440,7 @@ public final class OsmWater {
 						maxY = Math.max(maxY, ring[i + 1]);
 					}
 				}
-				parks.add(new Land(parts, f.layer().equals("landuse") ? cls : f.string("subclass"), minX, minY, maxX, maxY));
+				parks.add(new Land(parts, f.layer().equals("landuse") ? cls : wood ? "wood" : subclass, minX, minY, maxX, maxY));
 				if (f.layer().equals("landcover")) {
 					continue;
 				}
