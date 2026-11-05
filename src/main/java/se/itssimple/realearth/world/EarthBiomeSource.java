@@ -47,6 +47,9 @@ public final class EarthBiomeSource extends BiomeSource {
 		for (ResourceKey<Biome> key : EarthBiomes.ALL) {
 			holders.put(key, biomes.getOrThrow(key));
 		}
+		for (ResourceKey<Biome> key : EarthBiomes.VANILLA) {
+			holders.put(key, biomes.getOrThrow(key));
+		}
 		for (ResourceKey<Biome> key : new ResourceKey[] {Biomes.LUSH_CAVES, Biomes.DRIPSTONE_CAVES, Biomes.DEEP_DARK}) {
 			holders.put(key, biomes.getOrThrow(key));
 		}
@@ -85,7 +88,8 @@ public final class EarthBiomeSource extends BiomeSource {
 				int climate = t.climate[k] & 0xFF;
 				int cover = t.cover[k] & 0xFF;
 				surface[qz * 4 + qx] = EarthBiomes.of(BiomePicker.pick(t.latitude[k], t.longitude[k], t.groundMeters[k], water, t.lake[k],
-					water ? t.waterMeters[k] : 0, climate, cover), cover, climate, t.latitude[k], t.longitude[k], t.groundMeters[k]);
+					water ? t.waterMeters[k] : 0, climate, cover), cover, climate, t.latitude[k], t.longitude[k], t.groundMeters[k],
+					water ? 0 : t.landcover[k], t.riparian[k]);
 				flavour[qz * 4 + qx] = GeoNoise.sample(t.latitude[k], t.longitude[k], 0.5, 21);
 			}
 		}

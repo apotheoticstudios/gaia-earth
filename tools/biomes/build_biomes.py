@@ -131,6 +131,9 @@ BIOMES = [
     ('fog_desert', 'desert', '#b8b08a', '#8a9a72', 'Fog Desert'),
     ('mangrove_forest', 'mangrove_swamp', '#5f8a3a', '#4f7a2e', 'Mangrove Forest'),
     ('restinga', 'plains', '#8fae5a', '#4f8a3a', 'Restinga'),
+    ('sand_dunes', 'beach', '#b5c07a', '#8aa060', 'Sand Dunes'),
+    ('gallery_forest', 'jungle', '#4fa035', '#2f8a2a', 'Gallery Forest'),
+    ('riparian_woodland', 'forest', '#6fae4a', '#5a9a3a', 'Riparian Woodland'),
 ]
 # The flooded grasslands' water is clear (the Pantanal, the Okavango), not a swamp's murk; a bog's is brown with
 # peat, a tropical swamp forest's and a cypress swamp's dark with tannin, a salt marsh's the grey-green of a tidal creek.

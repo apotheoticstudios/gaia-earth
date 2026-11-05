@@ -13,6 +13,7 @@ import se.itssimple.realearth.RealEarth;
 import se.itssimple.realearth.climate.Ecoregions;
 import se.itssimple.realearth.climate.Koppen;
 import se.itssimple.realearth.landcover.WorldCover;
+import se.itssimple.realearth.osm.OsmWater;
 
 /**
  * Earth's own biomes: the real world's, from its ecoregions ({@link Ecoregions}). Natural land takes the biome of its
@@ -182,6 +183,10 @@ public final class EarthBiomes {
 	public static final ResourceKey<Biome> FOG_DESERT = add("fog_desert", "acacia:70 oak:30");
 	public static final ResourceKey<Biome> MANGROVE_FOREST = add("mangrove_forest", "mangrove:100");
 	public static final ResourceKey<Biome> RESTINGA = add("restinga", "jungle:50 oak:50");
+	// By the map: its dunes and sand, and the woods along its rivers in dry country.
+	public static final ResourceKey<Biome> SAND_DUNES = add("sand_dunes", "spruce:50 oak:50");
+	public static final ResourceKey<Biome> GALLERY_FOREST = add("gallery_forest", "jungle:55 swamp:25 acacia:20");
+	public static final ResourceKey<Biome> RIPARIAN_WOODLAND = add("riparian_woodland", "birch:45 swamp:35 oak:20");
 
 	static {
 		SOUTH.put(TEMPERATE_RAINFOREST, Mix.of("spruce:35 dark_oak:35 oak:30"));
@@ -189,6 +194,12 @@ public final class EarthBiomes {
 
 	/** Every Earth biome; the biome source declares them up front, and tools/biomes writes one for each. */
 	public static final List<ResourceKey<Biome>> ALL = List.copyOf(MIXES.keySet());
+	/** Vanilla's biomes {@link #of} gives that {@link BiomePicker#pick} doesn't: the map's beaches. */
+	public static final List<ResourceKey<Biome>> VANILLA = List.of(Biomes.BEACH, Biomes.SNOWY_BEACH);
+
+	/** The ecoregion biomes of dry country, where trees stand along the rivers: a gallery forest in the tropics, riparian woodland elsewhere. */
+	private static final Set<Integer> DRY = Set.of(Ecoregions.TROPICAL_DRY_FOREST, Ecoregions.TROPICAL_GRASSLAND, Ecoregions.TEMPERATE_GRASSLAND,
+		Ecoregions.FLOODED_GRASSLAND, Ecoregions.MONTANE_GRASSLAND, Ecoregions.MEDITERRANEAN, Ecoregions.DESERT);
 
 	/** Cloud forest from this height on tropical mountains, rainforest below. */
 	public static final double CLOUD_FOREST_METERS = 1500;
@@ -216,14 +227,31 @@ public final class EarthBiomes {
 		return key;
 	}
 
+	/** {@link #of(ResourceKey, int, int, double, double, double, byte, boolean)} where the map says nothing of the ground or rivers. */
+	public static ResourceKey<Biome> of(ResourceKey<Biome> base, int cover, int climate, double latitude, double longitude, double meters) {
+		return of(base, cover, climate, latitude, longitude, meters, (byte) 0, false);
+	}
+
 	/**
 	 * The biome of a place: its ecoregion's where vanilla's ({@code base}, from {@link BiomePicker#pick}) is natural land,
-	 * else vanilla's -- and vanilla's where the ecoregion map has nothing (the sea, or the map unread).
+	 * else vanilla's -- and vanilla's where the ecoregion map has nothing (the sea, or the map unread). {@code land} is
+	 * what the map says dry ground is (ChunkTerrain.landcover; 0 under water) and {@code riparian} whether a river or lake
+	 * is near (ChunkTerrain.riparian).
 	 */
-	public static ResourceKey<Biome> of(ResourceKey<Biome> base, int cover, int climate, double latitude, double longitude, double meters) {
+	public static ResourceKey<Biome> of(ResourceKey<Biome> base, int cover, int climate, double latitude, double longitude, double meters,
+		byte land, boolean riparian) {
 		// Mangroves, wherever the land cover has them: their real dark, glossy green, not vanilla's lime.
 		if (base == Biomes.MANGROVE_SWAMP) {
 			return MANGROVE_FOREST;
+		}
+		// The map's beaches are beach (a cold one in polar climates), whatever the land cover makes of them (it often has
+		// the beach below the tide line as water); its dunes and sand outside the dry climates' sand seas are dunes,
+		// coastal ones of marram grass and pines and inland drift sand.
+		if (land == OsmWater.BEACH) {
+			return Koppen.polar(climate) ? Biomes.SNOWY_BEACH : Biomes.BEACH;
+		}
+		if ((land == OsmWater.DUNE || land == OsmWater.SAND) && !Koppen.arid(climate)) {
+			return SAND_DUNES;
 		}
 		if (!NATURAL.contains(base) || cover == WorldCover.CROPS || cover == WorldCover.BUILT || cover == WorldCover.SNOW_ICE
 			|| Koppen.iceCap(climate)) {
@@ -271,6 +299,11 @@ public final class EarthBiomes {
 		double treeline = temperateForest ? BiomePicker.treelineMeters(latitude, longitude) : 0;
 		boolean subalpine = temperateForest && meters >= SUBALPINE * treeline;
 		boolean montane = temperateForest && meters >= MONTANE * treeline;
+		// The woods along a dry country's rivers and lakes: gallery forest of figs and palms in the tropics; poplars,
+		// willows and tamarisks elsewhere (the tugai and the swamp forests have their own).
+		if (riparian && cover == WorldCover.TREES && DRY.contains(biome) && !sub.equals("tugai") && !sub.equals("swamp")) {
+			return Koppen.tropical(climate) ? GALLERY_FOREST : RIPARIAN_WOODLAND;
+		}
 		return switch (biome) {
 			// Subtropical moist forest where the climate is temperate (southern China, Brazil's Araucaria highlands) is laurel forest.
 			case Ecoregions.TROPICAL_MOIST_FOREST -> switch (sub) {

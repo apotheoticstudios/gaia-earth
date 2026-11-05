@@ -531,6 +531,40 @@ public final class TerrainField implements AutoCloseable {
 		return weight > 0 ? sum / weight : Double.NaN;
 	}
 
+	/** How far from a river, stream or lake a column is riparian: the width of a gallery forest on each bank. */
+	public static final double RIPARIAN_METERS = 80;
+	/** Waterways at least this wide make a riparian strip: rivers and streams, not drains and ditches. */
+	private static final double RIPARIAN_MIN_WIDTH = 3;
+
+	/** Marks the columns within {@code reach} samples of a polyline (or a ring, {@code closed}) whose segments come near the chunk. */
+	private static void markNear(boolean[] out, double[] p, boolean closed, double[] sx, double[] sy, boolean[] onGlobe,
+		double minX, double minY, double maxX, double maxY, double reach) {
+		int count = p.length / 2;
+		double r2 = reach * reach;
+		for (int i = 0; i < count - 1 + (closed && count > 2 ? 1 : 0); i++) {
+			int j = (i + 1) % count;
+			double ax = p[2 * i];
+			double ay = p[2 * i + 1];
+			double bx = p[2 * j];
+			double by = p[2 * j + 1];
+			if (Math.max(ax, bx) < minX || Math.min(ax, bx) > maxX || Math.max(ay, by) < minY || Math.min(ay, by) > maxY) {
+				continue;
+			}
+			double dx = bx - ax;
+			double dy = by - ay;
+			double len2 = dx * dx + dy * dy;
+			for (int k = 0; k < out.length; k++) {
+				if (out[k] || !onGlobe[k]) {
+					continue;
+				}
+				double t = len2 == 0 ? 0 : Math.max(0, Math.min(1, ((sx[k] - ax) * dx + (sy[k] - ay) * dy) / len2));
+				double ex = ax + t * dx - sx[k];
+				double ey = ay + t * dy - sy[k];
+				out[k] = ex * ex + ey * ey <= r2;
+			}
+		}
+	}
+
 	private static byte mappedWaterAt(Map<Long, ProcessedTile> tiles, double sx, double sy) {
 		ProcessedTile tile = tileFor(tiles, (long) Math.floor(sx + 0.5), (long) Math.floor(sy + 0.5));
 		byte kind = mappedKindAt(tile, sx, sy);
@@ -859,6 +893,25 @@ public final class TerrainField implements AutoCloseable {
 					}
 				}
 				terrain.streets = List.copyOf(streets);
+				// Columns near the map's rivers, streams and lakes (not the sea, nor its canals, drains and ditches): where
+				// a dry country's trees stand in gallery forest (EarthBiomes). The chunk's map tiles reach far enough
+				// (BRIDGE_REACH_SAMPLES) for what lies just beyond it.
+				double reach = RIPARIAN_METERS / Math.max(0.05, Mercator.sampleSpacingMeters(Mercator.latitudeOfSampleY((sy0 + sy1) / 2)));
+				for (OsmWater.Shapes s : shapes) {
+					for (OsmWater.Line line : s.lines()) {
+						if (line.naturalFlow() && line.widthMeters() >= RIPARIAN_MIN_WIDTH) {
+							markNear(terrain.riparian, line.points(), false, sx, sy, onGlobe, sx0 - reach, sy0 - reach, sx1 + reach, sy1 + reach, reach);
+						}
+					}
+					for (OsmWater.Area area : s.areas()) {
+						if (!area.sea() && area.maxX() >= sx0 - reach && area.minX() <= sx1 + reach && area.maxY() >= sy0 - reach
+							&& area.minY() <= sy1 + reach) {
+							for (double[] ring : area.rings()) {
+								markNear(terrain.riparian, ring, true, sx, sy, onGlobe, sx0 - reach, sy0 - reach, sx1 + reach, sy1 + reach, reach);
+							}
+						}
+					}
+				}
 				// The map's points of interest in the chunk, and its parks, for the life between the buildings.
 				List<ChunkTerrain.Poi> pois = new ArrayList<>();
 				int baseX = chunkX * 16;

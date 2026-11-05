@@ -99,7 +99,7 @@ public final class LodSampler {
 				// see-through, and a shallower lake reads as the sand under it.
 				double ground = sea ? e : inland ? e - Math.max(2.0, 4.0 / field.projection().blocksPerMeter(lat[k])) : e;
 				double water = sea ? 0 : inland ? e : Double.NaN;
-				out[k] = column(lat[k], lon[k], ground, water, inland, rise, c, climate, land[k]);
+				out[k] = column(lat[k], lon[k], ground, water, inland, rise, c, climate, land[k], false);
 			}
 		}
 		return out;
@@ -191,7 +191,7 @@ public final class LodSampler {
 			int idx = se.itssimple.realearth.terrain.ChunkTerrain.index(lx, lz);
 			boolean wet = !Float.isNaN(t.waterMeters[idx]) && t.waterTopY[idx] != Integer.MIN_VALUE;
 			out[k] = column(t.latitude[idx], t.longitude[idx], t.groundMeters[idx], wet ? t.waterMeters[idx] : Double.NaN, t.lake[idx],
-				t.slope(lx, lz), t.cover[idx] & 0xFF, t.climate[idx] & 0xFF, t.wood[idx] ? OsmWater.WOOD : t.landcover[idx]);
+				t.slope(lx, lz), t.cover[idx] & 0xFF, t.climate[idx] & 0xFF, t.wood[idx] ? OsmWater.WOOD : t.landcover[idx], t.riparian[idx]);
 			var plan = t.building[idx] == 0 ? null : t.plans.get(t.building[idx] - 1);
 			if (plan != null) {
 				// Near the player, buildings stand in the distant terrain too, as solid blocks to their roofs.
@@ -215,15 +215,15 @@ public final class LodSampler {
 
 	/**
 	 * A column; {@code land} is what the map says its ground is (OsmWater.WOOD in its woods, where alone forest trees grow,
-	 * EarthTrees; else OsmWater.ground's kinds, or 0).
+	 * EarthTrees; else OsmWater.ground's kinds, or 0), {@code riparian} whether a river or lake is near (known close by only).
 	 */
 	private Column column(double lat, double lon, double ground, double water, boolean lake, double rise, int cover, int climate,
-		byte land) {
+		byte land, boolean riparian) {
 		boolean sea = !Double.isNaN(water) && !lake && water <= 0.5;
 		boolean inland = !Double.isNaN(water) && !sea;
 		ResourceKey<Biome> biome = BiomePicker.pick(lat, lon, ground, sea || inland, inland, Double.isNaN(water) ? 0 : water, climate, cover);
 		// The world's biome, for its colours and its forest's leaves; vanilla's still decides the ground.
-		ResourceKey<Biome> earth = EarthBiomes.of(biome, cover, climate, lat, lon, ground);
+		ResourceKey<Biome> earth = EarthBiomes.of(biome, cover, climate, lat, lon, ground, sea || inland ? 0 : land, riparian);
 		String earthLeaves = EarthBiomes.leaves(earth, lat);
 		int groundTop = (int) Math.round(field.toY(ground, lat)) - 1;
 		int waterTop = Double.isNaN(water) ? Integer.MIN_VALUE : (int) Math.round(field.toY(water, lat)) - 1;

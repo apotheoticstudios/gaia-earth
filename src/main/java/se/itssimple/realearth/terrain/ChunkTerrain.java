@@ -127,6 +127,8 @@ public final class ChunkTerrain {
 	public final boolean[] wood = new boolean[SPAN * SPAN];
 	/** What the map says a column's ground is, as OsmWater.ground (beach, rock, marsh...), or 0 where it says nothing. */
 	public final byte[] landcover = new byte[SPAN * SPAN];
+	/** Columns within TerrainField.RIPARIAN_METERS of a river, stream or lake the map has (not the sea). */
+	public final boolean[] riparian = new boolean[SPAN * SPAN];
 	/** What else the ground of a column is laid out as: {@link #CEMETERY}, {@link #ALLOTMENT}, {@link #FLOWERBED}, {@link #PITCH}, or 0. */
 	public final byte[] grounds = new byte[SPAN * SPAN];
 	public static final byte CEMETERY = 1;

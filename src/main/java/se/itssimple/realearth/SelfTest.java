@@ -3387,6 +3387,32 @@ final class SelfTest {
 				var got = se.itssimple.realearth.world.EarthBiomes.of(p.base(), p.cover(), koppen.classAt(p.lat(), p.lon()), p.lat(), p.lon(), p.meters());
 				check(got == p.expect(), "%s is %s (%s)", p.name(), p.expect().identifier().getPath(), got.identifier().getPath());
 			}
+			// By the map: its beaches and dunes, and gallery forest along a dry country's rivers.
+			{
+				byte none = 0;
+				java.util.function.BiFunction<double[], Object[], net.minecraft.resources.ResourceKey<net.minecraft.world.level.biome.Biome>> at =
+					(p, a) -> se.itssimple.realearth.world.EarthBiomes.of((net.minecraft.resources.ResourceKey<net.minecraft.world.level.biome.Biome>) a[0],
+						(int) a[1], koppen.classAt(p[0], p[1]), p[0], p[1], p[2], (byte) a[2], (boolean) a[3]);
+				check(at.apply(new double[] {-27.42172, 153.50463, 3}, new Object[] {net.minecraft.world.level.biome.Biomes.PLAINS, grass,
+					se.itssimple.realearth.osm.OsmWater.BEACH, false}) == net.minecraft.world.level.biome.Biomes.BEACH, "the map's beaches are beach");
+				check(at.apply(new double[] {78.2, 15.6, 2}, new Object[] {net.minecraft.world.level.biome.Biomes.SNOWY_PLAINS,
+					se.itssimple.realearth.landcover.WorldCover.BARE, se.itssimple.realearth.osm.OsmWater.BEACH, false})
+					== net.minecraft.world.level.biome.Biomes.SNOWY_BEACH, "and cold beach on Svalbard");
+				check(at.apply(new double[] {52.4, 4.6, 10}, new Object[] {net.minecraft.world.level.biome.Biomes.PLAINS, grass,
+					se.itssimple.realearth.osm.OsmWater.DUNE, false}) == se.itssimple.realearth.world.EarthBiomes.SAND_DUNES,
+					"Holland's dunes are sand dunes");
+				check(at.apply(new double[] {26.0, 3.0, 400}, new Object[] {net.minecraft.world.level.biome.Biomes.DESERT,
+					se.itssimple.realearth.landcover.WorldCover.BARE, se.itssimple.realearth.osm.OsmWater.SAND, false})
+					== net.minecraft.world.level.biome.Biomes.DESERT, "the Sahara's sand is desert, not dunes");
+				check(at.apply(new double[] {11.0, -2.0, 300}, new Object[] {net.minecraft.world.level.biome.Biomes.SAVANNA, trees, none, true})
+					== se.itssimple.realearth.world.EarthBiomes.GALLERY_FOREST, "the West Sudanian savanna's riverside woods are gallery forest");
+				check(at.apply(new double[] {11.0, -2.0, 300}, new Object[] {net.minecraft.world.level.biome.Biomes.SAVANNA, grass, none, true})
+					== se.itssimple.realearth.world.EarthBiomes.TROPICAL_SAVANNA, "and its riverside grass savanna");
+				check(at.apply(new double[] {40.5, -117.5, 1400}, new Object[] {net.minecraft.world.level.biome.Biomes.TAIGA, trees, none, true})
+					== se.itssimple.realearth.world.EarthBiomes.RIPARIAN_WOODLAND, "the Great Basin's riverside woods are riparian woodland");
+				check(at.apply(new double[] {48.40, 2.70, 100}, new Object[] {net.minecraft.world.level.biome.Biomes.FOREST, trees, none, true})
+					== se.itssimple.realearth.world.EarthBiomes.TEMPERATE_DECIDUOUS_FOREST, "a forest country's riverside woods are its forest");
+			}
 			var rain = biomes.getOrThrow(se.itssimple.realearth.world.EarthBiomes.TEMPERATE_RAINFOREST);
 			check("spruce".equals(se.itssimple.realearth.world.EarthBiomes.kind(rain, 0.5, 47.8))
 				&& "dark_oak".equals(se.itssimple.realearth.world.EarthBiomes.kind(rain, 0.5, -40.1)),
@@ -3414,6 +3440,36 @@ final class SelfTest {
 				throw new RuntimeException(e);
 			}
 			check(distant >= 64, "and in distant terrain (%d of 256 columns)", distant);
+			// Flinders Beach is beach in the world; the Seine's banks are riparian.
+			int fx = (int) field.projection().blockX(-27.42172, 153.50463) >> 4;
+			int fz = (int) field.projection().blockZ(-27.42172) >> 4;
+			int beach = 0;
+			Map<String, Integer> cells = new java.util.TreeMap<>();
+			for (int cx = fx - 1; cx <= fx + 1; cx++) {
+				for (int cz = fz - 1; cz <= fz + 1; cz++) {
+					earth.getChunk(cx, cz);
+					ChunkTerrain c = field.chunkIfReady(cx, cz);
+					for (int q = 0; c != null && q < 16; q++) {
+						int x = cx * 16 + (q & 3) * 4 + 2;
+						int z = cz * 16 + (q >> 2) * 4 + 2;
+						var here = earth.getBiome(new BlockPos(x, c.topSolidY[ChunkTerrain.index(x & 15, z & 15)] + 1, z));
+						beach += here.is(net.minecraft.world.level.biome.Biomes.BEACH) ? 1 : 0;
+						cells.merge(here.unwrapKey().map(k -> k.identifier().getPath()).orElse("?") + "/land " + c.landcover[ChunkTerrain.index(x & 15, z & 15)]
+							+ "/water " + (c.waterTopY[ChunkTerrain.index(x & 15, z & 15)] != Integer.MIN_VALUE), 1, Integer::sum);
+					}
+				}
+			}
+			log("Flinders Beach's biome cells: %s", cells);
+			check(beach > 0, "Flinders Beach is beach in the world (%d of 144 biome cells)", beach);
+			int sx = (int) field.projection().blockX(48.8530, 2.3499) >> 4;
+			int sz = (int) field.projection().blockZ(48.8530) >> 4;
+			earth.getChunk(sx, sz);
+			ChunkTerrain seine = field.chunkIfReady(sx, sz);
+			int banks = 0;
+			for (int k = 0; seine != null && k < 256; k++) {
+				banks += seine.riparian[ChunkTerrain.index(k & 15, k >> 4)] ? 1 : 0;
+			}
+			check(banks > 0, "the Seine's banks at Notre-Dame are riparian (%d of 256 columns)", banks);
 		}));
 
 		phases.add(Map.entry("The map's ground: Flinders Beach and Wastwater's screes", () -> {
