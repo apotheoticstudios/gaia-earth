@@ -67,7 +67,31 @@ Things to know:
 | B9 | Dry Evergreen Forest | East Deccan, Southeast Indochina and Sri Lanka dry evergreen forests (293, 299, 301) | ecoregion |
 | B10 | Atlantic Oak Forest, Cork Oak Forest | Northwest Iberian montane forests (800); the Maghreb's woodlands and forests (798) where wooded | ecoregion |
 
+## Round 2 (researched 2026-11-06)
+
+By land area, the deserts are the biggest gap: 11.2M km2 of desert ecoregions have no landscape of their own, and
+their bare ground still takes vanilla's biome. Tropical moist forest (15.9M km2) and boreal forest (9.5M km2) are
+larger, but their trees already differ by species range; splitting them further would need forest-type data.
+
+| # | Biome | Where | How |
+|---|---|---|---|
+| C1 | Sand Sea, Stony Desert | Hot deserts' bare ground: Sand Sea where the map has sand (OpenFreeMap draws ergs as landcover sand: the Grand Erg Oriental, Rub' al Khali, Erg Chebbi and the Taklimakan were checked; the Hamada du Draa and the Tanezrouft have none), Stony Desert elsewhere. Today `BiomePicker.bare` makes every hot desert desert or, by noise, badlands (red mesas across the Sahara), and `EarthChunkGenerator.column` lays sand on all of it: Stony Desert should be gravel, stone and coarse ground. | place (map sand, cover BARE, arid climate); changes the ground too |
+| C2 | (Badlands where real) | Keep vanilla's badlands only in real badlands country: the Colorado Plateau and Wyoming Basin shrublands (429, 438), the Painted Desert; nowhere by noise | ecoregion |
+| C3 | Lichen Woodland | Open spruce over lichen: Northern and Eastern Canadian Shield taiga, Northwest Territories taiga, Watson Highlands taiga (379, 374, 381, 383) | ecoregion |
+| C4 | Shrub Tundra | Tundra the land cover shows as shrubs: the Low Arctic's dwarf birch and willow | place (tundra ecoregion, cover SHRUBS) |
+| C5 | (Polar desert lower) | The Canadian High Arctic tundra (412) is polar semi-desert below 74 degrees too | ecoregion, into Polar Desert |
+| C6 | Pinyon-Juniper Woodland | Trees in the sagebrush steppe ecoregions and the Great Basin and Colorado Plateau (429, 430, 434, 438; Mesa Verde) | place (sub sagebrush, cover TREES) |
+| C7 | Polylepis Woodland | Trees in the puna and paramo | place (sub puna or paramo, cover TREES) |
+| C8 | (fix) | The Tigris-Euphrates marshes (747) are freshwater reed marsh, not salt marsh | ecoregion, from salt to Reed Marsh |
+| C9 | Kauri Forest, Araucaria Forest, Campinarana | Northland temperate kauri forests (173); Araucaria moist forests (440); Rio Negro campinarana (498), white-sand forest | ecoregion |
+| C10 | Gibber Plain, Buttongrass Moorland | Tirari-Sturt stony desert (215); open land in Tasmania's ecoregions (177, 178, 179) | ecoregion; place (Tasmania, cover GRASS or SHRUBS) |
+| C11 | Alpine Meadow everywhere, Fjell | Grass above the treeline in every temperate mountain (the Alps, Rockies, Caucasus still take vanilla's meadow) as Alpine Meadow; open land above Scandinavia's mountain birch belt (780 above the treeline) as Fjell | place (base MEADOW) |
+| C12 | Lake | Inland lakes, which take vanilla's river biome today (rivers stay River): the map's water areas say river or lake (`OsmWater.Area.river`) | place; needs the lake/river kind per column |
+| C13 | Coral Reef, real sea ice | Shallow warm reefs from the Allen Coral Atlas (its licence is not stated on its pages: confirm before use); frozen ocean where summer sea ice lasts (NSIDC) rather than by latitude | new datasets |
+
 ## Not planned
 
 Farmland types (rice paddies, orchards, vineyards) and town parks: fields and towns keep vanilla's biomes by design.
-Karst, lava fields and glacier forefields: no open data says where they are at this scale.
+Karst, lava fields and glacier forefields: no open data says where they are at this scale. Splitting the tropical
+rainforests by continent (beyond B4's dipterocarps) and the taiga into pine and spruce: trees already differ by
+species range, and forest type would need new data.
