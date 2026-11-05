@@ -46,9 +46,9 @@ SUBS = {
     # Forest-steppe: groves of birch, aspen and pine in the grassland, from Ukraine to Mongolia, and Canada's aspen parkland.
     'forest_steppe': {661, 726, 731, 737, 738, 386},
     # Oak savanna: North America's open oak woodland between prairie and forest.
-    'oak_savanna': {403, 390, 391, 387, 343, 400},
-    # Tallgrass prairie: the wetter, eastern prairies of North America.
-    'prairie': {388, 392, 397, 401},
+    'oak_savanna': {403, 390, 391, 387, 343, 400, 385},
+    # Tallgrass prairie: the wetter, eastern prairies of North America, and the Gulf's coastal prairie.
+    'prairie': {388, 392, 397, 401, 384},
     # Pine savanna: open longleaf and Caribbean pine over grass -- the US South's coastal plain, the pine barrens,
     # Belize's and the Miskito Coast's pine savannas.
     'pine_savanna': {399, 564, 573, 347, 363, 393},
@@ -84,8 +84,8 @@ SUBS = {
     # Mountain birch forest: the birch belt of the Scandinavian mountains, Kamchatka's stone birch.
     'mountain_birch': {780, 713},
     # Mediterranean conifer forest: the Atlas and Rif cedars, Iberia's pines, the black pines, firs and cedars of the
-    # Taurus, Lebanon, Cyprus, Corsica and the Pindus.
-    'med_conifer': {701, 792, 791, 804, 786, 788, 801},
+    # Taurus, Lebanon, Cyprus, Corsica and the Pindus, the Canary pine.
+    'med_conifer': {701, 792, 791, 804, 786, 788, 801, 787},
     # Dehesa and montado: southwest Iberia's grazed oak savanna.
     'dehesa': {805},
     # Mallee: southern Australia's many-stemmed eucalypt scrub.
@@ -173,6 +173,38 @@ SUBS = {
     'palouse': {398},
     # Dark taiga: the fir, spruce and Siberian pine of the Russian Far East, Sakhalin, the Urals, the Sayan and the Altai.
     'dark_taiga': {715, 716, 719, 707, 690},
+    # Pine-oak forest: the pines and oaks of the mountains of Mexico and Central America.
+    'pine_oak': {553, 326, 327, 557, 558, 556, 559},
+    # Mixed mesophytic forest: the Appalachians' rich coves of tulip tree, buckeye, basswood, maple and hemlock.
+    'mesophytic': {329, 331},
+    # Northern hardwood forest: maple, beech and yellow birch with hemlock and white pine -- New England, the Great Lakes,
+    # the St. Lawrence, the Alleghenies.
+    'northern_hardwood': {338, 344, 334, 335, 328},
+    # Oak-hickory forest: the Ozarks, the Interior Plateau, the Piedmont, the southern Great Lakes.
+    'oak_hickory': {336, 340, 341, 330, 342},
+    # Korean pine forest: Manchuria's, the Ussuri's and Changbai's Korean pine among broadleaves.
+    'korean_pine': {669, 685, 656},
+    # The Loess Plateau: China's eroded yellow loess.
+    'loess': {653},
+    # Tugai: the poplar and tamarisk forest along Central Asia's desert rivers.
+    'tugai': {684, 818},
+    # Mixed evergreen forest: Douglas fir with tanoak and madrone in the Klamath and Siskiyou mountains.
+    'mixed_evergreen': {357},
+    # Himalayan conifer forest: the fir, hemlock and rhododendron of the Himalaya's and Hengduan's high slopes.
+    'himalayan_conifer': {309, 702, 310, 697, 704, 706},
+    # Babassu palm forest: Maranhao's.
+    'babassu': {540},
+    # Matorral: central Chile's shrubland.
+    'matorral': {596},
+    # Alfa steppe: the esparto grass of North Africa's high plateaus.
+    'alfa': {797},
+    # Dragon tree woodland: Socotra.
+    'dragon_tree': {105},
+    # Fog desert: the coastal deserts watered by fog -- the Atacama, the Sechura, the Namib, the Kaokoveld, the Saharan
+    # Atlantic coast, eastern Arabia's fog shrublands.
+    'fog_desert': {598, 608, 103, 98, 839, 821},
+    # Restinga: Brazil's coastal forest and scrub on sand.
+    'restinga': {441, 485},
 }
 # Laurel forests (laurisilva): warm-temperate evergreen broadleaf, in East Asia and on the Atlantic islands; the
 # temperate broadleaf ecoregions named "evergreen", and the Azores'.

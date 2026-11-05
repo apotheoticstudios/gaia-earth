@@ -2,6 +2,7 @@
   "replace": false,
   "values": [
     "gaia-earth:desert_steppe",
+    "gaia-earth:fog_desert",
     "gaia-earth:mojave_scrub",
     "gaia-earth:saltbush_shrubland"
   ]

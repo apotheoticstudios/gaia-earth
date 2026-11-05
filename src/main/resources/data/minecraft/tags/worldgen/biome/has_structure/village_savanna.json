@@ -6,6 +6,7 @@
     "gaia-earth:bushveld",
     "gaia-earth:cactus_scrub",
     "gaia-earth:cerrado",
+    "gaia-earth:dragon_tree_woodland",
     "gaia-earth:eucalypt_savanna",
     "gaia-earth:forest_savanna_mosaic",
     "gaia-earth:kalahari_savanna",
@@ -22,6 +23,7 @@
     "gaia-earth:succulent_thicket",
     "gaia-earth:thorn_scrub",
     "gaia-earth:tropical_savanna",
+    "gaia-earth:tugai_forest",
     "gaia-earth:xeric_shrubland",
     "gaia-earth:xeric_woodland"
   ]

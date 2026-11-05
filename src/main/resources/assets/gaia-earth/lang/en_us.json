@@ -118,5 +118,21 @@
   "biome.gaia-earth.papyrus_swamp": "Papyrus Swamp",
   "biome.gaia-earth.wet_meadow": "Wet Meadow",
   "biome.gaia-earth.palouse_prairie": "Palouse Prairie",
-  "biome.gaia-earth.dark_taiga": "Dark Taiga"
+  "biome.gaia-earth.dark_taiga": "Dark Taiga",
+  "biome.gaia-earth.pine_oak_forest": "Pine-Oak Forest",
+  "biome.gaia-earth.mixed_mesophytic_forest": "Mixed Mesophytic Forest",
+  "biome.gaia-earth.northern_hardwood_forest": "Northern Hardwood Forest",
+  "biome.gaia-earth.oak_hickory_forest": "Oak-Hickory Forest",
+  "biome.gaia-earth.korean_pine_forest": "Korean Pine Forest",
+  "biome.gaia-earth.loess_plateau": "Loess Plateau",
+  "biome.gaia-earth.tugai_forest": "Tugai Forest",
+  "biome.gaia-earth.mixed_evergreen_forest": "Mixed Evergreen Forest",
+  "biome.gaia-earth.himalayan_conifer_forest": "Himalayan Conifer Forest",
+  "biome.gaia-earth.babassu_palm_forest": "Babassu Palm Forest",
+  "biome.gaia-earth.matorral": "Matorral",
+  "biome.gaia-earth.alfa_steppe": "Alfa Steppe",
+  "biome.gaia-earth.dragon_tree_woodland": "Dragon Tree Woodland",
+  "biome.gaia-earth.fog_desert": "Fog Desert",
+  "biome.gaia-earth.mangrove_forest": "Mangrove Forest",
+  "biome.gaia-earth.restinga": "Restinga"
 }

@@ -115,11 +115,28 @@ BIOMES = [
     ('wet_meadow', 'plains', '#7fb055', '#5f9a40', 'Wet Meadow'),
     ('palouse_prairie', 'plains', '#b0b468', '#7f9a4c', 'Palouse Prairie'),
     ('dark_taiga', 'taiga', '#6f8f50', '#3f6a40', 'Dark Taiga'),
+    ('pine_oak_forest', 'forest', '#8fae4c', '#4f8a3c', 'Pine-Oak Forest'),
+    ('mixed_mesophytic_forest', 'forest', '#6faa48', '#4a9a32', 'Mixed Mesophytic Forest'),
+    ('northern_hardwood_forest', 'forest', '#79b04f', '#57a03a', 'Northern Hardwood Forest'),
+    ('oak_hickory_forest', 'forest', '#84b452', '#5f9a35', 'Oak-Hickory Forest'),
+    ('korean_pine_forest', 'taiga', '#6fa04a', '#4a8040', 'Korean Pine Forest'),
+    ('loess_plateau', 'plains', '#b8ac6a', '#7f9450', 'Loess Plateau'),
+    ('tugai_forest', 'savanna', '#a8a85e', '#8aa060', 'Tugai Forest'),
+    ('mixed_evergreen_forest', 'forest', '#7fa050', '#3f7a35', 'Mixed Evergreen Forest'),
+    ('himalayan_conifer_forest', 'taiga', '#6a8f4c', '#3f6a3f', 'Himalayan Conifer Forest'),
+    ('babassu_palm_forest', 'jungle', '#7aa83f', '#4f9a2f', 'Babassu Palm Forest'),
+    ('matorral', 'plains', '#b0a85e', '#6f854a', 'Matorral'),
+    ('alfa_steppe', 'plains', '#c0b06e', '#8a8f58', 'Alfa Steppe'),
+    ('dragon_tree_woodland', 'savanna', '#b5a86a', '#6f8a52', 'Dragon Tree Woodland'),
+    ('fog_desert', 'desert', '#b8b08a', '#8a9a72', 'Fog Desert'),
+    ('mangrove_forest', 'mangrove_swamp', '#5f8a3a', '#4f7a2e', 'Mangrove Forest'),
+    ('restinga', 'plains', '#8fae5a', '#4f8a3a', 'Restinga'),
 ]
 # The flooded grasslands' water is clear (the Pantanal, the Okavango), not a swamp's murk; a bog's is brown with
 # peat, a tropical swamp forest's and a cypress swamp's dark with tannin, a salt marsh's the grey-green of a tidal creek.
 WATER = {'flooded_grassland': '#4a7f9a', 'peat_bog': '#5a5a3c', 'swamp_forest': '#4d4a2e', 'salt_marsh': '#4a7a8a',
-         'cypress_swamp': '#4a5a38', 'sawgrass_marsh': '#5a7a6a', 'papyrus_swamp': '#4a6a4a'}
+         'cypress_swamp': '#4a5a38', 'sawgrass_marsh': '#5a7a6a', 'papyrus_swamp': '#4a6a4a',
+         'mangrove_forest': '#3f6a5a'}
 BIOME_DIR = 'data/minecraft/worldgen/biome/'
 TAG_DIR = 'data/minecraft/tags/worldgen/biome/'
 
