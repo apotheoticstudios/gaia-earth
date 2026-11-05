@@ -187,6 +187,15 @@ public final class EarthBiomes {
 	public static final ResourceKey<Biome> SAND_DUNES = add("sand_dunes", "spruce:50 oak:50");
 	public static final ResourceKey<Biome> GALLERY_FOREST = add("gallery_forest", "jungle:55 swamp:25 acacia:20");
 	public static final ResourceKey<Biome> RIPARIAN_WOODLAND = add("riparian_woodland", "birch:45 swamp:35 oak:20");
+	public static final ResourceKey<Biome> SUDANIAN_SAVANNA = add("sudanian_savanna", "acacia:40 oak:40 jungle:20");
+	public static final ResourceKey<Biome> DRY_DIPTEROCARP_FOREST = add("dry_dipterocarp_forest", "jungle:60 acacia:25 oak:15");
+	public static final ResourceKey<Biome> BAOBAB_DRY_FOREST = add("baobab_dry_forest", "acacia:60 jungle:25 oak:15");
+	public static final ResourceKey<Biome> BAIKIAEA_WOODLAND = add("baikiaea_woodland", "oak:45 acacia:35 jungle:20");
+	public static final ResourceKey<Biome> ALPINE_STEPPE = add("alpine_steppe", "birch:60 spruce:40");
+	public static final ResourceKey<Biome> ALPINE_MEADOW = add("alpine_meadow", "spruce:60 birch:40");
+	public static final ResourceKey<Biome> OASIS = add("oasis", "jungle:60 acacia:40");
+	public static final ResourceKey<Biome> REED_MARSH = add("reed_marsh", "swamp:60 birch:40");
+	public static final ResourceKey<Biome> FLOODPLAIN_FOREST = add("floodplain_forest", "swamp:40 birch:30 oak:30");
 
 	static {
 		SOUTH.put(TEMPERATE_RAINFOREST, Mix.of("spruce:35 dark_oak:35 oak:30"));
@@ -201,8 +210,11 @@ public final class EarthBiomes {
 	private static final Set<Integer> DRY = Set.of(Ecoregions.TROPICAL_DRY_FOREST, Ecoregions.TROPICAL_GRASSLAND, Ecoregions.TEMPERATE_GRASSLAND,
 		Ecoregions.FLOODED_GRASSLAND, Ecoregions.MONTANE_GRASSLAND, Ecoregions.MEDITERRANEAN, Ecoregions.DESERT);
 
-	/** Cloud forest from this height on tropical mountains, rainforest below. */
+	/** Cloud forest from this height on tropical mountains, rainforest below; from lower down in the montane forests' ecoregions. */
 	public static final double CLOUD_FOREST_METERS = 1500;
+	private static final double MONTANE_CLOUD_FOREST_METERS = 1000;
+	/** Riverside woods in temperate broadleaf country below this height are floodplain forest. */
+	private static final double FLOODPLAIN_METERS = 300;
 	/** The montane belt begins at this share of the treeline's height. */
 	private static final double MONTANE = 0.4;
 	/** Wetland this low on a temperate coast is salt marsh. */
@@ -285,7 +297,11 @@ public final class EarthBiomes {
 			if (region.realm().equals("Nearctic") && Koppen.code(climate).equals("Cfa") && meters >= CYPRESS_METERS) {
 				return CYPRESS_SWAMP;
 			}
-			return meters >= 0 && meters < SALT_MARSH_METERS && !Koppen.tropical(climate) ? SALT_MARSH : base;
+			if (meters >= 0 && meters < SALT_MARSH_METERS && !Koppen.tropical(climate)) {
+				return SALT_MARSH;
+			}
+			// The rest of the temperate and continental wetland is reed and sedge marsh, not vanilla's dark swamp.
+			return Koppen.temperate(climate) || Koppen.continental(climate) ? REED_MARSH : base;
 		}
 		boolean open = cover == WorldCover.GRASS || cover == WorldCover.SHRUBS || cover == WorldCover.MOSS;
 		// Moor is the open upland of its ecoregions (heather, bog, rough grazing), and all their open land in the Faroes and
@@ -299,10 +315,21 @@ public final class EarthBiomes {
 		double treeline = temperateForest ? BiomePicker.treelineMeters(latitude, longitude) : 0;
 		boolean subalpine = temperateForest && meters >= SUBALPINE * treeline;
 		boolean montane = temperateForest && meters >= MONTANE * treeline;
+		// Trees in a hot desert are an oasis's date palms.
+		if (cover == WorldCover.TREES && biome == Ecoregions.DESERT && Koppen.code(climate).equals("BWh")
+			&& (sub.equals("-") || sub.equals("xeric_woodland"))) {
+			return OASIS;
+		}
 		// The woods along a dry country's rivers and lakes: gallery forest of figs and palms in the tropics; poplars,
 		// willows and tamarisks elsewhere (the tugai and the swamp forests have their own).
 		if (riparian && cover == WorldCover.TREES && DRY.contains(biome) && !sub.equals("tugai") && !sub.equals("swamp")) {
 			return Koppen.tropical(climate) ? GALLERY_FOREST : RIPARIAN_WOODLAND;
+		}
+		// And in temperate broadleaf lowlands, floodplain forest of willow, poplar, ash and elm (not Australia's eucalypts, nor
+		// the hemiboreal's lakeshores of pine, spruce and birch).
+		if (riparian && cover == WorldCover.TREES && biome == Ecoregions.TEMPERATE_BROADLEAF_FOREST && meters < FLOODPLAIN_METERS
+			&& !Set.of("eucalypt", "rainforest", "hemiboreal").contains(sub)) {
+			return FLOODPLAIN_FOREST;
 		}
 		return switch (biome) {
 			// Subtropical moist forest where the climate is temperate (southern China, Brazil's Araucaria highlands) is laurel forest.
@@ -311,11 +338,18 @@ public final class EarthBiomes {
 				case "tepui" -> TEPUI;
 				case "heath_forest" -> HEATH_FOREST;
 				case "restinga" -> RESTINGA;
-				default -> meters >= CLOUD_FOREST_METERS ? CLOUD_FOREST : sub.equals("monsoon") ? MONSOON_FOREST
+				default -> meters >= (sub.equals("montane") ? MONTANE_CLOUD_FOREST_METERS : CLOUD_FOREST_METERS) ? CLOUD_FOREST
+					: sub.equals("monsoon") ? MONSOON_FOREST
 					: sub.equals("atlantic") ? ATLANTIC_FOREST : Koppen.temperate(climate) ? LAUREL_FOREST : TROPICAL_RAINFOREST;
 			};
-			case Ecoregions.TROPICAL_DRY_FOREST -> sub.equals("thorn") ? THORN_SCRUB : sub.equals("monsoon") ? MONSOON_FOREST
-				: sub.equals("babassu") ? BABASSU_PALM_FOREST : TROPICAL_DRY_FOREST;
+			case Ecoregions.TROPICAL_DRY_FOREST -> switch (sub) {
+				case "thorn" -> THORN_SCRUB;
+				case "monsoon" -> MONSOON_FOREST;
+				case "babassu" -> BABASSU_PALM_FOREST;
+				case "dry_dipterocarp" -> DRY_DIPTEROCARP_FOREST;
+				case "baobab" -> BAOBAB_DRY_FOREST;
+				default -> TROPICAL_DRY_FOREST;
+			};
 			case Ecoregions.TROPICAL_CONIFER_FOREST -> sub.equals("pine_oak") ? PINE_OAK_FOREST : TROPICAL_PINE_FOREST;
 			case Ecoregions.TEMPERATE_BROADLEAF_FOREST -> switch (sub) {
 				case "rainforest" -> subalpine ? SUBALPINE_FOREST : TEMPERATE_RAINFOREST;
@@ -371,6 +405,8 @@ public final class EarthBiomes {
 				case "terai" -> TERAI_GRASSLAND;
 				case "brigalow" -> BRIGALOW_SCRUB;
 				case "prairie" -> TALLGRASS_PRAIRIE;
+				case "sudanian" -> SUDANIAN_SAVANNA;
+				case "baikiaea" -> BAIKIAEA_WOODLAND;
 				default -> TROPICAL_SAVANNA;
 			};
 			case Ecoregions.TEMPERATE_GRASSLAND -> switch (sub) {
@@ -406,6 +442,8 @@ public final class EarthBiomes {
 				case "afromontane" -> AFROMONTANE_GRASSLAND;
 				case "snow_gum" -> SNOW_GUM_WOODLAND;
 				case "tropical_alpine" -> TROPICAL_ALPINE_GRASSLAND;
+				case "alpine_steppe" -> ALPINE_STEPPE;
+				case "alpine_meadow" -> ALPINE_MEADOW;
 				default -> MONTANE_GRASSLAND;
 			};
 			// Tundra with trees is forest-tundra: the stunted spruce, larch and birch at the edge of the taiga.

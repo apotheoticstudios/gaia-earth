@@ -205,6 +205,18 @@ SUBS = {
     'fog_desert': {598, 608, 103, 98, 839, 821},
     # Restinga: Brazil's coastal forest and scrub on sand.
     'restinga': {441, 485},
+    # Sudanian savanna: the shea and nere parkland south of the Sahel.
+    'sudanian': {62, 43},
+    # Dry dipterocarp forest: Indochina's open deciduous dipterocarp forest.
+    'dry_dipterocarp': {291, 294, 300},
+    # Baobab dry forest: western Madagascar's dry deciduous forest.
+    'baobab': {32},
+    # Baikiaea woodland: Zambezi teak on the Kalahari's sand.
+    'baikiaea': {64},
+    # Alpine steppe: the Tibetan Plateau's dry high grassland.
+    'alpine_steppe': {750, 754, 770},
+    # Alpine meadow: Central Asia's high summer pastures -- the Hindu Kush, the Khangai, the Qilian, the Tian Shan.
+    'alpine_meadow': {752, 753, 755, 763, 766, 767},
 }
 # Laurel forests (laurisilva): warm-temperate evergreen broadleaf, in East Asia and on the Atlantic islands; the
 # temperate broadleaf ecoregions named "evergreen", and the Azores'.
@@ -323,6 +335,9 @@ def sub_biome(rec, bbox):
     # Tropical swamp forests: freshwater and peat swamp forest, and the Amazon's flooded forests (varzea, igapo).
     if biome == 1 and ('swamp' in name or 'v\u00e1rzea' in name or 'igap\u00f3' in name):
         return 'swamp'
+    # Tropical montane forest: cloud forest from lower down than elsewhere.
+    if biome == 1 and 'montane' in name:
+        return 'montane'
     # Monsoon forest: the deciduous sal and teak forests of India and Indochina, bare in the dry season.
     if biome in (1, 2) and rec['REALM'] == 'Indomalayan' and 'deciduous' in name:
         return 'monsoon'

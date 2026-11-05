@@ -2,6 +2,7 @@
   "replace": false,
   "values": [
     "gaia-earth:alpine_desert",
+    "gaia-earth:alpine_steppe",
     "gaia-earth:alpine_tundra",
     "gaia-earth:boreal_forest",
     "gaia-earth:dark_taiga",

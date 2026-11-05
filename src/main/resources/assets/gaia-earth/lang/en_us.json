@@ -137,5 +137,14 @@
   "biome.gaia-earth.restinga": "Restinga",
   "biome.gaia-earth.gallery_forest": "Gallery Forest",
   "biome.gaia-earth.riparian_woodland": "Riparian Woodland",
-  "biome.gaia-earth.sand_dunes": "Sand Dunes"
+  "biome.gaia-earth.sand_dunes": "Sand Dunes",
+  "biome.gaia-earth.sudanian_savanna": "Sudanian Savanna",
+  "biome.gaia-earth.dry_dipterocarp_forest": "Dry Dipterocarp Forest",
+  "biome.gaia-earth.baobab_dry_forest": "Baobab Dry Forest",
+  "biome.gaia-earth.baikiaea_woodland": "Baikiaea Woodland",
+  "biome.gaia-earth.alpine_steppe": "Alpine Steppe",
+  "biome.gaia-earth.alpine_meadow": "Alpine Meadow",
+  "biome.gaia-earth.oasis": "Oasis",
+  "biome.gaia-earth.reed_marsh": "Reed Marsh",
+  "biome.gaia-earth.floodplain_forest": "Floodplain Forest"
 }

@@ -3181,11 +3181,11 @@ final class SelfTest {
 				new Place("the West Siberian taiga", 60.0, 75.0, 100, net.minecraft.world.level.biome.Biomes.SNOWY_TAIGA, trees,
 					se.itssimple.realearth.world.EarthBiomes.BOREAL_FOREST),
 				new Place("the West Sudanian savanna", 11.0, -2.0, 300, net.minecraft.world.level.biome.Biomes.SAVANNA, grass,
-					se.itssimple.realearth.world.EarthBiomes.TROPICAL_SAVANNA),
+					se.itssimple.realearth.world.EarthBiomes.SUDANIAN_SAVANNA),
 				new Place("Kakadu", -12.8, 132.5, 50, net.minecraft.world.level.biome.Biomes.SAVANNA, trees,
 					se.itssimple.realearth.world.EarthBiomes.EUCALYPT_SAVANNA),
 				new Place("the Tibetan Plateau", 32.0, 88.0, 4800, net.minecraft.world.level.biome.Biomes.MEADOW, grass,
-					se.itssimple.realearth.world.EarthBiomes.MONTANE_GRASSLAND),
+					se.itssimple.realearth.world.EarthBiomes.ALPINE_STEPPE),
 				new Place("the Pantanal", -17.5, -57.0, 100, net.minecraft.world.level.biome.Biomes.SWAMP,
 					se.itssimple.realearth.landcover.WorldCover.WETLAND, se.itssimple.realearth.world.EarthBiomes.FLOODED_GRASSLAND),
 				new Place("the North Slope", 69.5, -152.0, 300, net.minecraft.world.level.biome.Biomes.SNOWY_PLAINS, grass,
@@ -3378,6 +3378,24 @@ final class SelfTest {
 					se.itssimple.realearth.world.EarthBiomes.RESTINGA),
 				new Place("the Sundarbans", 21.9, 89.2, 2, net.minecraft.world.level.biome.Biomes.MANGROVE_SWAMP, se.itssimple.realearth.landcover.WorldCover.MANGROVES,
 					se.itssimple.realearth.world.EarthBiomes.MANGROVE_FOREST),
+				new Place("the Angolan scarp savanna", -11.0, 14.4, 1000, net.minecraft.world.level.biome.Biomes.SAVANNA, grass,
+					se.itssimple.realearth.world.EarthBiomes.TROPICAL_SAVANNA),
+				new Place("Cambodia's dry dipterocarp forest", 14.5, 104.7, 150, net.minecraft.world.level.biome.Biomes.SPARSE_JUNGLE, trees,
+					se.itssimple.realearth.world.EarthBiomes.DRY_DIPTEROCARP_FOREST),
+				new Place("Menabe's baobabs", -19.6, 44.5, 50, net.minecraft.world.level.biome.Biomes.SAVANNA, trees,
+					se.itssimple.realearth.world.EarthBiomes.BAOBAB_DRY_FOREST),
+				new Place("the Zambezi teak woodland", -18.1, 25.1, 1000, net.minecraft.world.level.biome.Biomes.SAVANNA, trees,
+					se.itssimple.realearth.world.EarthBiomes.BAIKIAEA_WOODLAND),
+				new Place("the Khangai's meadows", 47.5, 100.0, 2800, net.minecraft.world.level.biome.Biomes.MEADOW, grass,
+					se.itssimple.realearth.world.EarthBiomes.ALPINE_MEADOW),
+				new Place("Kharga Oasis", 25.45, 30.55, 60, net.minecraft.world.level.biome.Biomes.SAVANNA, trees,
+					se.itssimple.realearth.world.EarthBiomes.OASIS),
+				new Place("the Biebrza marshes", 53.4, 22.6, 105, net.minecraft.world.level.biome.Biomes.SWAMP, se.itssimple.realearth.landcover.WorldCover.WETLAND,
+					se.itssimple.realearth.world.EarthBiomes.REED_MARSH),
+				new Place("the Talamancas at 1,200 m", 9.5, -83.4, 1200, net.minecraft.world.level.biome.Biomes.JUNGLE, trees,
+					se.itssimple.realearth.world.EarthBiomes.CLOUD_FOREST),
+				new Place("Borneo's lowland forest at 1,200 m", 4.95, 117.86, 1200, net.minecraft.world.level.biome.Biomes.JUNGLE, trees,
+					se.itssimple.realearth.world.EarthBiomes.TROPICAL_RAINFOREST),
 				new Place("the Alps above the treeline", 46.57, 7.97, 2300, net.minecraft.world.level.biome.Biomes.MEADOW, grass,
 					net.minecraft.world.level.biome.Biomes.MEADOW),
 				new Place("Paris (town)", 48.86, 2.35, 35, net.minecraft.world.level.biome.Biomes.PLAINS,
@@ -3407,11 +3425,15 @@ final class SelfTest {
 				check(at.apply(new double[] {11.0, -2.0, 300}, new Object[] {net.minecraft.world.level.biome.Biomes.SAVANNA, trees, none, true})
 					== se.itssimple.realearth.world.EarthBiomes.GALLERY_FOREST, "the West Sudanian savanna's riverside woods are gallery forest");
 				check(at.apply(new double[] {11.0, -2.0, 300}, new Object[] {net.minecraft.world.level.biome.Biomes.SAVANNA, grass, none, true})
-					== se.itssimple.realearth.world.EarthBiomes.TROPICAL_SAVANNA, "and its riverside grass savanna");
+					== se.itssimple.realearth.world.EarthBiomes.SUDANIAN_SAVANNA, "and its riverside grass savanna");
 				check(at.apply(new double[] {40.5, -117.5, 1400}, new Object[] {net.minecraft.world.level.biome.Biomes.TAIGA, trees, none, true})
 					== se.itssimple.realearth.world.EarthBiomes.RIPARIAN_WOODLAND, "the Great Basin's riverside woods are riparian woodland");
 				check(at.apply(new double[] {48.40, 2.70, 100}, new Object[] {net.minecraft.world.level.biome.Biomes.FOREST, trees, none, true})
-					== se.itssimple.realearth.world.EarthBiomes.TEMPERATE_DECIDUOUS_FOREST, "a forest country's riverside woods are its forest");
+					== se.itssimple.realearth.world.EarthBiomes.FLOODPLAIN_FOREST, "the Seine valley's riverside woods are floodplain forest");
+				check(at.apply(new double[] {59.18, 18.30, 50}, new Object[] {net.minecraft.world.level.biome.Biomes.TAIGA, trees, none, true})
+					== se.itssimple.realearth.world.EarthBiomes.HEMIBOREAL_FOREST, "Tyresta's lakeshore woods are its hemiboreal forest");
+				check(at.apply(new double[] {44.5, -123.6, 100}, new Object[] {net.minecraft.world.level.biome.Biomes.FOREST, trees, none, true})
+					== se.itssimple.realearth.world.EarthBiomes.TEMPERATE_RAINFOREST, "a rainforest's riverside woods are its rainforest");
 			}
 			var rain = biomes.getOrThrow(se.itssimple.realearth.world.EarthBiomes.TEMPERATE_RAINFOREST);
 			check("spruce".equals(se.itssimple.realearth.world.EarthBiomes.kind(rain, 0.5, 47.8))

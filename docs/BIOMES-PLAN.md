@@ -33,10 +33,10 @@ Things to know:
 - The map's beaches and dunes come first; `land` is 0 under water.
 - An ecoregion under about ten grid cells hardly shows; leave it out (the Serengeti's plains are five).
 - Both halves edit the same files (`build_ecoregions.py`, `build_biomes.py`, `EarthBiomes.java`, `SelfTest.java`) and
-  regenerate shared ones (`ecoregions.tsv`, the biome tags, `en_us.json`). Half A lands as one commit on `main`;
-  start Half B from `main` after it (`git pull`), or rebase onto it and rerun both tools before committing.
+  regenerate shared ones (`ecoregions.tsv`, the biome tags, `en_us.json`). Half A has landed on `main`;
+  start Half B from it (`git pull`), and rerun both tools before committing.
 
-## Half A (done by the session that wrote this plan)
+## Half A (done 2026-11-06: 123 biomes)
 
 | # | Biome | Where | How |
 |---|---|---|---|
@@ -49,7 +49,7 @@ Things to know:
 | A7 | Oasis | Trees in hot deserts (desert ecoregions, BWh climate): date palm groves | place |
 | A8 | Reed Marsh | Wetland in temperate and continental climates that no other rule claims (was vanilla's swamp) | place |
 | A9 | (cloud forest lower) | Tropical moist forest ecoregions named "montane": cloud forest from 1,000 m, not 1,500 | place |
-| A10 | Floodplain Forest | Woods along rivers and lakes (riparian) in temperate broadleaf ecoregions below 300 m: willow, poplar, ash, elm | place |
+| A10 | Floodplain Forest | Woods along rivers and lakes (riparian) in temperate broadleaf ecoregions below 300 m: willow, poplar, ash, elm; not the hemiboreal's lakeshores, Australia's eucalypts or the rainforests | place |
 
 ## Half B (for another session)
 

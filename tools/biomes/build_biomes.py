@@ -134,12 +134,21 @@ BIOMES = [
     ('sand_dunes', 'beach', '#b5c07a', '#8aa060', 'Sand Dunes'),
     ('gallery_forest', 'jungle', '#4fa035', '#2f8a2a', 'Gallery Forest'),
     ('riparian_woodland', 'forest', '#6fae4a', '#5a9a3a', 'Riparian Woodland'),
+    ('sudanian_savanna', 'savanna', '#b9b55e', '#7f9a40', 'Sudanian Savanna'),
+    ('dry_dipterocarp_forest', 'sparse_jungle', '#a8aa52', '#7f9a3a', 'Dry Dipterocarp Forest'),
+    ('baobab_dry_forest', 'savanna', '#b0a85a', '#7f9045', 'Baobab Dry Forest'),
+    ('baikiaea_woodland', 'savanna', '#b6aa5c', '#7a9440', 'Baikiaea Woodland'),
+    ('alpine_steppe', 'snowy_plains', '#b0aa78', '#8a8c62', 'Alpine Steppe'),
+    ('alpine_meadow', 'meadow', '#86b05a', '#5f9045', 'Alpine Meadow'),
+    ('oasis', 'savanna', '#8fae4a', '#5f9a35', 'Oasis'),
+    ('reed_marsh', 'swamp', '#7fa050', '#5f8a3a', 'Reed Marsh'),
+    ('floodplain_forest', 'forest', '#6aa848', '#4f9a38', 'Floodplain Forest'),
 ]
 # The flooded grasslands' water is clear (the Pantanal, the Okavango), not a swamp's murk; a bog's is brown with
 # peat, a tropical swamp forest's and a cypress swamp's dark with tannin, a salt marsh's the grey-green of a tidal creek.
 WATER = {'flooded_grassland': '#4a7f9a', 'peat_bog': '#5a5a3c', 'swamp_forest': '#4d4a2e', 'salt_marsh': '#4a7a8a',
          'cypress_swamp': '#4a5a38', 'sawgrass_marsh': '#5a7a6a', 'papyrus_swamp': '#4a6a4a',
-         'mangrove_forest': '#3f6a5a'}
+         'mangrove_forest': '#3f6a5a', 'reed_marsh': '#4a6a5a'}
 BIOME_DIR = 'data/minecraft/worldgen/biome/'
 TAG_DIR = 'data/minecraft/tags/worldgen/biome/'
 
