@@ -156,6 +156,19 @@ BIOMES = [
     ('oasis', 'savanna', '#8fae4a', '#5f9a35', 'Oasis'),
     ('reed_marsh', 'swamp', '#7fa050', '#5f8a3a', 'Reed Marsh'),
     ('floodplain_forest', 'forest', '#6aa848', '#4f9a38', 'Floodplain Forest'),
+    ('pacific_island_forest', 'jungle', '#4aa83a', '#2f8f2c', 'Pacific Island Forest'),
+    ('hawaiian_forest', 'jungle', '#4f9e3c', '#3a8035', 'Hawaiian Forest'),
+    ('hawaiian_shrubland', 'savanna', '#a8a862', '#6f8a4f', 'Hawaiian Shrubland'),
+    ('madagascar_rainforest', 'jungle', '#3fa034', '#2a8a2c', 'Madagascar Rainforest'),
+    ('ericoid_thicket', 'meadow', '#8a9a5a', '#5f7a48', 'Ericoid Thicket'),
+    ('dipterocarp_rainforest', 'jungle', '#38a02c', '#248526', 'Dipterocarp Rainforest'),
+    ('maritime_tundra', 'snowy_plains', '#8aa066', '#6a8a56', 'Maritime Tundra'),
+    ('feather_grass_steppe', 'plains', '#b8b874', '#8a9a55', 'Feather-Grass Steppe'),
+    ('mongolian_steppe', 'plains', '#adb06a', '#83924f', 'Mongolian Steppe'),
+    ('fog_woodland', 'savanna', '#8fa850', '#5f8a3f', 'Fog Woodland'),
+    ('dry_evergreen_forest', 'sparse_jungle', '#8fa848', '#5a8a35', 'Dry Evergreen Forest'),
+    ('atlantic_oak_forest', 'forest', '#6aa845', '#4a9035', 'Atlantic Oak Forest'),
+    ('cork_oak_forest', 'forest', '#a2ac58', '#5f8040', 'Cork Oak Forest'),
 ]
 # The flooded grasslands' water is clear (the Pantanal, the Okavango), not a swamp's murk; a bog's is brown with
 # peat, a tropical swamp forest's and a cypress swamp's dark with tannin, a salt marsh's the grey-green of a tidal creek.

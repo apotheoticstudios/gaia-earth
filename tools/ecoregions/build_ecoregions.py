@@ -71,8 +71,8 @@ SUBS = {
     # Cerrado: Brazil's savanna woodland of twisted, thick-barked trees.
     'cerrado': {567, 566},
     # Thorn scrub: acacia and commiphora bush -- East Africa, the Horn, India's thorn forests, the Chaco, the Caatinga,
-    # Madagascar's spiny thickets, Argentina's espinal.
-    'thorn': {51, 55, 57, 45, 50, 314, 315, 605, 569, 525, 99, 575},
+    # Madagascar's spiny thickets, Argentina's espinal, the Itigi-Sumbu thicket.
+    'thorn': {51, 55, 57, 45, 50, 314, 315, 605, 569, 525, 99, 575, 46},
     # Cactus scrub: the deserts and matorral of Mexico and its borderlands, the Caribbean's and Venezuela's cardonales,
     # the Galapagos.
     'cactus': {435, 428, 426, 431, 607, 427, 432, 436, 437, 610, 600, 599, 597, 602, 603, 606, 601},
@@ -111,8 +111,9 @@ SUBS = {
     'pampas': {576, 574},
     # Patagonian steppe: the cold, windswept grass and shrub steppe east of the southern Andes.
     'patagonian': {578, 595},
-    # Tussock grassland: New Zealand's tussock country, and the tussock of the sub-Antarctic islands.
-    'tussock': {190, 194, 196, 133, 129},
+    # Tussock grassland: New Zealand's tussock country, and the tussock of the sub-Antarctic islands, Amsterdam and
+    # Saint Paul, Tristan da Cunha and Gough.
+    'tussock': {190, 194, 196, 133, 129, 67, 68},
     # Desert steppe: the cold semi-deserts of the Gobi, Central Asia and the Caspian.
     'desert_steppe': {824, 825, 826, 828, 724, 808, 827, 835, 807, 813, 829, 812, 815, 817, 819, 739, 740, 761},
     # Succulent thicket: South Africa's Albany thicket, Madagascar's succulent woodland.
@@ -121,8 +122,9 @@ SUBS = {
     'alpine_tundra': {405, 411, 416, 419, 421, 771, 782, 410, 415, 749, 764},
     # Alpine shrubland: the Himalaya's and Tibet's rhododendron, juniper and willow scrub above the forest.
     'alpine_shrub': {751, 760, 769, 765, 768},
-    # Xeric woodland: the open juniper, pistachio and acacia woodland of dry mountains, from the Sahara's to Afghanistan's.
-    'xeric_woodland': {814, 816, 834, 844, 823, 846, 833, 106, 722, 723, 758, 730, 756, 757},
+    # Xeric woodland: the open juniper, pistachio and acacia woodland of dry mountains, from the Sahara's to Afghanistan's,
+    # and Arabia's juniper highlands (the Sarawat, Yemen's).
+    'xeric_woodland': {814, 816, 834, 844, 823, 846, 833, 106, 722, 723, 758, 730, 756, 757, 59, 108, 109},
     # The llanos: the Orinoco's and Bolivia's seasonally flooded savannas, the Guianas', the humid Chaco's palm savanna.
     'llanos': {572, 565, 570, 571},
     # The Sahel: the dry acacia savanna south of the Sahara.
@@ -131,8 +133,8 @@ SUBS = {
     'forest_savanna': {44, 52, 58, 61, 63},
     # Mopane woodland: the mopane trees of the Zambezi and Angola.
     'mopane': {34, 65},
-    # Bushveld: South Africa's and Zimbabwe's thorny savanna.
-    'bushveld': {38, 48, 66},
+    # Bushveld: South Africa's and Zimbabwe's thorny savanna, and the Drakensberg escarpment's.
+    'bushveld': {38, 48, 66, 40},
     # The Kalahari: acacia savanna on red sand.
     'kalahari': {47, 97, 104},
     # Highveld grassland: South Africa's high treeless grassland.
@@ -229,6 +231,35 @@ SUBS = {
     'alpine_steppe': {750, 754, 770},
     # Alpine meadow: Central Asia's high summer pastures -- the Hindu Kush, the Khangai, the Qilian, the Tian Shan.
     'alpine_meadow': {752, 753, 755, 763, 766, 767},
+    # Pacific island forest: the breadfruit, pandanus, coconut and native hardwoods of Oceania's islands (not Hawaii's),
+    # Norfolk Island and New Caledonia. (Lord Howe's, 142, is too small for the grid.)
+    'pacific_island': {618, 619, 620, 621, 622, 624, 625, 626, 627, 628, 629, 630, 631, 632, 633, 634, 635, 637, 638,
+                       147, 146, 164},
+    # Hawaii: its koa and ohia forest, and its ohia and pili-grass shrubland.
+    'hawaiian_forest': {623, 636},
+    'hawaiian_shrub': {639, 640, 641},
+    # Madagascar's eastern rainforest, and the heath-like ericoid thickets of its high mountains.
+    'madagascar_rainforest': {17, 18},
+    'ericoid': {83},
+    # Dipterocarp rainforest: the tall lowland rain forests of Southeast Asia and Sri Lanka -- Borneo, Sumatra, Malaya,
+    # Java, the Philippines, Tenasserim, the Cardamoms, northern Vietnam.
+    'dipterocarp': {219, 278, 265, 245, 289, 284, 274, 260, 241, 247, 231, 262, 248, 276, 250, 223},
+    # Maritime tundra: the Aleutians' and the Bering coast's grass and heath, wet and windy.
+    'maritime_tundra': {406, 779},
+    # Feather-grass steppe: the Pontic and Kazakh steppes' Stipa grassland.
+    'feather_grass': {735, 732, 733},
+    # Mongolian steppe: the grassland of Mongolia, Inner Mongolia and Tuva.
+    'mongolian_steppe': {734, 736},
+    # Fog woodland: Dhofar's and the Mahra's monsoon-fed woodland.
+    'fog_woodland': {56},
+    # The Trans Fly's savanna is eucalypt and melaleuca, like Australia's across the strait.
+    'eucalypt': {188},
+    # Dry evergreen forest: the Coromandel Coast's, Sri Lanka's dry zone's and southeast Indochina's.
+    'dry_evergreen': {293, 299, 301},
+    # Atlantic oak forest: Galicia's and northern Portugal's oak and chestnut.
+    'atlantic_oak': {800},
+    # Cork oak forest: the Maghreb's cork and holm oak, from the Mamora to Kroumirie.
+    'cork_oak': {798},
 }
 # Laurel forests (laurisilva): warm-temperate evergreen broadleaf, in East Asia and on the Atlantic islands; the
 # temperate broadleaf ecoregions named "evergreen", and the Azores'.

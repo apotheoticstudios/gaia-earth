@@ -52,14 +52,14 @@ Things to know:
 | A9 | (cloud forest lower) | Tropical moist forest ecoregions named "montane": cloud forest from 1,000 m, not 1,500 | place |
 | A10 | Floodplain Forest | Woods along rivers and lakes (riparian) in temperate broadleaf ecoregions below 300 m: willow, poplar, ash, elm; not the hemiboreal's lakeshores, Australia's eucalypts or the rainforests | place |
 
-## Half B (for another session)
+## Half B (done 2026-11-06: 148 biomes, with round 2)
 
 | # | Biome | Where | How |
 |---|---|---|---|
-| B1 | Pacific Island Forest | Oceania realm moist and dry forests (618-634, 635, 637, 638) and Lord Howe, Norfolk, New Caledonia (142, 147, 146, 164); not Hawaii | ecoregion |
+| B1 | Pacific Island Forest | Oceania realm moist and dry forests (618-634, 635, 637, 638) and Norfolk, New Caledonia (147, 146, 164); not Hawaii, nor Lord Howe (142: no grid cells) | ecoregion |
 | B2 | Hawaiian Forest, Hawaiian Shrubland | Hawai'i moist and dry forests (623, 636); Hawai'i high and low shrublands, Northwest Hawai'i scrub (639, 640, 641) | ecoregion |
 | B3 | Madagascar Rainforest, Ericoid Thicket | Madagascar humid and subhumid forests (17, 18); Madagascar ericoid thickets (83) | ecoregion |
-| B4 | Dipterocarp Rainforest | Indomalayan lowland rain forests (Borneo 219, Sumatra 278, Peninsular Malaysia, Sri Lanka 274, northern Vietnam 260...; find them in `ecoregions.tsv`) | ecoregion |
+| B4 | Dipterocarp Rainforest | Indomalayan lowland rain forests: Borneo 219, Sumatra 278, Peninsular Malaysia 265, Mentawai 245, western Java 289, Tenasserim 284, Sri Lanka 274, northern Vietnam 260, the Philippines (241, 247, 231, 262, 248, 276), Myanmar's coast 250, the Cardamoms 223 | ecoregion |
 | B5 | Maritime Tundra | Aleutian Islands tundra, Russian Bering tundra (406, 779): grass and heath, wet and windy | ecoregion |
 | B6 | Feather-Grass Steppe, Mongolian Steppe | Pontic, Kazakh and Kazakh upland steppe (735, 732, 733); Mongolian-Manchurian grassland, Sayan intermontane steppe (734, 736) | ecoregion |
 | B7 | Fog Woodland | South Arabian fog woodlands (56, Dhofar's monsoon woodland); and Arabia's juniper highlands (59, 108, 109) into Xeric Woodland | ecoregion |

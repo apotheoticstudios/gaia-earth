@@ -209,6 +209,19 @@ public final class EarthBiomes {
 	public static final ResourceKey<Biome> OASIS = add("oasis", "jungle:60 acacia:40");
 	public static final ResourceKey<Biome> REED_MARSH = add("reed_marsh", "swamp:60 birch:40");
 	public static final ResourceKey<Biome> FLOODPLAIN_FOREST = add("floodplain_forest", "swamp:40 birch:30 oak:30");
+	public static final ResourceKey<Biome> PACIFIC_ISLAND_FOREST = add("pacific_island_forest", "jungle:75 acacia:25");
+	public static final ResourceKey<Biome> HAWAIIAN_FOREST = add("hawaiian_forest", "oak:60 jungle:40");
+	public static final ResourceKey<Biome> HAWAIIAN_SHRUBLAND = add("hawaiian_shrubland", "acacia:60 oak:40");
+	public static final ResourceKey<Biome> MADAGASCAR_RAINFOREST = add("madagascar_rainforest", "jungle:85 dark_oak:15");
+	public static final ResourceKey<Biome> ERICOID_THICKET = add("ericoid_thicket", "oak:50 birch:50");
+	public static final ResourceKey<Biome> DIPTEROCARP_RAINFOREST = add("dipterocarp_rainforest", "jungle:100");
+	public static final ResourceKey<Biome> MARITIME_TUNDRA = add("maritime_tundra", "birch:60 spruce:40");
+	public static final ResourceKey<Biome> FEATHER_GRASS_STEPPE = add("feather_grass_steppe", "oak:45 birch:40 spruce:15");
+	public static final ResourceKey<Biome> MONGOLIAN_STEPPE = add("mongolian_steppe", "birch:50 spruce:30 oak:20");
+	public static final ResourceKey<Biome> FOG_WOODLAND = add("fog_woodland", "acacia:75 spruce:25");
+	public static final ResourceKey<Biome> DRY_EVERGREEN_FOREST = add("dry_evergreen_forest", "acacia:45 jungle:40 oak:15");
+	public static final ResourceKey<Biome> ATLANTIC_OAK_FOREST = add("atlantic_oak_forest", "oak:65 birch:25 spruce:10");
+	public static final ResourceKey<Biome> CORK_OAK_FOREST = add("cork_oak_forest", "oak:60 acacia:30 spruce:10");
 
 	static {
 		SOUTH.put(TEMPERATE_RAINFOREST, Mix.of("spruce:35 dark_oak:35 oak:30"));
@@ -369,6 +382,11 @@ public final class EarthBiomes {
 				case "restinga" -> RESTINGA;
 				case "araucaria" -> ARAUCARIA_FOREST;
 				case "campinarana" -> CAMPINARANA;
+				// Hawaii's koa and ohia forest climbs to the treeline; the other islands and rainforests have cloud forest up high.
+				case "hawaiian_forest" -> HAWAIIAN_FOREST;
+				case "pacific_island" -> meters >= CLOUD_FOREST_METERS ? CLOUD_FOREST : PACIFIC_ISLAND_FOREST;
+				case "madagascar_rainforest" -> meters >= CLOUD_FOREST_METERS ? CLOUD_FOREST : MADAGASCAR_RAINFOREST;
+				case "dipterocarp" -> meters >= CLOUD_FOREST_METERS ? CLOUD_FOREST : DIPTEROCARP_RAINFOREST;
 				default -> meters >= (sub.equals("montane") ? MONTANE_CLOUD_FOREST_METERS : CLOUD_FOREST_METERS) ? CLOUD_FOREST
 					: sub.equals("monsoon") ? MONSOON_FOREST
 					: sub.equals("atlantic") ? ATLANTIC_FOREST : Koppen.temperate(climate) ? LAUREL_FOREST : TROPICAL_RAINFOREST;
@@ -379,6 +397,9 @@ public final class EarthBiomes {
 				case "babassu" -> BABASSU_PALM_FOREST;
 				case "dry_dipterocarp" -> DRY_DIPTEROCARP_FOREST;
 				case "baobab" -> BAOBAB_DRY_FOREST;
+				case "pacific_island" -> PACIFIC_ISLAND_FOREST;
+				case "hawaiian_forest" -> HAWAIIAN_FOREST;
+				case "dry_evergreen" -> DRY_EVERGREEN_FOREST;
 				default -> TROPICAL_DRY_FOREST;
 			};
 			case Ecoregions.TROPICAL_CONIFER_FOREST -> sub.equals("pine_oak") ? PINE_OAK_FOREST : TROPICAL_PINE_FOREST;
@@ -439,6 +460,9 @@ public final class EarthBiomes {
 				case "prairie" -> TALLGRASS_PRAIRIE;
 				case "sudanian" -> SUDANIAN_SAVANNA;
 				case "baikiaea" -> BAIKIAEA_WOODLAND;
+				case "hawaiian_shrub" -> HAWAIIAN_SHRUBLAND;
+				case "fog_woodland" -> FOG_WOODLAND;
+				case "xeric_woodland" -> XERIC_WOODLAND;
 				default -> TROPICAL_SAVANNA;
 			};
 			case Ecoregions.TEMPERATE_GRASSLAND -> switch (sub) {
@@ -457,6 +481,8 @@ public final class EarthBiomes {
 				case "xeric_woodland" -> XERIC_WOODLAND;
 				case "monte" -> MONTE_SCRUB;
 				case "palouse" -> PALOUSE_PRAIRIE;
+				case "feather_grass" -> FEATHER_GRASS_STEPPE;
+				case "mongolian_steppe" -> MONGOLIAN_STEPPE;
 				default -> moor ? MOORLAND : TEMPERATE_STEPPE;
 			};
 			case Ecoregions.FLOODED_GRASSLAND -> flooded(sub);
@@ -477,6 +503,7 @@ public final class EarthBiomes {
 				case "tropical_alpine" -> TROPICAL_ALPINE_GRASSLAND;
 				case "alpine_steppe" -> ALPINE_STEPPE;
 				case "alpine_meadow" -> ALPINE_MEADOW;
+				case "ericoid" -> ERICOID_THICKET;
 				default -> MONTANE_GRASSLAND;
 			};
 			// Tundra with trees is forest-tundra: the stunted spruce, larch and birch at the edge of the taiga.
@@ -486,8 +513,8 @@ public final class EarthBiomes {
 				: sub.equals("mountain_birch") ? cover != WorldCover.TREES && meters > BiomePicker.treelineMeters(latitude, longitude) ? FJELL
 					: MOUNTAIN_BIRCH_FOREST
 				: sub.equals("alpine_tundra") ? ALPINE_TUNDRA : sub.equals("tussock") ? TUSSOCK_GRASSLAND
-				: cover == WorldCover.TREES ? FOREST_TUNDRA : cover == WorldCover.SHRUBS ? SHRUB_TUNDRA
-				: sub.equals("wet_tundra") ? WET_TUNDRA : TUNDRA;
+				: cover == WorldCover.TREES ? FOREST_TUNDRA : sub.equals("maritime_tundra") ? MARITIME_TUNDRA
+				: cover == WorldCover.SHRUBS ? SHRUB_TUNDRA : sub.equals("wet_tundra") ? WET_TUNDRA : TUNDRA;
 			// Open land in the Mediterranean is scrub: maquis, garrigue, matorral; California's chaparral, the Cape's fynbos,
 			// southwest Iberia's dehesa.
 			case Ecoregions.MEDITERRANEAN -> switch (sub) {
@@ -503,6 +530,8 @@ public final class EarthBiomes {
 				case "matorral" -> open ? MATORRAL : MEDITERRANEAN_WOODLAND;
 				case "alfa" -> open ? ALFA_STEPPE : MEDITERRANEAN_WOODLAND;
 				case "med_conifer" -> open ? MEDITERRANEAN_SCRUB : MEDITERRANEAN_CONIFER_FOREST;
+				case "atlantic_oak" -> open ? MEDITERRANEAN_SCRUB : ATLANTIC_OAK_FOREST;
+				case "cork_oak" -> open ? MEDITERRANEAN_SCRUB : CORK_OAK_FOREST;
 				default -> open ? MEDITERRANEAN_SCRUB : MEDITERRANEAN_WOODLAND;
 			};
 			case Ecoregions.DESERT -> switch (sub) {
