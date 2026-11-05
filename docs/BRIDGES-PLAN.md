@@ -99,13 +99,37 @@ Checked in `SelfTest`:
 - The Koepoortbrug: its leaf over 12.6 m of open water (cited 10.35 m; the BGT's abutments are 9.6 m apart); its
   underside 1.6 m over Delfland's boezem level, NAP -0.43 m (cited 2.5 m, within a block); its portal, rods and beams.
 
+Trusses (road version 9, `terrain/BridgeTrusses.java`), piloted on Deventer's IJsselspoorbrug (1982, Wikidata Q21012706):
+- **Measured** in the Netherlands (`bridges.py`): along a truss bridge's track (or road), AHN's surface model reads its
+  trusses where it stands 4 m or more over the deck for 20 m or more (a catenary portal is a step or two): each truss a
+  `truss` strip in `bridge_parts`, its top over the deck the bridge's `truss_height`. Where the BGT surveys no deck
+  (it has the IJsselspoorbrug's piers and abutments, not its deck), the deck is measured along the tracks. The
+  IJsselspoorbrug: two trusses 9.5 m apart (the tracks between them, the cycle path and footpath outside), 90 m long
+  over its 95.7 m main span (Wikidata P2787), 9.96 m over the rails at 15.2 m NAP; its other spans are girders.
+- **Pattern** from Wikidata's type (Warren, Pratt and its variants, Howe, K, lattice; "deck truss") or a cited row:
+  the IJsselspoorbrug a Warren through truss (Structurae). A Warren truss's triangles are equilateral, so its panels
+  are 1.15 times its height: 8 over the IJsselspoorbrug's 90 m. The others' panels are about square.
+- **Built:** a through truss's bottom chord on the deck at its sides, its top chord its height over the deck, the deck a
+  slab between (no girders under a span a truss carries); a deck truss under the deck. Steel as iron blocks. Unmeasured,
+  a truss stands along the deck's edges over each cited span (else the longest), a tenth of the span high (as deep for
+  its span as the IJsselspoorbrug's). Members keep off railway track.
+- **Checked** (`SelfTest` "Bridges: the IJsselspoorbrug's trusses"): 8 blocks over the deck (9.96 m measured), 96 m
+  between the piers either side of the main span (95.7 m cited), iron along both trusses with two diagonals a panel,
+  and the deck clear of the IJssel as AHN measures it (558 of 567 columns within a block).
+- Not used: nl.wikipedia's doorvaarthoogte of 13.63 m, whose water level is not given; with the rails at 15.2 m NAP it
+  can't be over the IJssel's normal level (about 3 m NAP), so the measured deck stands.
+
 Not yet:
 - Which end a drawbridge is hinged at (in none of the data): its end nearer the run's start. Its portal stands on the
   leaf's first metre and a half, not on the abutment behind, and its beams don't reach back past it.
 - A bascule's counterweight and pit, a lift bridge's towers, a swing bridge's pivot: their leaves only.
 - The world's canal water in Delft stands about 0.8 m above Delfland's boezem level (0.38 m against NAP -0.43 m), so
   a canal bridge looks lower over the water in the game than it is.
-- Trusses, suspension towers and cables, cable-stayed pylons and stays.
+- Trusses' top bracing and portals (AHN reads bracing between the IJsselspoorbrug's top chords), and verticals where a
+  Warren truss has them: the data names none.
+- A bridge's ways cut at a map tile's edge stay separate runs: its longest run's deck and spans stop at the cut (the
+  IJsselspoorbrug's at 316 of its 494 m), so its trusses are placed along their own measured strips.
+- Suspension towers and cables, cable-stayed pylons and stays.
 - Arches and piers for surveyed decks the map has no bridge for (they get the deck and railings only).
 - Delft's bridges' materials: the data mostly has none, so a humpback is taken as brick.
 - Measured decks in Sweden: Lantmäteriet's lidar, behind a login.

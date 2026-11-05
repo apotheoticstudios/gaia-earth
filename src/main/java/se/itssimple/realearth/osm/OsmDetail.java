@@ -44,11 +44,12 @@ public final class OsmDetail {
 	/**
 	 * A bridge from an overlay (tools/overlay/bridges.py): its outline in global z15 sample coordinates and what the data
 	 * says of it, "" or 0 where nothing does: structure (beam, arch, humpback, truss, suspension, cable_stayed...), how it
-	 * opens (bascule, lift, swing), material, sizes in metres, and its spans' lengths from its north or west end.
+	 * opens (bascule, lift, swing), material, sizes in metres, and its spans' lengths from its north or west end; a truss
+	 * bridge's truss pattern (warren, pratt, howe, k, lattice; "deck" for a deck truss) and its trusses' top over its deck.
 	 */
 	public record Bridge(List<double[]> rings, String name, String structure, String movable, String material, double lengthMeters,
-		double heightMeters, double clearanceMeters, double[] spans, double mainSpanMeters, double widthMeters, String osm, double minX,
-		double minY, double maxX, double maxY) {
+		double heightMeters, double clearanceMeters, double[] spans, double mainSpanMeters, double widthMeters, String truss,
+		double trussHeightMeters, String osm, double minX, double minY, double maxX, double maxY) {
 	}
 
 	/** A bridge's part from an overlay: a deck, pier, abutment or sill as surveyed, or a mapped pier (a point: one x, y). */
@@ -226,8 +227,8 @@ public final class OsmDetail {
 					double[] lengths = spans.isBlank() || spans.equals("null") ? new double[0]
 						: java.util.Arrays.stream(spans.split(";")).mapToDouble(Double::parseDouble).toArray();
 					bridges.add(new Bridge(rings, text(f, "name"), text(f, "structure"), text(f, "movable"), text(f, "material"), metres(f, "length"),
-						metres(f, "height"), metres(f, "clearance"), lengths, metres(f, "main_span"), metres(f, "width"), text(f, "osm"), box[0], box[1],
-						box[2], box[3]));
+						metres(f, "height"), metres(f, "clearance"), lengths, metres(f, "main_span"), metres(f, "width"), text(f, "truss"),
+						metres(f, "truss_height"), text(f, "osm"), box[0], box[1], box[2], box[3]));
 				}
 				case "bridge_parts" -> parts.add(new BridgePart(rings, text(f, "kind"), "yes".equals(f.string("movable")), box[0], box[1], box[2], box[3]));
 				case "bridge_heights" -> heights.add(new double[] {rings.get(0)[0], rings.get(0)[1], f.number("h")});

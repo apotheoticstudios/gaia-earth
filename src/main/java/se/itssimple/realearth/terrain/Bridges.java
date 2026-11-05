@@ -623,7 +623,8 @@ final class Bridges {
 		double margin = 3 / Mercator.sampleSpacingMeters(Mercator.latitudeOfSampleY(b.minY()));
 		List<OsmDetail.BridgePart> near = overlay.parts().stream().filter(p -> p.maxX() >= b.minX() - margin && p.minX() <= b.maxX() + margin
 			&& p.maxY() >= b.minY() - margin && p.minY() <= b.maxY() + margin).toList();
-		r.parts = near.stream().filter(p -> !p.kind().equals("deck")).toList();
+		// A truss's strip (BridgeTrusses) holds nothing up.
+		r.parts = near.stream().filter(p -> !p.kind().equals("deck") && !p.kind().equals("truss")).toList();
 		r.decks = near.stream().filter(p -> p.kind().equals("deck")).toList();
 		// Half the deck's width: the outline's area over the length of run inside it.
 		double[] ring = b.rings().get(0);

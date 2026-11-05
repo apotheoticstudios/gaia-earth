@@ -11,3 +11,5 @@ wikidata:Q750068	clearance	25.2	https://sv.wikipedia.org/wiki/Tranebergsbron (se
 wikidata:Q16070584	movable	drawbridge	https://www.wikidata.org/wiki/Q16070584 (instance of: ophaalbrug, Q13928782, double-beam drawbridge)
 wikidata:Q16070584	main_span	10.35	https://nl.wikipedia.org/wiki/Koepoortbrug_(Delft) (doorvaartwijdte van het beweegbaar gedeelte 10,35 m)
 wikidata:Q16070584	clearance	2.5	https://nl.wikipedia.org/wiki/Koepoortbrug_(Delft) (doorvaarthoogte in gesloten toestand 2,50 m)
+wikidata:Q21012706	truss	warren	https://structurae.net/en/structures/deventer-railroad-bridge (Deventer Railroad Bridge, 1982: through truss bridge, Warren type truss bridge; main span 95.7 m)
+wikidata:Q21012706	material	steel	https://www.openstreetmap.org/way/593094632 (bridge:material=steel); https://nl.wikipedia.org/wiki/IJsselspoorbrug_(Deventer) (materiaal: staal en beton)

@@ -4,12 +4,15 @@ From OpenStreetMap (one Overpass query, ODbL): every bridge outline (man_made=br
 structure, opening, material and heights and its Wikidata item; from Wikidata (CC0): its type, material, length,
 height, clearance, number of spans and longest span; from bridge_facts.tsv: cited numbers neither has; and in the
 Netherlands from the BGT (Kadaster via PDOK, CC0) every deck, pier and abutment as surveyed, and from AHN (CC0) the
-deck's real top. Writes a PMTiles archive of z14 vector tiles with three layers:
+deck's real top, and on a truss bridge its trusses: where they stand and how high. Writes a PMTiles archive of z14
+vector tiles with three layers:
 
     bridges         outlines: name, structure, movable (drawbridge, bascule, lift, swing, movable), material, length, height, clearance, spans, main_span,
-                    span_count, width, layer, wikidata, osm, sources ("" or 0 where unknown; spans in metres, ";" between,
-                    from the north or west end)
-    bridge_parts    decks, piers and abutments: kind (deck, pier, abutment, sill), movable, source
+                    span_count, width, layer, truss (its pattern: warren, pratt, howe, k, lattice; "deck" for a deck
+                    truss), truss_height (its trusses' top over its deck, metres), wikidata, osm, sources ("" or 0 where
+                    unknown; spans in metres, ";" between, from the north or west end)
+    bridge_parts    decks, piers and abutments: kind (deck, pier, abutment, sill, and truss: a strip where a truss stands,
+                    measured), movable, source
     bridge_heights  points every two metres on a measured deck: h, its top in metres above sea level (AHN, NAP)
 
     python3 bridges.py <min lon> <min lat> <max lon> <max lat> <out.pmtiles>
@@ -52,6 +55,9 @@ TYPE_WORDS = [("suspension", ("suspension", "")), ("cable-stayed", ("cable_staye
               ("lift bridge", ("beam", "lift")), ("deck arch", ("arch", "")), ("through arch", ("arch", "")),
               ("arch", ("arch", "")), ("cantilever", ("cantilever", "")), ("girder", ("beam", "")), ("beam", ("beam", "")),
               ("viaduct", ("beam", ""))]
+# Truss patterns and placements by Wikidata label (Pratt's variants: Parker, Baltimore, Pennsylvania, Whipple).
+TRUSS_WORDS = [("warren", "warren"), ("pratt", "pratt"), ("parker", "pratt"), ("baltimore", "pratt"), ("pennsylvania", "pratt"),
+               ("whipple", "pratt"), ("howe", "howe"), ("k truss", "k"), ("k-truss", "k"), ("lattice", "lattice"), ("deck truss", "deck")]
 MATERIAL_WORDS = [("concrete", "concrete"), ("steel", "steel"), ("iron", "iron"), ("brick", "brick"), ("stone", "stone"),
                   ("granite", "stone"), ("limestone", "stone"), ("sandstone", "stone"), ("wood", "wood"), ("timber", "wood")]
 # Default widths (metres) of a bridge way the map gives no width for, by highway class.
@@ -130,6 +136,12 @@ def ring_of(geometry):
     return [(p["lon"], p["lat"]) for p in geometry]
 
 
+def middle(line):
+    """The middle of a line of (x, y) points: of its middle segment (a two-point way's ends lie on its bridge's outline)."""
+    a, b = line[(len(line) - 1) // 2], line[len(line) // 2]
+    return (a[0] + b[0]) / 2, (a[1] + b[1]) / 2
+
+
 def inside(x, y, ring):
     """Whether (x, y) lies in a ring of (x, y) points, by ray casting."""
     hit = False
@@ -201,6 +213,7 @@ def from_claims(cl, labels):
         if hit:
             d["structure"] = d["structure"] or hit[0]
             d["movable"] = d["movable"] or hit[1]
+        d["truss"] = " ".join(dict.fromkeys(d.get("truss", "").split() + [v for k, v in TRUSS_WORDS if k in label]))
     for c in cl.get("P186", []):
         label = labels.get(c["mainsnak"].get("datavalue", {}).get("value", {}).get("id", ""), "").lower()
         d["material"] = d["material"] or next((v for k, v in MATERIAL_WORDS if k in label), "")
@@ -215,7 +228,7 @@ def facts(path=FACTS):
         for line in f:
             if line.strip():
                 match, key, value, _ = line.rstrip("\n").split("\t", 3)
-                out.setdefault(match, {})[key] = value if key in ("structure", "material", "movable", "spans") else float(value)
+                out.setdefault(match, {})[key] = value if key in ("structure", "material", "movable", "spans", "truss") else float(value)
     return out
 
 
@@ -261,13 +274,7 @@ def deck_heights(ring):
     """AHN's surface model on a deck (a ring of lon, lat points): a point every two metres, (lon, lat, metres NAP), each
     the lowest quarter of the half-metre cells in its square, so a car or a lamp on the deck doesn't lift it, and where
     those cells are (on a deck's edge a square's middle may be off the deck)."""
-    rd = [wgs84_to_rd(lat, lon) for lon, lat in ring]
-    x0, y0 = math.floor(min(p[0] for p in rd)) - 1, math.floor(min(p[1] for p in rd)) - 1
-    x1, y1 = math.ceil(max(p[0] for p in rd)) + 1, math.ceil(max(p[1] for p in rd)) + 1
-    url = AHN + "?" + urllib.parse.urlencode({"SERVICE": "WCS", "VERSION": "1.0.0", "REQUEST": "GetCoverage", "COVERAGE": "dsm_05m",
-                                              "CRS": "EPSG:28992", "BBOX": "%d,%d,%d,%d" % (x0, y0, x1, y1),
-                                              "WIDTH": (x1 - x0) * 2, "HEIGHT": (y1 - y0) * 2, "FORMAT": "GEOTIFF"})
-    rows, gx, gy, cell = geotiff(get(url, accept="image/tiff"))
+    (rows, gx, gy, cell), rd = dsm(ring)
     bins = {}
     for r, row in enumerate(rows):
         for c, h in enumerate(row):
@@ -280,6 +287,94 @@ def deck_heights(ring):
         lat, lon = rd_to_wgs84(sum(c[1] for c in cells) / len(cells), sum(c[2] for c in cells) / len(cells))
         out.append((lon, lat, round(hs[len(hs) // 4], 2)))
     return out
+
+
+def dsm(ring):
+    """AHN's half-metre surface model round a ring of lon, lat points, as geotiff() gives it, and the ring in RD New."""
+    rd = [wgs84_to_rd(lat, lon) for lon, lat in ring]
+    x0, y0 = math.floor(min(p[0] for p in rd)) - 1, math.floor(min(p[1] for p in rd)) - 1
+    x1, y1 = math.ceil(max(p[0] for p in rd)) + 1, math.ceil(max(p[1] for p in rd)) + 1
+    url = AHN + "?" + urllib.parse.urlencode({"SERVICE": "WCS", "VERSION": "1.0.0", "REQUEST": "GetCoverage", "COVERAGE": "dsm_05m",
+                                              "CRS": "EPSG:28992", "BBOX": "%d,%d,%d,%d" % (x0, y0, x1, y1),
+                                              "WIDTH": (x1 - x0) * 2, "HEIGHT": (y1 - y0) * 2, "FORMAT": "GEOTIFF"})
+    return geotiff(get(url, accept="image/tiff")), rd
+
+
+def along(line, x, y):
+    """Where (x, y) lies by a line of (x, y) points: metres along it to its nearest point, and metres across (left positive)."""
+    best, start = (float("inf"), 0.0, 0.0), 0.0
+    for (ax, ay), (bx, by) in zip(line, line[1:]):
+        dx, dy = bx - ax, by - ay
+        length = math.hypot(dx, dy) or 1e-12
+        u = max(0.0, min(1.0, ((x - ax) * dx + (y - ay) * dy) / length ** 2))
+        d = math.hypot(x - ax - u * dx, y - ay - u * dy)
+        if d < best[0]:
+            best = (d, start + u * length, math.copysign(d, dx * (y - ay) - dy * (x - ax)))
+        start += length
+    return best[1], best[2]
+
+
+def point_at(line, s, t):
+    """The point s metres along a line of (x, y) points and t across it (left positive)."""
+    for (ax, ay), (bx, by) in zip(line, line[1:]):
+        length = math.hypot(bx - ax, by - ay) or 1e-12
+        if s <= length or (bx, by) == line[-1]:
+            return ax + (bx - ax) * s / length - (by - ay) / length * t, ay + (by - ay) * s / length + (bx - ax) / length * t
+        s -= length
+
+
+def trusses(cells, step=2.0):
+    """Where a truss bridge's trusses stand and how high, from surface heights over it: cells (s, t, h), s metres along its
+    way, t across it. Its deck at each step along it is the median there. Its trusses stand where the surface reads 4 m over
+    that for 20 m or more (a catenary portal or a lamp is a step or two); their planes are where across, over those steps,
+    the median reads 1.5 m or more over the deck; their top is the tenth highest of the steps' highest. Returns (from, to,
+    [(across, width)], top over the deck), metres, or None."""
+    steps = {}
+    for s, t, h in cells:
+        steps.setdefault(math.floor(s / step), []).append((t, h))
+    deck = {k: sorted(h for _, h in v)[len(v) // 2] for k, v in steps.items()}
+    high = sorted(k for k, v in steps.items() if sum(h > deck[k] + 4 for _, h in v) >= 4)
+    best, run = [], []
+    for k in high:
+        run = run + [k] if run and k - run[-1] <= 2 else [k]
+        if not best or run[-1] - run[0] > best[-1] - best[0]:
+            best = run
+    if not best or (best[-1] - best[0] + 1) * step < 20:
+        return None
+    over = range(best[0], best[-1] + 1)
+    across = {}
+    for k in over:
+        for t, h in steps.get(k, []):
+            across.setdefault(math.floor(t / 0.5), []).append(h - deck[k])
+    planes, group = [], []
+    for b in sorted(b for b, v in across.items() if sorted(v)[len(v) // 2] >= 1.5) + [None]:
+        if group and (b is None or b - group[-1] > 1):
+            planes.append(((group[0] + group[-1] + 1) * 0.25, (group[-1] - group[0] + 1) * 0.5))
+            group = []
+        group += [] if b is None else [b]
+    tops = sorted(max(h for _, h in steps[k]) - deck[k] for k in over if k in steps)
+    return best[0] * step, (best[-1] + 1) * step, planes, round(tops[int(len(tops) * 0.9)], 2)
+
+
+def measure_trusses(ring, axis):
+    """A truss bridge's trusses in AHN's surface model over its outline (a ring of lon, lat points), along its axis (a line of
+    lon, lat points, its track or road): strips where they stand (rings of lon, lat points) and their top over its deck in
+    metres; ([], 0) where it reads none."""
+    (rows, gx, gy, cell), rd = dsm(ring)
+    line = [wgs84_to_rd(lat, lon) for lon, lat in axis]
+    cells = []
+    for r, row in enumerate(rows):
+        for c, h in enumerate(row):
+            x, y = gx + (c + 0.5) * cell, gy - (r + 0.5) * cell
+            if -100 < h < 400 and inside(x, y, rd):
+                cells.append(along(line, x, y) + (h,))
+    found = trusses(cells)
+    if found is None:
+        return [], 0.0
+    s0, s1, planes, top = found
+    strips = [strip([rd_to_wgs84(*point_at(line, s0 + (s1 - s0) * i / 20, t))[::-1] for i in range(21)], max(1.0, width))
+              for t, width in planes]
+    return strips, top
 
 
 def in_netherlands(bbox):
@@ -325,7 +420,7 @@ def main(min_lon, min_lat, max_lon, max_lat, out):
             ways.append((ring_of(el["geometry"]), describe(t), t, "osm:way/%d" % el["id"]))
     # A way on an outline tells the outline what it lacks; a way with something to say and no outline gets one of its own.
     for line, d, tags, osm in ways:
-        mid = line[len(line) // 2]
+        mid = middle(line)
         home = next((o for o in outlines if inside(mid[0], mid[1], o[0])), None)
         if home is not None:
             merge(home[1], d)
@@ -334,6 +429,9 @@ def main(min_lon, min_lat, max_lon, max_lat, out):
             outlines.append((strip(line, width), d, osm))
     known = wikidata([d["wikidata"] for _, d, _ in outlines if d["wikidata"]])
     cited = facts()
+    bgt = bgt_parts(bbox) if in_netherlands(bbox) else []
+    parts = list(supports)
+    heights = []
     features = []
     for ring, d, osm in outlines:
         sources = [osm]
@@ -345,19 +443,29 @@ def main(min_lon, min_lat, max_lon, max_lat, out):
         if fact:
             d.update(fact)  # cited numbers win
             sources.append("bridge_facts.tsv")
-        props = {k: d.get(k, "") or ("" if k in ("name", "structure", "movable", "material", "spans", "wikidata") else 0.0)
+        if d["structure"] == "truss" and in_netherlands(bbox):
+            # Its tracks (or else its ways): the trusses measured along the longest, its deck along them where the BGT has none.
+            on = [(l, tags) for l, _, tags, _ in ways if inside(*middle(l), ring)]
+            tracks = [l for l, tags in on if "railway" in tags] or [l for l, _ in on]
+            if tracks:
+                strips, top = measure_trusses(ring, max(tracks, key=lambda l: sum(math.dist(a, b) for a, b in zip(l, l[1:]))))
+                if top:
+                    d["truss_height"] = top  # measured wins
+                    sources.append("ahn")
+                    parts += [([s], "truss", False, "ahn:" + osm) for s in strips]
+                if not any(kind == "deck" and inside(rings[0][0][0], rings[0][0][1], ring) for rings, kind, _, _ in bgt):
+                    for l in tracks:
+                        heights += deck_heights(strip(l, 3))
+        props = {k: d.get(k, "") or ("" if k in ("name", "structure", "movable", "material", "spans", "truss", "wikidata") else 0.0)
                  for k in ("name", "structure", "movable", "material", "length", "height", "clearance", "spans", "main_span",
-                           "span_count", "width", "layer", "wikidata")}
+                           "span_count", "width", "layer", "truss", "truss_height", "wikidata")}
         props = {k: (float(v) if isinstance(v, (int, float)) else str(v)) for k, v in props.items()}
         props.update({"osm": osm, "sources": "; ".join(sources)})
         features.append(([[mercator(lat, lon) for lon, lat in ring]], props))
-    parts = list(supports)
-    heights = []
-    if in_netherlands(bbox):
-        parts += bgt_parts(bbox)
-        for rings, kind, _, _ in parts:
-            if kind == "deck":
-                heights += deck_heights(rings[0])
+    parts += bgt
+    for rings, kind, _, _ in bgt:
+        if kind == "deck":
+            heights += deck_heights(rings[0])
     part_features = [([[mercator(lat, lon) for lon, lat in ring] for ring in rings], {"kind": kind, "movable": "yes" if movable else "",
                                                                                    "source": source}) for rings, kind, movable, source in parts]
     height_features = [([[mercator(lat, lon)]], {"h": h}) for lon, lat, h in heights]
@@ -368,9 +476,9 @@ def main(min_lon, min_lat, max_lon, max_lat, out):
             for k, v in per_tile.items():
                 tiles[k] = tiles.get(k, b"") + encode_layer(name, v, *k)
     text = {"name": "String", "structure": "String", "movable": "String", "material": "String", "spans": "String",
-            "wikidata": "String", "osm": "String", "sources": "String"}
+            "truss": "String", "wikidata": "String", "osm": "String", "sources": "String"}
     layers = {"bridges": {**text, **{k: "Number" for k in ("length", "height", "clearance", "main_span", "span_count", "width",
-                                                                                            "layer")}},
+                                                                                            "layer", "truss_height")}},
               "bridge_parts": {"kind": "String", "movable": "String", "source": "String"}, "bridge_heights": {"h": "Number"}}
     write_pmtiles(out, tiles, bbox, layers, "OpenStreetMap contributors (ODbL); Wikidata (CC0); Kadaster BGT (CC0); AHN (CC0)")
     print("%d bridges (%d with Wikidata), %d parts, %d measured deck points in %d z14 tiles, %.2f MB"
@@ -420,6 +528,17 @@ def self_test():
     rows, gx, gy, cell = geotiff(blob)
     assert rows == [(1.5, -2.25)] and (gx, gy, cell) == (1000, 2000, 0.5), (rows, gx, gy, cell)
     assert facts()["wikidata:Q580518"]["spans"] == "168;204"
+    d = from_claims({"P31": [snak("Q6")]}, {"Q6": "Warren truss bridge"})
+    assert d["structure"] == "truss" and d["truss"] == "warren", d
+    # A 100 m deck at 15 m, a truss over 30 to 70 m with its planes 5 m either side, 10 m high, and a portal at 10 m.
+    cells = [(s / 2, t / 2, 15.0) for s in range(200) for t in range(-16, 17)]
+    cells += [(s / 2, t / 2, 25.0 if t in (-10, 10) else 20.0) for s in range(60, 140) for t in (-11, -10, -9, 9, 10, 11)]
+    cells += [(10.0 + s / 2, t / 2, 21.0) for s in range(2) for t in range(-16, 17)]
+    s0, s1, planes, top = trusses(cells)
+    assert (s0, s1, top) == (30, 70, 10) and [round(t) for t, _ in planes] == [-5, 5], (s0, s1, planes, top)
+    line = [(0, 0), (10, 0), (10, 10)]
+    assert middle(line) == (10, 0) and middle([(0, 0), (4, 2)]) == (2, 1)
+    assert along(line, 5, 1) == (5, 1) and along(line, 11, 5) == (15, -1) and point_at(line, 15, 1) == (9, 5)
     print("self-test passed")
 
 

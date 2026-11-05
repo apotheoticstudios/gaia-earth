@@ -2521,6 +2521,193 @@ final class SelfTest {
 			}
 		}));
 
+		phases.add(Map.entry("Bridges: the IJsselspoorbrug's trusses", () -> {
+			// Deventer's railway bridge over the IJssel from a bridge overlay, where one is installed (road version 9): a Warren
+			// through truss (Structurae, tools/overlay/bridge_facts.tsv) over its 95.7 m main span (Wikidata P2787), its trusses
+			// where AHN's surface model reads them and as high over the deck as it reads them; checked: their height within a
+			// block, iron members along both of them panel by panel, 95.7 m between the piers either side within 5 %, and its
+			// deck at AHN's measured top with only its slab under it, so it clears the IJssel as measured within a block.
+			TerrainField field = RealEarth.terrain();
+			var detail = field.map() == null ? null : field.map().detail();
+			if (RealEarth.config().buildingOverlays.isBlank() || detail == null || field.map().roadVersion() < 9) {
+				log("no bridge overlay installed; the IJsselspoorbrug not checked");
+				return;
+			}
+			try {
+				int tx = (int) Math.floor(Mercator.sampleX(6.1445) / (Mercator.TILE_SIZE * 2));
+				int ty = (int) Math.floor(Mercator.sampleY(52.2545) / (Mercator.TILE_SIZE * 2));
+				var tile = detail.bridges(tx, ty).get(120, java.util.concurrent.TimeUnit.SECONDS);
+				var bridge = tile.bridges().stream().filter(b -> "osm:way/593094632".equals(b.osm())).findFirst().orElse(null);
+				if (bridge == null) {
+					log("the bridge overlays have no IJsselspoorbrug; not checked");
+					return;
+				}
+				double[] ring = bridge.rings().get(0);
+				// The overlay's tiles under the whole bridge: a strip reaching into two is in both, once.
+				Map<String, double[]> strips = new java.util.LinkedHashMap<>();
+				List<double[]> heights = new ArrayList<>();
+				double per = Mercator.TILE_SIZE * 2;
+				for (int x = (int) Math.floor((bridge.minX() + 0.5) / per); x <= (int) Math.floor((bridge.maxX() + 0.5) / per); x++) {
+					for (int y = (int) Math.floor((bridge.minY() + 0.5) / per); y <= (int) Math.floor((bridge.maxY() + 0.5) / per); y++) {
+						var t = detail.bridges(x, y).get(120, java.util.concurrent.TimeUnit.SECONDS);
+						heights.addAll(t.heights());
+						t.parts().stream().filter(p -> p.kind().equals("truss") && insideRing(ring, (p.minX() + p.maxX()) / 2, (p.minY() + p.maxY()) / 2))
+							.forEach(p -> strips.putIfAbsent(Math.round(p.minX()) + "," + Math.round(p.minY()), p.rings().get(0)));
+					}
+				}
+				List<double[]> planes = List.copyOf(strips.values());
+				check(bridge.trussHeightMeters() > 0 && planes.size() == 2, "the overlay measures the IJsselspoorbrug's two trusses and their height "
+					+ "(%d trusses, %.2f m)", planes.size(), bridge.trussHeightMeters());
+				if (planes.size() != 2) {
+					return;
+				}
+				// Its long axis: the outline's two points farthest apart.
+				double[] a = {0, 0};
+				double[] b = {0, 0};
+				double far = -1;
+				for (int i = 0; i < ring.length; i += 2) {
+					for (int j = i + 2; j < ring.length; j += 2) {
+						double d = Math.hypot(ring[i] - ring[j], ring[i + 1] - ring[j + 1]);
+						if (d > far) {
+							far = d;
+							a = new double[] {ring[i], ring[i + 1]};
+							b = new double[] {ring[j], ring[j + 1]};
+						}
+					}
+				}
+				double ux = (b[0] - a[0]) / far;
+				double uy = (b[1] - a[1]) / far;
+				double lat0 = Mercator.latitudeOfSampleY(a[1]);
+				double spacing = Mercator.sampleSpacingMeters(lat0);
+				double perMeter = field.projection().blocksPerMeter(lat0);
+				java.util.Set<Long> chunks = new java.util.LinkedHashSet<>();
+				for (double m = 0; m <= far * spacing; m += 4) {
+					double lat = Mercator.latitudeOfSampleY(a[1] + uy * m / spacing);
+					double lon = (a[0] + ux * m / spacing + 0.5) / Mercator.SAMPLES_PER_AXIS * 360.0 - 180.0;
+					int cx = (int) Math.floor(field.projection().blockX(lat, lon)) >> 4;
+					int cz = (int) Math.floor(field.projection().blockZ(lat)) >> 4;
+					for (int dx = -1; dx <= 1; dx++) {
+						for (int dz = -1; dz <= 1; dz++) {
+							chunks.add(ChunkPos.pack(cx + dx, cz + dz));
+						}
+					}
+				}
+				// The trusses' extent along it.
+				double from = Double.MAX_VALUE;
+				double to = -Double.MAX_VALUE;
+				for (double[] p : planes) {
+					for (int i = 0; i < p.length; i += 2) {
+						double s = ((p[i] - a[0]) * ux + (p[i + 1] - a[1]) * uy) * spacing;
+						from = Math.min(from, s);
+						to = Math.max(to, s);
+					}
+				}
+				double length = to - from;
+				List<Double> piers = new ArrayList<>();
+				int[] members = new int[2];
+				int highest = Integer.MIN_VALUE;
+				List<List<Double>> diagonals = List.of(new ArrayList<>(), new ArrayList<>());
+				int overWater = 0;
+				int clear = 0;
+				Map<Integer, Integer> off = new java.util.TreeMap<>();
+				for (long key : chunks) {
+					ChunkTerrain c = field.chunkBlocking(ChunkPos.getX(key), ChunkPos.getZ(key), 120);
+					LevelChunk chunk = null;
+					for (int k16 = 0; k16 < 256; k16++) {
+						int k = ChunkTerrain.index(k16 & 15, k16 >> 4);
+						double sx = Mercator.sampleX(c.longitude[k]);
+						double sy = Mercator.sampleY(c.latitude[k]);
+						if (!isDeck(c, k) || !insideRing(ring, sx, sy)) {
+							continue;
+						}
+						double along = ((sx - a[0]) * ux + (sy - a[1]) * uy) * spacing;
+						int base = c.waterTopY[k] != Integer.MIN_VALUE ? c.waterTopY[k] : c.topSolidY[k];
+						int lowest = c.deckY[k];
+						boolean pier = false;
+						int[] fill = c.bridgeFill[k];
+						for (int i = 0; fill != null && i < fill.length; i += 3) {
+							pier |= fill[i] <= base + 1 && fill[i + 1] >= c.deckY[k] - 1;
+							lowest = Math.min(lowest, fill[i]);
+						}
+						if (pier) {
+							piers.add(along);
+						}
+						int plane = insideRing(planes.get(0), sx, sy) ? 0 : insideRing(planes.get(1), sx, sy) ? 1 : -1;
+						if (plane >= 0) {
+							// Its members as built: iron over the deck, and halfway up, where a diagonal crosses.
+							chunk = chunk != null ? chunk : earth.getChunk(ChunkPos.getX(key), ChunkPos.getZ(key));
+							BlockPos.MutableBlockPos at = new BlockPos.MutableBlockPos(ChunkPos.getX(key) * 16 + (k16 & 15), 0, ChunkPos.getZ(key) * 16 + (k16 >> 4));
+							int top = Integer.MIN_VALUE;
+							for (int y = c.deckY[k] + 1; y <= c.deckY[k] + 40; y++) {
+								if (chunk.getBlockState(at.setY(y)).is(Blocks.IRON_BLOCK)) {
+									top = y;
+								}
+							}
+							if (top != Integer.MIN_VALUE) {
+								members[plane]++;
+								highest = Math.max(highest, top - c.deckY[k]);
+								int half = c.deckY[k] + (int) Math.round(bridge.trussHeightMeters() * perMeter / 2);
+								if (chunk.getBlockState(at.setY(half)).is(Blocks.IRON_BLOCK)) {
+									diagonals.get(plane).add(along);
+								}
+							}
+						} else if (c.waterTopY[k] != Integer.MIN_VALUE && !pier && along >= from && along <= to) {
+							// Its clearance over the water: down to its lowest block, against AHN's deck top there (the lowest within 3 m).
+							double truth = heights.stream().filter(h -> Math.hypot(h[0] - sx, h[1] - sy) * spacing <= 3).mapToDouble(h -> h[2]).min()
+								.orElse(Double.NaN);
+							if (!Double.isNaN(truth)) {
+								int built = lowest - c.waterTopY[k] - 1;
+								int measured = (int) Math.round(field.toY(truth, c.latitude[k])) - 3 - c.waterTopY[k];
+								overWater++;
+								clear += Math.abs(built - measured) <= 1 ? 1 : 0;
+								off.merge(built - measured, 1, Integer::sum);
+							}
+						}
+					}
+				}
+				// Its piers in groups along it, and the lengths between them; the diagonals in groups along each truss.
+				piers.sort(null);
+				List<Double> centres = new ArrayList<>();
+				for (int i = 0, j = 0; i < piers.size(); i = j) {
+					while (j < piers.size() && piers.get(j) - piers.get(i) <= 8) {
+						j++;
+					}
+					centres.add((piers.get(i) + piers.get(j - 1)) / 2);
+				}
+				List<Long> gaps = new ArrayList<>();
+				for (int i = 1; i < centres.size(); i++) {
+					gaps.add(Math.round(centres.get(i) - centres.get(i - 1)));
+				}
+				int[] crossings = new int[2];
+				for (int p = 0; p < 2; p++) {
+					List<Double> d = diagonals.get(p);
+					d.sort(null);
+					for (int i = 0; i < d.size(); i++) {
+						crossings[p] += i == 0 || d.get(i) - d.get(i - 1) > 1.5 / perMeter ? 1 : 0;
+					}
+				}
+				// A Warren truss of equilateral triangles over its measured length: two diagonals a panel.
+				long panels = Math.max(1, Math.round(length / (2 / Math.tan(Math.toRadians(60)) * bridge.trussHeightMeters())));
+				long high = Math.round(bridge.trussHeightMeters() * perMeter);
+				log("the IJsselspoorbrug: trusses %.0f m long, %.2f m high (AHN) = %d blocks, built %d blocks over the deck; member columns %d and %d; "
+					+ "diagonal crossings %d and %d (%d panels); metres between its piers: %s; %d deck columns over the water, %d clear of it as measured "
+					+ "(built minus measured, blocks: %s)", length, bridge.trussHeightMeters(), high, highest, members[0], members[1], crossings[0],
+					crossings[1], panels, gaps, overWater, clear, off);
+				check(Math.abs(highest - bridge.trussHeightMeters() * perMeter) <= 1, "the IJsselspoorbrug's trusses stand %.2f m (AHN) over its deck, "
+					+ "within a block (%d blocks)", bridge.trussHeightMeters(), highest);
+				check(gaps.stream().anyMatch(g -> Math.abs(g - 95.7) <= 95.7 * 0.05), "the IJsselspoorbrug's main span is 95.7 m (Wikidata) between its "
+					+ "piers, within 5 %% (%s)", gaps);
+				check(members[0] >= length * perMeter * 0.6 && members[1] >= length * perMeter * 0.6
+					&& Math.abs(crossings[0] - 2 * panels) <= 2 && Math.abs(crossings[1] - 2 * panels) <= 2,
+					"the IJsselspoorbrug has Warren trusses along both sides, panel by panel (%d and %d columns, %d and %d diagonals for %d panels)",
+					members[0], members[1], crossings[0], crossings[1], panels);
+				check(overWater >= 20 && clear * 10 >= overWater * 8, "the IJsselspoorbrug's deck clears the IJssel as AHN measures it, within a block "
+					+ "(%d of %d columns)", clear, overWater);
+			} catch (Exception e) {
+				check(false, "the IJsselspoorbrug: %s", e);
+			}
+		}));
+
 		phases.add(Map.entry("Roads: Paris's crossings and paving", () -> {
 			// Chatelet, where Rivoli meets Sebastopol (34 marked crossings within 160 m): zebra crossings at the map's
 			// marked crossings, paving stones where mapped.

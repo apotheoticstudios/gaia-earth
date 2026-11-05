@@ -91,9 +91,13 @@ final class BridgeStructure {
 			double perMeter = field.projection().blocksPerMeter(lat);
 			double m = s * spacing;
 			Bridges.Span span = null;
+			double gap = Double.MAX_VALUE;
 			for (Bridges.Span c : r.spans) {
-				if (m >= c.from() && m <= c.to()) {
+				// The span it lies in; on a support, the nearer of the two it parts (a surveyed support's length is in neither).
+				double d = Math.max(0, Math.max(c.from() - m, m - c.to()));
+				if (d <= gap) {
 					span = c;
+					gap = d;
 				}
 			}
 			if (span == null) {
@@ -125,6 +129,9 @@ final class BridgeStructure {
 			}
 			if (pier && t.way[k] == Ways.NONE && bed <= under) {
 				fill.add(new int[] {bed, under, material});
+			}
+			if (BridgeTrusses.apply(field, net.overlay, t, k, r, span, sx[k], sy[k], m, side, perMeter, top, under, material, fill)) {
+				continue; // a truss carries this span (road version 9): no girders or arch under it
 			}
 			Bridges.Span leaf = field.map() != null && field.map().roadVersion() >= 8 ? leaf(r) : null;
 			if (leaf != null && r.facts.movable().equals("drawbridge")) {
