@@ -261,7 +261,11 @@ public final class EarthTrees {
 				}
 			}
 		}
-		String kind = cover == WorldCover.MANGROVES ? "mangrove" : leaves == OsmTrees.NEEDLE ? "spruce" : kind(region.getBiome(pos), random);
+		// Kinds come in stands, as species do: a mixed forest is groves of conifers and of broadleaves, not a tree of each in turn.
+		double along = random.nextDouble() < STAND ? new SplittableRandom(region.getSeed() ^ ((long) (x >> STAND_SHIFT) * 341873128712L
+			+ (long) (z >> STAND_SHIFT) * 132897987541L) ^ 0x6b696e64L).nextDouble() : random.nextDouble();
+		String kind = cover == WorldCover.MANGROVES ? "mangrove" : leaves == OsmTrees.NEEDLE ? "spruce"
+			: kind(region.getBiome(pos), random, along, t.latitude[k]);
 		if (leaves == OsmTrees.BROAD && kind.equals("spruce")) {
 			kind = "oak";
 		}
@@ -342,10 +346,15 @@ public final class EarthTrees {
 	}
 
 	/**
-	 * The kind of tree vanilla grows in a biome: spruce (spruces and pines), birch, oak, swamp (oaks in a swamp),
-	 * dark_oak, acacia, jungle, mangrove, cherry; mixed as vanilla mixes them.
+	 * The kind of tree a biome grows: spruce (spruces and pines), birch, oak, swamp (oaks in a swamp), dark_oak, acacia,
+	 * jungle, mangrove, cherry. An Earth biome's from its own mix ({@link EarthBiomes#kind}, {@code along} it); in
+	 * vanilla's, mixed as vanilla mixes them.
 	 */
-	private static String kind(Holder<Biome> biome, RandomSource random) {
+	private static String kind(Holder<Biome> biome, RandomSource random, double along, double latitude) {
+		String earth = EarthBiomes.kind(biome, along, latitude);
+		if (earth != null) {
+			return earth;
+		}
 		if (biome.is(BiomeTags.IS_TAIGA) || biome.is(Biomes.GROVE) || biome.is(Biomes.SNOWY_PLAINS) || biome.is(Biomes.SNOWY_SLOPES)) {
 			return "spruce";
 		}

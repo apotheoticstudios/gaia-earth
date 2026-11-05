@@ -1,0 +1,10 @@
+{
+  "replace": false,
+  "values": [
+    "gaia-earth:eucalypt_forest",
+    "gaia-earth:laurel_forest",
+    "gaia-earth:mediterranean_woodland",
+    "gaia-earth:temperate_deciduous_forest",
+    "gaia-earth:temperate_mixed_forest"
+  ]
+}

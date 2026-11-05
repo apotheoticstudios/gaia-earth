@@ -211,6 +211,17 @@ Licensed under CC BY 4.0 (<https://creativecommons.org/licenses/by/4.0/>). **Cha
 WGS84 revision is resampled to a 0.1 degree grid, each cell taking its second highest sample (the density of its
 wooded pixels), stored as a logarithmic byte (`treedensity.bin`; `tools/treedensity`).
 
+## Ecoregions: RESOLVE Ecoregions 2017
+
+Which of the world's 846 ecoregions, in 14 biomes, a place lies in, which decides Earth's biomes and the trees they grow.
+
+Dinerstein, E., Olson, D., Joshi, A., et al. (2017). An Ecoregion-Based Approach to Protecting Half the Terrestrial
+Realm. *BioScience* 67(6), 534–545. <https://doi.org/10.1093/biosci/bix014>. Data: <https://ecoregions.appspot.com/>
+
+Licensed under CC BY 4.0 (<https://creativecommons.org/licenses/by/4.0/>). **Changes:** the polygons are rasterised to a
+0.05 degree grid of ecoregions, sea cells next to land taking the nearest one, with each ecoregion's biome, realm, name
+and the forest it is known for (`ecoregions.bin`, `ecoregions.tsv`; `tools/ecoregions`).
+
 ## Software
 
 - Distant Horizons (optional, by James Seibel and contributors) is used through its public API only; it is not

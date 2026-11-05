@@ -15,7 +15,7 @@ public final class Credits {
 	/** One line, for places with little room: the F3 screen and the greeting on joining. */
 	public static final String SHORT = "Map data © OpenStreetMap contributors (ODbL) · Terrain Tiles (USGS and others) · "
 		+ "Lidar: Mapterhorn and national surveys · © ESA WorldCover 2021 (CC BY 4.0) · Köppen-Geiger, Beck et al. 2023 (CC BY 4.0) · "
-		+ "Glaciers: RGI 7.0 (CC BY 4.0) · Tree density, Crowther et al. 2015 (CC BY 4.0)";
+		+ "Glaciers: RGI 7.0 (CC BY 4.0) · Tree density, Crowther et al. 2015 (CC BY 4.0) · Ecoregions, RESOLVE 2017 (CC BY 4.0)";
 
 	private record Source(String what, String credit, String url) {
 	}
@@ -54,7 +54,11 @@ public final class Credits {
 		new Source("How close together trees stand",
 			"Crowther, T. W., et al. (2015), Mapping tree density at a global scale, Nature 525, 201–205; data Glick, H. B., et al. "
 				+ "(2016), Scientific Data 3, 160069. CC BY 4.0; bundled resampled to 0.1 degrees.",
-			"https://doi.org/10.6084/m9.figshare.3179986")
+			"https://doi.org/10.6084/m9.figshare.3179986"),
+		new Source("Earth's biomes, and the trees they grow",
+			"Dinerstein, E., et al. (2017), An Ecoregion-Based Approach to Protecting Half the Terrestrial Realm, BioScience 67(6), "
+				+ "534–545; RESOLVE Ecoregions 2017. CC BY 4.0; bundled rasterised to 0.05 degrees.",
+			"https://doi.org/10.1093/biosci/bix014")
 	);
 
 	private Credits() {

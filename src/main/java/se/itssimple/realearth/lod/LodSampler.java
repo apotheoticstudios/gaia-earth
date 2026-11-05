@@ -11,6 +11,7 @@ import se.itssimple.realearth.osm.MapPainter;
 import se.itssimple.realearth.osm.OsmWater;
 import se.itssimple.realearth.terrain.TerrainField;
 import se.itssimple.realearth.world.BiomePicker;
+import se.itssimple.realearth.world.EarthBiomes;
 
 /**
  * Distant terrain, without generating a single chunk: for each column of a level-of-detail patch,
@@ -221,6 +222,9 @@ public final class LodSampler {
 		boolean sea = !Double.isNaN(water) && !lake && water <= 0.5;
 		boolean inland = !Double.isNaN(water) && !sea;
 		ResourceKey<Biome> biome = BiomePicker.pick(lat, lon, ground, sea || inland, inland, Double.isNaN(water) ? 0 : water, climate, cover);
+		// The world's biome, for its colours and its forest's leaves; vanilla's still decides the ground.
+		ResourceKey<Biome> earth = EarthBiomes.of(biome, cover, climate, lat, lon, ground);
+		String earthLeaves = EarthBiomes.leaves(earth, lat);
 		int groundTop = (int) Math.round(field.toY(ground, lat)) - 1;
 		int waterTop = Double.isNaN(water) ? Integer.MIN_VALUE : (int) Math.round(field.toY(water, lat)) - 1;
 		if (waterTop <= groundTop) {
@@ -235,12 +239,12 @@ public final class LodSampler {
 		boolean forest = cover == WorldCover.TREES && land == OsmWater.WOOD;
 		if (CANOPY && columnSize >= CANOPY_FROM && forest && waterTop == Integer.MIN_VALUE && rise < 1.2) {
 			canopyHeight = canopyHeight(biome);
-			leaves = leaves(biome);
+			leaves = earthLeaves != null ? earthLeaves : leaves(biome);
 		}
 		// Finer columns get no canopy (it would stand as a wall next to real chunks), but their forests
 		// still look like forest: the leaves lie flat on the ground, the same colour as the canopy beyond.
 		if (CANOPY && leaves == null && forest && waterTop == Integer.MIN_VALUE && rise < 1.2) {
-			surface = leaves(biome);
+			surface = earthLeaves != null ? earthLeaves : leaves(biome);
 		}
 		String under = switch (surface) {
 			case "minecraft:grass_block", "minecraft:farmland", "minecraft:moss_block", "minecraft:mud" -> "minecraft:dirt";
@@ -251,7 +255,7 @@ public final class LodSampler {
 			case "minecraft:snow_block" -> "minecraft:snow_block";
 			default -> "minecraft:stone";
 		};
-		return new Column(groundTop, waterTop, surface, under, groundTop + canopyHeight, leaves, biome.identifier().toString());
+		return new Column(groundTop, waterTop, surface, under, groundTop + canopyHeight, leaves, earth.identifier().toString());
 	}
 
 	private static String surface(ResourceKey<Biome> biome, int cover, int climate, double rise, boolean sea, boolean inland, byte land) {

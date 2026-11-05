@@ -20,7 +20,8 @@ import se.itssimple.realearth.terrain.ChunkTerrain;
 import se.itssimple.realearth.terrain.TerrainField;
 
 /**
- * Biomes from real geography (see {@link BiomePicker}), plus vanilla's cave biomes underground.
+ * Biomes from real geography: the real world's ({@link EarthBiomes}) on natural land, vanilla's elsewhere (see
+ * {@link BiomePicker}), plus vanilla's cave biomes underground.
  *
  * During world generation the chunk's terrain is always known before biomes are filled in, because
  * {@link EarthChunkGenerator#createBiomes} waits for it. Anything else -- far-away probes from other
@@ -41,6 +42,9 @@ public final class EarthBiomeSource extends BiomeSource {
 
 	public EarthBiomeSource(HolderGetter<Biome> biomes) {
 		for (ResourceKey<Biome> key : BiomePicker.ALL) {
+			holders.put(key, biomes.getOrThrow(key));
+		}
+		for (ResourceKey<Biome> key : EarthBiomes.ALL) {
 			holders.put(key, biomes.getOrThrow(key));
 		}
 		for (ResourceKey<Biome> key : new ResourceKey[] {Biomes.LUSH_CAVES, Biomes.DRIPSTONE_CAVES, Biomes.DEEP_DARK}) {
@@ -78,8 +82,10 @@ public final class EarthBiomeSource extends BiomeSource {
 			for (int qx = 0; qx < 4; qx++) {
 				int k = ChunkTerrain.index(qx * 4 + 2, qz * 4 + 2);
 				boolean water = !Float.isNaN(t.waterMeters[k]) && t.waterTopY[k] != Integer.MIN_VALUE;
-				surface[qz * 4 + qx] = BiomePicker.pick(t.latitude[k], t.longitude[k], t.groundMeters[k], water, t.lake[k],
-					water ? t.waterMeters[k] : 0, t.climate[k] & 0xFF, t.cover[k] & 0xFF);
+				int climate = t.climate[k] & 0xFF;
+				int cover = t.cover[k] & 0xFF;
+				surface[qz * 4 + qx] = EarthBiomes.of(BiomePicker.pick(t.latitude[k], t.longitude[k], t.groundMeters[k], water, t.lake[k],
+					water ? t.waterMeters[k] : 0, climate, cover), cover, climate, t.latitude[k], t.longitude[k], t.groundMeters[k]);
 				flavour[qz * 4 + qx] = GeoNoise.sample(t.latitude[k], t.longitude[k], 0.5, 21);
 			}
 		}
@@ -129,7 +135,7 @@ public final class EarthBiomeSource extends BiomeSource {
 		boolean sea = elevation < 0;
 		se.itssimple.realearth.climate.Koppen koppen = se.itssimple.realearth.climate.Koppen.get();
 		int climate = koppen == null ? 0 : koppen.classAt(lat, lon);
-		ResourceKey<Biome> surface = BiomePicker.pick(lat, lon, elevation, sea, false, 0, climate, 0);
+		ResourceKey<Biome> surface = EarthBiomes.of(BiomePicker.pick(lat, lon, elevation, sea, false, 0, climate, 0), 0, climate, lat, lon, elevation);
 		int depth = (int) Math.round(field.toY(elevation, lat)) - blockY;
 		return holder(underground(surface, GeoNoise.sample(lat, lon, 0.5, 21), depth));
 	}

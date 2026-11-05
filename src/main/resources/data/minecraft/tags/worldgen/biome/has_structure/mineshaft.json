@@ -1,0 +1,11 @@
+{
+  "replace": false,
+  "values": [
+    "gaia-earth:eucalypt_savanna",
+    "gaia-earth:flooded_grassland",
+    "gaia-earth:temperate_steppe",
+    "gaia-earth:tropical_savanna",
+    "gaia-earth:tundra",
+    "gaia-earth:xeric_shrubland"
+  ]
+}

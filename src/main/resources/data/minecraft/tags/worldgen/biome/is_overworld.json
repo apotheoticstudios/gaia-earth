@@ -1,0 +1,25 @@
+{
+  "replace": false,
+  "values": [
+    "gaia-earth:boreal_forest",
+    "gaia-earth:cloud_forest",
+    "gaia-earth:eucalypt_forest",
+    "gaia-earth:eucalypt_savanna",
+    "gaia-earth:flooded_grassland",
+    "gaia-earth:hemiboreal_forest",
+    "gaia-earth:laurel_forest",
+    "gaia-earth:mediterranean_woodland",
+    "gaia-earth:montane_grassland",
+    "gaia-earth:temperate_conifer_forest",
+    "gaia-earth:temperate_deciduous_forest",
+    "gaia-earth:temperate_mixed_forest",
+    "gaia-earth:temperate_rainforest",
+    "gaia-earth:temperate_steppe",
+    "gaia-earth:tropical_dry_forest",
+    "gaia-earth:tropical_pine_forest",
+    "gaia-earth:tropical_rainforest",
+    "gaia-earth:tropical_savanna",
+    "gaia-earth:tundra",
+    "gaia-earth:xeric_shrubland"
+  ]
+}

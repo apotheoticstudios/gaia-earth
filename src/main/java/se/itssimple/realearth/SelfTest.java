@@ -2946,6 +2946,87 @@ final class SelfTest {
 			check(stray == 0, "the Uppsala plain grows no trees where the real world has none (%d trunk columns)", stray);
 		}));
 
+		phases.add(Map.entry("Earth's biomes", () -> {
+			// Natural land takes its ecoregion's biome, or the forest its ecoregion is known for; towns and fields keep vanilla's.
+			var koppen = se.itssimple.realearth.climate.Koppen.get();
+			var biomes = earth.registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.BIOME);
+			List<String> missing = se.itssimple.realearth.world.EarthBiomes.ALL.stream().filter(b -> biomes.get(b).isEmpty())
+				.map(b -> b.identifier().toString()).toList();
+			check(missing.isEmpty(), "every Earth biome is in the game (missing %s)", missing);
+			record Place(String name, double lat, double lon, double meters, net.minecraft.resources.ResourceKey<net.minecraft.world.level.biome.Biome> base,
+				int cover, net.minecraft.resources.ResourceKey<net.minecraft.world.level.biome.Biome> expect) {
+			}
+			int trees = se.itssimple.realearth.landcover.WorldCover.TREES;
+			int grass = se.itssimple.realearth.landcover.WorldCover.GRASS;
+			for (Place p : List.of(
+				new Place("the Olympic Peninsula", 47.8, -123.9, 200, net.minecraft.world.level.biome.Biomes.FOREST, trees,
+					se.itssimple.realearth.world.EarthBiomes.TEMPERATE_RAINFOREST),
+				new Place("the Sierra Nevada", 38.0, -120.0, 2000, net.minecraft.world.level.biome.Biomes.TAIGA, trees,
+					se.itssimple.realearth.world.EarthBiomes.TEMPERATE_CONIFER_FOREST),
+				new Place("the central Amazon", -2.93, -59.95, 50, net.minecraft.world.level.biome.Biomes.JUNGLE, trees,
+					se.itssimple.realearth.world.EarthBiomes.TROPICAL_RAINFOREST),
+				new Place("Monteverde", 10.30, -84.80, 1600, net.minecraft.world.level.biome.Biomes.JUNGLE, trees,
+					se.itssimple.realearth.world.EarthBiomes.CLOUD_FOREST),
+				new Place("the Araucaria highlands", -25.3, -51.3, 1000, net.minecraft.world.level.biome.Biomes.FOREST, trees,
+					se.itssimple.realearth.world.EarthBiomes.LAUREL_FOREST),
+				new Place("the Blue Mountains", -33.7, 150.3, 800, net.minecraft.world.level.biome.Biomes.FOREST, trees,
+					se.itssimple.realearth.world.EarthBiomes.EUCALYPT_FOREST),
+				new Place("Tyresta", 59.18, 18.30, 50, net.minecraft.world.level.biome.Biomes.TAIGA, trees,
+					se.itssimple.realearth.world.EarthBiomes.HEMIBOREAL_FOREST),
+				new Place("Bialowieza", 52.70, 23.85, 160, net.minecraft.world.level.biome.Biomes.FOREST, trees,
+					se.itssimple.realearth.world.EarthBiomes.TEMPERATE_MIXED_FOREST),
+				new Place("Fontainebleau", 48.40, 2.70, 100, net.minecraft.world.level.biome.Biomes.FOREST, trees,
+					se.itssimple.realearth.world.EarthBiomes.TEMPERATE_DECIDUOUS_FOREST),
+				new Place("central Spain", 40.0, -4.0, 700, net.minecraft.world.level.biome.Biomes.FOREST, trees,
+					se.itssimple.realearth.world.EarthBiomes.MEDITERRANEAN_WOODLAND),
+				new Place("the Siberian taiga", 62.0, 100.0, 400, net.minecraft.world.level.biome.Biomes.SNOWY_TAIGA, trees,
+					se.itssimple.realearth.world.EarthBiomes.BOREAL_FOREST),
+				new Place("the Serengeti", -2.3, 34.8, 1500, net.minecraft.world.level.biome.Biomes.SAVANNA, grass,
+					se.itssimple.realearth.world.EarthBiomes.TROPICAL_SAVANNA),
+				new Place("Kakadu", -12.8, 132.5, 50, net.minecraft.world.level.biome.Biomes.SAVANNA, trees,
+					se.itssimple.realearth.world.EarthBiomes.EUCALYPT_SAVANNA),
+				new Place("the Tibetan Plateau", 32.0, 88.0, 4800, net.minecraft.world.level.biome.Biomes.PLAINS, grass,
+					se.itssimple.realearth.world.EarthBiomes.MONTANE_GRASSLAND),
+				new Place("the Pantanal", -17.5, -57.0, 100, net.minecraft.world.level.biome.Biomes.SWAMP,
+					se.itssimple.realearth.landcover.WorldCover.WETLAND, se.itssimple.realearth.world.EarthBiomes.FLOODED_GRASSLAND),
+				new Place("the North Slope", 69.5, -152.0, 300, net.minecraft.world.level.biome.Biomes.SNOWY_PLAINS, grass,
+					se.itssimple.realearth.world.EarthBiomes.TUNDRA),
+				new Place("Paris (town)", 48.86, 2.35, 35, net.minecraft.world.level.biome.Biomes.PLAINS,
+					se.itssimple.realearth.landcover.WorldCover.BUILT, net.minecraft.world.level.biome.Biomes.PLAINS),
+				new Place("the Beauce (fields)", 48.25, 1.75, 140, net.minecraft.world.level.biome.Biomes.PLAINS,
+					se.itssimple.realearth.landcover.WorldCover.CROPS, net.minecraft.world.level.biome.Biomes.PLAINS))) {
+				var got = se.itssimple.realearth.world.EarthBiomes.of(p.base(), p.cover(), koppen.classAt(p.lat(), p.lon()), p.lat(), p.lon(), p.meters());
+				check(got == p.expect(), "%s is %s (%s)", p.name(), p.expect().identifier().getPath(), got.identifier().getPath());
+			}
+			var rain = biomes.getOrThrow(se.itssimple.realearth.world.EarthBiomes.TEMPERATE_RAINFOREST);
+			check("spruce".equals(se.itssimple.realearth.world.EarthBiomes.kind(rain, 0.5, 47.8))
+				&& "dark_oak".equals(se.itssimple.realearth.world.EarthBiomes.kind(rain, 0.5, -40.1)),
+				"temperate rainforest is conifers in the north, southern beeches and podocarps in the south");
+			// In the world and in its distant terrain: the Oregon Coast Range.
+			TerrainField field = RealEarth.terrain();
+			int bx = (int) field.projection().blockX(44.5, -123.6);
+			int bz = (int) field.projection().blockZ(44.5);
+			earth.getChunk(bx >> 4, bz >> 4);
+			ChunkTerrain t = field.chunkIfReady(bx >> 4, bz >> 4);
+			int rainforest = 0;
+			for (int q = 0; t != null && q < 16; q++) {
+				int x = (bx & ~15) + (q & 3) * 4 + 2;
+				int z = (bz & ~15) + (q >> 2) * 4 + 2;
+				rainforest += earth.getBiome(new BlockPos(x, t.topSolidY[ChunkTerrain.index(x & 15, z & 15)] + 1, z))
+					.is(se.itssimple.realearth.world.EarthBiomes.TEMPERATE_RAINFOREST) ? 1 : 0;
+			}
+			check(rainforest >= 8, "the Oregon Coast Range is temperate rainforest in the world (%d of 16)", rainforest);
+			long distant = 0;
+			try {
+				for (var col : new se.itssimple.realearth.lod.LodSampler(field).patch(bx - 8 * 16, bz - 8 * 16, 16, 16)) {
+					distant += col.biome().equals("gaia-earth:temperate_rainforest") ? 1 : 0;
+				}
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			}
+			check(distant >= 64, "and in distant terrain (%d of 256 columns)", distant);
+		}));
+
 		phases.add(Map.entry("The map's ground: Flinders Beach and Wastwater's screes", () -> {
 			// Where the map says what the ground is, the ground is that: sand on North Stradbroke Island's mapped beach (once grass
 			// from the land cover alone), gravel and rock on mapped scree and bare rock.

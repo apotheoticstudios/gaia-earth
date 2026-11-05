@@ -1,0 +1,8 @@
+{
+  "replace": false,
+  "values": [
+    "gaia-earth:eucalypt_savanna",
+    "gaia-earth:tropical_savanna",
+    "gaia-earth:xeric_shrubland"
+  ]
+}

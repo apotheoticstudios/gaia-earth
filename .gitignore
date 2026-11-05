@@ -14,4 +14,5 @@ tools/trees/out/
 .DS_Store
 src/main/resources/data/gaia-earth/structure/tree/
 tools/treedensity/data/
+tools/ecoregions/data/
 tools/overlay/data/

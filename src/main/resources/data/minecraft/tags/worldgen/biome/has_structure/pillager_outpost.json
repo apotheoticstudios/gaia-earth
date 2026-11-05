@@ -1,0 +1,15 @@
+{
+  "replace": false,
+  "values": [
+    "gaia-earth:boreal_forest",
+    "gaia-earth:eucalypt_savanna",
+    "gaia-earth:hemiboreal_forest",
+    "gaia-earth:temperate_conifer_forest",
+    "gaia-earth:temperate_rainforest",
+    "gaia-earth:temperate_steppe",
+    "gaia-earth:tropical_pine_forest",
+    "gaia-earth:tropical_savanna",
+    "gaia-earth:tundra",
+    "gaia-earth:xeric_shrubland"
+  ]
+}
