@@ -3,7 +3,8 @@
 Earth's biomes are the real world's (RESOLVE Ecoregions 2017's 14 biomes, and the forests some ecoregions are known
 for; see world/EarthBiomes.java, which says where each one is and which trees grow in it). Each starts as a copy of a
 vanilla biome (its ground cover, mobs, music and weather), takes the colours of the real landscape, and joins every
-biome tag its vanilla parent is in, so foxes, rabbits, frogs, villages and structures treat it the same.
+biome tag its vanilla parent is in, so foxes, rabbits and frogs treat it the same -- but not the structure tags
+(STRUCTURE_TAGS): Earth has no structures but its own.
 
     python3 build_biomes.py <minecraft jar> <src/main/resources>
 
@@ -150,6 +151,8 @@ WATER = {'flooded_grassland': '#4a7f9a', 'peat_bog': '#5a5a3c', 'swamp_forest': 
          'cypress_swamp': '#4a5a38', 'sawgrass_marsh': '#5a7a6a', 'papyrus_swamp': '#4a6a4a',
          'mangrove_forest': '#3f6a5a', 'reed_marsh': '#4a6a5a'}
 BIOME_DIR = 'data/minecraft/worldgen/biome/'
+# Where vanilla's structures may stand, and where strongholds lean: Earth generates none of them.
+STRUCTURE_TAGS = ('has_structure/', 'stronghold_biased_to')
 TAG_DIR = 'data/minecraft/tags/worldgen/biome/'
 
 
@@ -175,6 +178,8 @@ def main():
             json.dump(biome, f, indent=2, sort_keys=True)
             f.write('\n')
         for tag, body in tags.items():
+            if tag.startswith(STRUCTURE_TAGS):
+                continue
             if 'minecraft:' + parent in body.get('values', []):
                 joins.setdefault(tag, []).append('%s:%s' % (NAMESPACE, name))
     tag_root = os.path.join(resources, TAG_DIR)
