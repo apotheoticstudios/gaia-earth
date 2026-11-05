@@ -1,15 +1,24 @@
 {
   "replace": false,
   "values": [
+    "gaia-earth:bushveld",
     "gaia-earth:cactus_scrub",
     "gaia-earth:cerrado",
     "gaia-earth:eucalypt_savanna",
+    "gaia-earth:forest_savanna_mosaic",
+    "gaia-earth:kalahari_savanna",
     "gaia-earth:karoo",
+    "gaia-earth:llanos",
+    "gaia-earth:mallee",
     "gaia-earth:miombo_woodland",
+    "gaia-earth:mopane_woodland",
     "gaia-earth:mulga_woodland",
+    "gaia-earth:sahel",
     "gaia-earth:spinifex_grassland",
+    "gaia-earth:succulent_thicket",
     "gaia-earth:thorn_scrub",
     "gaia-earth:tropical_savanna",
-    "gaia-earth:xeric_shrubland"
+    "gaia-earth:xeric_shrubland",
+    "gaia-earth:xeric_woodland"
   ]
 }

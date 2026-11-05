@@ -63,10 +63,39 @@ BIOMES = [
     ('swamp_forest', 'swamp', '#3f9a30', '#2a7f24', 'Swamp Forest'),
     ('salt_marsh', 'swamp', '#8aa25a', '#6f8a4a', 'Salt Marsh'),
     ('polar_desert', 'snowy_plains', '#a09a80', '#8a8a6a', 'Polar Desert'),
+    ('beech_forest', 'forest', '#6fa84a', '#4a8f30', 'Beech Forest'),
+    ('mountain_birch_forest', 'birch_forest', '#8fb060', '#7aa04f', 'Mountain Birch Forest'),
+    ('monsoon_forest', 'sparse_jungle', '#8fad48', '#6f9a35', 'Monsoon Forest'),
+    ('mediterranean_conifer_forest', 'taiga', '#9aa85a', '#4f7a42', 'Mediterranean Conifer Forest'),
+    ('dehesa', 'plains', '#b8b05c', '#6a8a45', 'Dehesa'),
+    ('mallee', 'savanna', '#b5a862', '#7f9a72', 'Mallee'),
+    ('chaparral', 'plains', '#ae9f5c', '#6f7f4a', 'Chaparral'),
+    ('shortgrass_prairie', 'plains', '#b8b070', '#8a9a50', 'Shortgrass Prairie'),
+    ('mixed_grass_prairie', 'plains', '#a8b468', '#7f9e4c', 'Mixed-Grass Prairie'),
+    ('pampas', 'plains', '#9fb85e', '#6f9a45', 'Pampas'),
+    ('patagonian_steppe', 'plains', '#b0a874', '#7f8a5e', 'Patagonian Steppe'),
+    ('tussock_grassland', 'plains', '#b5a46a', '#7a8a58', 'Tussock Grassland'),
+    ('desert_steppe', 'desert', '#b9aa78', '#8f8f62', 'Desert Steppe'),
+    ('succulent_thicket', 'savanna', '#a8a65e', '#6f8a4a', 'Succulent Thicket'),
+    ('alpine_tundra', 'snowy_plains', '#96a06a', '#708a56', 'Alpine Tundra'),
+    ('alpine_shrubland', 'meadow', '#8e9e5e', '#5a7a46', 'Alpine Shrubland'),
+    ('xeric_woodland', 'savanna', '#b5a96a', '#7f8a55', 'Xeric Woodland'),
+    ('llanos', 'savanna', '#a5b450', '#6f9a3a', 'Llanos'),
+    ('sahel', 'savanna', '#c8b56a', '#9a9a55', 'Sahel'),
+    ('forest_savanna_mosaic', 'savanna', '#8fb04a', '#5f9a32', 'Forest-Savanna Mosaic'),
+    ('mopane_woodland', 'savanna', '#b5a85a', '#8a9a45', 'Mopane Woodland'),
+    ('bushveld', 'savanna', '#b0aa5a', '#7f9640', 'Bushveld'),
+    ('kalahari_savanna', 'savanna', '#c2b06a', '#8f9a55', 'Kalahari Savanna'),
+    ('highveld_grassland', 'plains', '#a9b05e', '#7f9a4a', 'Highveld Grassland'),
+    ('forest_tundra', 'taiga', '#8f9f64', '#607f52', 'Forest-Tundra'),
+    ('subalpine_forest', 'taiga', '#7a9a5a', '#4a7046', 'Subalpine Forest'),
+    ('heathland', 'plains', '#8a8256', '#6a7a48', 'Heathland'),
+    ('cypress_swamp', 'swamp', '#5f8f40', '#4f7a32', 'Cypress Swamp'),
 ]
 # The flooded grasslands' water is clear (the Pantanal, the Okavango), not a swamp's murk; a bog's is brown with
-# peat, a tropical swamp forest's black with tannin, a salt marsh's the grey-green of a tidal creek.
-WATER = {'flooded_grassland': '#4a7f9a', 'peat_bog': '#5a5a3c', 'swamp_forest': '#4d4a2e', 'salt_marsh': '#4a7a8a'}
+# peat, a tropical swamp forest's and a cypress swamp's dark with tannin, a salt marsh's the grey-green of a tidal creek.
+WATER = {'flooded_grassland': '#4a7f9a', 'peat_bog': '#5a5a3c', 'swamp_forest': '#4d4a2e', 'salt_marsh': '#4a7a8a',
+         'cypress_swamp': '#4a5a38'}
 BIOME_DIR = 'data/minecraft/worldgen/biome/'
 TAG_DIR = 'data/minecraft/tags/worldgen/biome/'
 

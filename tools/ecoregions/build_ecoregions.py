@@ -77,6 +77,53 @@ SUBS = {
     'salt': {69, 70, 73, 745, 742, 748, 312, 747},
     # Polar desert: the bare high Arctic.
     'polar': {777, 778, 783},
+    # Beech forest: Europe's and Japan's beechwoods -- the English lowlands, the Apennines, western Europe, the Dinarides,
+    # the Black Sea's and the Caspian's shores, Japan's mountains.
+    'beech': {663, 644, 686, 671, 683, 665, 649, 660},
+    # Mountain birch forest: the birch belt of the Scandinavian mountains, Kamchatka's stone birch.
+    'mountain_birch': {780, 713},
+    # Mediterranean conifer forest: the Atlas and Rif cedars, Iberia's pines, the black pines, firs and cedars of the
+    # Taurus, Lebanon, Cyprus, Corsica and the Pindus.
+    'med_conifer': {701, 792, 791, 804, 786, 788, 801},
+    # Dehesa and montado: southwest Iberia's grazed oak savanna.
+    'dehesa': {805},
+    # Mallee: southern Australia's many-stemmed eucalypt scrub.
+    'mallee': {198, 199, 201, 203},
+    # Chaparral: California's dense evergreen shrubland.
+    'chaparral': {422, 423, 424, 425},
+    # Shortgrass and mixed-grass prairie: the drier, western Great Plains.
+    'shortgrass': {396, 402},
+    'mixed_grass': {389, 395},
+    # The pampas: the grasslands of Argentina and Uruguay.
+    'pampas': {576, 574},
+    # Patagonian steppe: the cold, windswept grass and shrub steppe east of the southern Andes.
+    'patagonian': {578, 595},
+    # Tussock grassland: New Zealand's tussock country.
+    'tussock': {190, 194},
+    # Desert steppe: the cold semi-deserts of the Gobi, Central Asia and the Caspian.
+    'desert_steppe': {824, 825, 826, 828, 724, 808, 827, 835, 807, 813, 829, 812, 815, 817, 819},
+    # Succulent thicket: South Africa's Albany thicket, Madagascar's succulent woodland.
+    'succulent': {88, 100},
+    # Alpine tundra: the treeless heights of the Alaskan, Yukon, Siberian and Labrador ranges, the Altai and Sayan.
+    'alpine_tundra': {405, 411, 416, 419, 421, 771, 782, 410, 415, 749, 764},
+    # Alpine shrubland: the Himalaya's and Tibet's rhododendron, juniper and willow scrub above the forest.
+    'alpine_shrub': {751, 760, 769, 765, 768},
+    # Xeric woodland: the open juniper, pistachio and acacia woodland of dry mountains, from the Sahara's to Afghanistan's.
+    'xeric_woodland': {814, 816, 834, 844, 823, 846, 833, 106, 722, 723, 758},
+    # The llanos: the Orinoco's and Bolivia's seasonally flooded savannas, and the Guianas'.
+    'llanos': {572, 565, 570},
+    # The Sahel: the dry acacia savanna south of the Sahara.
+    'sahel': {53},
+    # Forest-savanna mosaic: Africa's belt of gallery forest and savanna between rainforest and savanna.
+    'forest_savanna': {44, 52, 58, 61, 63},
+    # Mopane woodland: the mopane trees of the Zambezi and Angola.
+    'mopane': {34, 65},
+    # Bushveld: South Africa's and Zimbabwe's thorny savanna.
+    'bushveld': {38, 48, 66},
+    # The Kalahari: acacia savanna on red sand.
+    'kalahari': {47, 97},
+    # Highveld grassland: South Africa's high treeless grassland.
+    'highveld': {81, 41},
 }
 # Laurel forests (laurisilva): warm-temperate evergreen broadleaf, in East Asia and on the Atlantic islands; the
 # temperate broadleaf ecoregions named "evergreen", and the Azores'.
@@ -195,6 +242,9 @@ def sub_biome(rec, bbox):
     # Tropical swamp forests: freshwater and peat swamp forest, and the Amazon's flooded forests (varzea, igapo).
     if biome == 1 and ('swamp' in name or 'v\u00e1rzea' in name or 'igap\u00f3' in name):
         return 'swamp'
+    # Monsoon forest: the deciduous sal and teak forests of India and Indochina, bare in the dry season.
+    if biome in (1, 2) and rec['REALM'] == 'Indomalayan' and 'deciduous' in name:
+        return 'monsoon'
     if eco in LAUREL or (biome == 4 and 'evergreen' in name):
         return 'laurel'
     s, n, w, e = AUSTRALIA
