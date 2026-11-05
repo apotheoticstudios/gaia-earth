@@ -645,10 +645,16 @@ public final class TerrainField implements AutoCloseable {
 			se.itssimple.realearth.data.Net.waited("elevation", System.nanoTime() - asked, e != null || needed.values().stream().anyMatch(f -> f.join().degraded)));
 		coverLookup.whenComplete((l, e) -> se.itssimple.realearth.data.Net.waited("land cover", System.nanoTime() - asked, l == null || l.degraded()));
 		if (!wayTiles.isEmpty()) {
-			CompletableFuture.allOf(wayTiles.toArray(CompletableFuture[]::new)).whenComplete((v, e) ->
-				se.itssimple.realearth.data.Net.waited("map", System.nanoTime() - asked, e != null || wayTiles.stream().anyMatch(f -> f.join().failed())));
+			// A copy: bridgesWhole adds to wayTiles.
+			List<CompletableFuture<OsmWater.Shapes>> firstTiles = List.copyOf(wayTiles);
+			CompletableFuture.allOf(firstTiles.toArray(CompletableFuture[]::new)).whenComplete((v, e) ->
+				se.itssimple.realearth.data.Net.waited("map", System.nanoTime() - asked, e != null || firstTiles.stream().anyMatch(f -> f.join().failed())));
 		}
-		return CompletableFuture.allOf(all).thenCompose(v -> {
+		CompletableFuture<?> read = CompletableFuture.allOf(all);
+		if (map != null && map.roadVersion() >= 10 && (config.useRoads || config.useRailways)) {
+			read = read.thenCompose(v -> bridgesWhole(wayTiles, wayTileCoords, chunkMinX, chunkMinY, chunkMaxX, chunkMaxY, 0));
+		}
+		return read.thenCompose(v -> {
 			// Buildings stand on the ground under their whole footprint, which may reach well beyond
 			// this chunk: fetch the terrain there too before going on.
 			List<OsmWater.Shapes> shapes = wayTiles.stream().map(CompletableFuture::join).toList();
@@ -664,7 +670,7 @@ public final class TerrainField implements AutoCloseable {
 			if (config.useRoads || config.useRailways) {
 				List<OsmWater.Way> mapWays = new ArrayList<>();
 				shapes.forEach(s -> mapWays.addAll(s.ways()));
-				runs = Bridges.runs(mapWays);
+				runs = Bridges.runs(mapWays, map != null && map.roadVersion() >= 10);
 				for (Bridges.Run r : runs) {
 					if (nearChunk(r, chunkMinX, chunkMinY, chunkMaxX, chunkMaxY)) {
 						addTiles(withBuildings, (long) Math.floor(r.minX) - BRIDGE_REACH_SAMPLES, (long) Math.floor(r.maxX) + BRIDGE_REACH_SAMPLES,
@@ -998,6 +1004,37 @@ public final class TerrainField implements AutoCloseable {
 				out.computeIfAbsent(key(wx, row), k -> processedTile(wx, row));
 			}
 		}
+	}
+
+	/** Most map tiles a chunk reads beyond its own to make its bridges whole (as Tunnels' MAX_EXTRA_TILES). */
+	private static final int MAX_BRIDGE_TILES = 24;
+
+	/**
+	 * Road version 10: adds to a chunk's map tiles those its bridges go on into, past an edge where the map cut them, until
+	 * every bridge within reach is whole, so each chunk it reaches joins it alike (Bridges.runs), as Tunnels follows a tunnel.
+	 */
+	private CompletableFuture<Void> bridgesWhole(List<CompletableFuture<OsmWater.Shapes>> wayTiles, List<int[]> coords, long minX, long minY,
+		long maxX, long maxY, int read) {
+		List<OsmWater.Way> ways = new ArrayList<>();
+		wayTiles.forEach(f -> ways.addAll(f.join().ways()));
+		double per = (double) Mercator.TILE_SIZE * (1 << (Mercator.ZOOM - OsmWater.ZOOM));
+		List<CompletableFuture<OsmWater.Shapes>> more = new ArrayList<>();
+		for (Bridges.Run r : Bridges.runs(ways, true)) {
+			for (double[] p : nearChunk(r, minX, minY, maxX, maxY) ? r.cutEnds : List.<double[]>of()) {
+				int tx = Math.floorMod((int) Math.floor((p[0] + 0.5) / per), 1 << OsmWater.ZOOM);
+				int ty = (int) Math.floor((p[1] + 0.5) / per);
+				if (read + more.size() < MAX_BRIDGE_TILES && coords.stream().noneMatch(c -> c[0] == tx && c[1] == ty)) {
+					coords.add(new int[] {tx, ty});
+					more.add(map.tile(tx, ty));
+				}
+			}
+		}
+		if (more.isEmpty()) {
+			return CompletableFuture.completedFuture(null);
+		}
+		wayTiles.addAll(more);
+		return CompletableFuture.allOf(more.toArray(CompletableFuture[]::new))
+			.thenCompose(v -> bridgesWhole(wayTiles, coords, minX, minY, maxX, maxY, read + more.size()));
 	}
 
 	/** Longest a chunk waits for its buildings' detail from Overpass, in seconds, before it is built without. */

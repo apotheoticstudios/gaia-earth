@@ -119,6 +119,14 @@ Trusses (road version 9, `terrain/BridgeTrusses.java`), piloted on Deventer's IJ
 - Not used: nl.wikipedia's doorvaarthoogte of 13.63 m, whose water level is not given; with the rails at 15.2 m NAP it
   can't be over the IJssel's normal level (about 3 m NAP), so the measured deck stands.
 
+Across map tiles (road version 10, `Bridges.runs`): the map cuts a way at each tile's edge, each tile's copy reaching
+about 8 samples into the next, so the copies overlapped, never shared an end and stayed separate runs. A bridge's
+longest run then stopped at the cut (the IJsselspoorbrug's at 316 of its 494 m), and its deck, spans and structure
+with it. Now each copy is cut at its own tile's edge and the two cut ends are made one point (each tile rounds the
+map's points its own way, so the nearest end within a sample), as `RailTracks` lays track one copy per tile. A chunk
+reads the map tiles its bridges go on into, as it does for tunnels. Checked (`SelfTest` "Bridges: the
+IJsselspoorbrug's trusses"): its two tracks are one run each, 494 m, the length of its outline.
+
 Not yet:
 - Which end a drawbridge is hinged at (in none of the data): its end nearer the run's start. Its portal stands on the
   leaf's first metre and a half, not on the abutment behind, and its beams don't reach back past it.
@@ -127,8 +135,9 @@ Not yet:
   a canal bridge looks lower over the water in the game than it is.
 - Trusses' top bracing and portals (AHN reads bracing between the IJsselspoorbrug's top chords), and verticals where a
   Warren truss has them: the data names none.
-- A bridge's ways cut at a map tile's edge stay separate runs: its longest run's deck and spans stop at the cut (the
-  IJsselspoorbrug's at 316 of its 494 m), so its trusses are placed along their own measured strips.
+- A bridge reaching more than 24 map tiles past a chunk's own (30 km or so) is cut where the chunk stops reading
+  tiles, so chunks far apart along it can lay different decks. A way that leaves its tile and comes back keeps only
+  its first piece there.
 - Suspension towers and cables, cable-stayed pylons and stays.
 - Arches and piers for surveyed decks the map has no bridge for (they get the deck and railings only).
 - Delft's bridges' materials: the data mostly has none, so a humpback is taken as brick.

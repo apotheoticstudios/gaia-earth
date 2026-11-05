@@ -21,7 +21,9 @@ import se.itssimple.realearth.osm.Ways;
  * <li><b>Runs.</b> Mappers split a bridge wherever a tag changes, and each piece took the ground under
  * the split for an abutment, so a viaduct stepped up and down mid-span. Bridge ways that meet end to
  * end are joined into one run, carrying on straight where a ramp forks off; the fork then starts from
- * the run's height.</li>
+ * the run's height. The map also cuts a bridge at a tile's edge: from road version 10 each tile's copy
+ * is cut there and the copies joined (as RailTracks lays track), the chunk reading the tiles a bridge
+ * goes on into.</li>
  * <li><b>The deck</b> is the line between the run's two ends, lifted only where something below asks
  * for it: water (the deck clears it by a few blocks), a road or path passing under (headroom), and bare
  * ground above the line (not to be buried). Each demand holds the deck up in a rounded crest that eases
@@ -33,7 +35,7 @@ import se.itssimple.realearth.osm.Ways;
  * Everything here is worked out from the map and the elevation alone, so every chunk a bridge touches
  * gets the same deck.
  */
-final class Bridges {
+public final class Bridges {
 	/** Rise per run of a crest's flanks and of the ramps up to a deck: a block up every three or so. */
 	static final double GRADIENT = 0.3;
 	/** The same for a bridge the overlay describes (road version 7): as steep as real roads and railways climb. */
@@ -54,6 +56,8 @@ final class Bridges {
 	private static final double STEP_BLOCKS = 1;
 	/** Two way ends this close (in samples) are the same node of the map. */
 	private static final double NODE = 1.0 / 32;
+	/** Two copies' ends this close (samples) where the map cut a bridge at a tile's edge are one point (road version 10). */
+	private static final double CUT_JOIN = 1.0;
 
 	private static final Map<String, double[][]> PROFILES = new ConcurrentHashMap<>();
 
@@ -79,8 +83,10 @@ final class Bridges {
 		/** The run whose deck the matched bridge's other runs follow: its longest (itself if it is), so a bridge has one deck. */
 		Run main;
 		List<Span> spans = List.of();
-		/** For each way of the run: where along the run it starts (samples), and whether it runs backwards. */
+		/** For each way of the run: where along the run its start would be (samples), and whether it runs backwards. */
 		final Map<OsmWater.Way, double[]> members = new IdentityHashMap<>();
+		/** Half a sample past each of its ends where the map cut it at a tile's edge and no copy carries it on (road version 10). */
+		final List<double[]> cutEnds = new ArrayList<>();
 		/** Deck height (metres) against arc length (samples), every {@link #STEP_BLOCKS} or so. */
 		double[] profileArc;
 		double[] profileMeters;
@@ -198,22 +204,49 @@ final class Bridges {
 		return w.maxX() < x0 || w.minX() >= x0 + per || w.maxY() < y0 || w.minY() >= y0 + per;
 	}
 
+	/** A bridge way's piece in a run: its points, where along the way it starts and ends (samples), and the way's length. */
+	private record Piece(double[] points, double from, double to, double length) {
+		boolean cutAtStart() {
+			return from > 1e-9;
+		}
+
+		boolean cutAtEnd() {
+			return to < length - 1e-9;
+		}
+	}
+
+	/** The length (metres) of each run some bridge ways make, joined as a world of road version 10 ({@code cut}) or before joins them. */
+	public static List<Double> runMeters(List<OsmWater.Way> ways, boolean cut) {
+		return runs(ways, cut).stream().map(r -> r.length() * Mercator.sampleSpacingMeters(Mercator.latitudeOfSampleY((r.minY + r.maxY) / 2))).toList();
+	}
+
 	/**
 	 * Joins the bridge ways into runs. Ways are taken in a fixed order, so every chunk that sees the
-	 * same ways makes the same runs.
+	 * same ways makes the same runs. With {@code cut} (road version 10) each map tile's copy of a way is
+	 * cut at its tile's edge and the copies' ends there joined, so a bridge the edge crosses is one run;
+	 * before, each copy (reaching a little past the edge) was a run of its own.
 	 */
-	static List<Run> runs(List<OsmWater.Way> ways) {
+	static List<Run> runs(List<OsmWater.Way> ways, boolean cut) {
 		List<OsmWater.Way> bridges = new ArrayList<>();
+		Map<OsmWater.Way, Piece> pieces = new IdentityHashMap<>();
 		for (OsmWater.Way w : ways) {
-			if (w.bridge() && w.points().length >= 4 && !outsideOwnTile(w)) {
+			if (!w.bridge() || w.points().length < 4) {
+				continue;
+			}
+			Piece piece = cut ? ownPiece(w) : outsideOwnTile(w) ? null : new Piece(w.points(), 0, length(w.points()), length(w.points()));
+			if (piece != null) {
 				bridges.add(w);
+				pieces.put(w, piece);
 			}
 		}
 		bridges.sort(Comparator.comparingDouble(OsmWater.Way::minX).thenComparingDouble(OsmWater.Way::minY).thenComparingDouble(OsmWater.Way::maxX)
 			.thenComparingDouble(OsmWater.Way::maxY).thenComparingInt(w -> w.points().length));
+		if (cut) {
+			joinCuts(bridges, pieces);
+		}
 		Map<Long, List<OsmWater.Way>> ends = new HashMap<>();
 		for (OsmWater.Way w : bridges) {
-			double[] p = w.points();
+			double[] p = pieces.get(w).points();
 			ends.computeIfAbsent(node(p[0], p[1]), k -> new ArrayList<>()).add(w);
 			ends.computeIfAbsent(node(p[p.length - 2], p[p.length - 1]), k -> new ArrayList<>()).add(w);
 		}
@@ -233,7 +266,7 @@ final class Bridges {
 					Object[] end = side == 0 ? chain.peekLast() : chain.peekFirst();
 					OsmWater.Way w = (OsmWater.Way) end[0];
 					boolean rev = (Boolean) end[1];
-					double[] p = w.points();
+					double[] p = pieces.get(w).points();
 					// The run's free end, and the direction it arrives in.
 					boolean atStart = side == 0 == rev;
 					int a = atStart ? 0 : p.length - 2;
@@ -249,7 +282,7 @@ final class Bridges {
 						if (used.containsKey(c) || railFamily(c.kind()) != rail) {
 							continue;
 						}
-						double[] q = c.points();
+						double[] q = pieces.get(c).points();
 						boolean fromStart = node(q[0], q[1]) == node(p[a], p[a + 1]);
 						int i0 = fromStart ? 0 : q.length - 2;
 						int i1 = fromStart ? 2 : q.length - 4;
@@ -280,7 +313,7 @@ final class Bridges {
 			List<double[]> pts = new ArrayList<>();
 			List<double[]> offsets = new ArrayList<>();
 			for (Object[] piece : chain) {
-				double[] p = ((OsmWater.Way) piece[0]).points();
+				double[] p = pieces.get((OsmWater.Way) piece[0]).points();
 				boolean rev = (Boolean) piece[1];
 				offsets.add(new double[] {pts.size()});
 				for (int i = 0; i < p.length / 2; i++) {
@@ -302,12 +335,139 @@ final class Bridges {
 				int startPoint = (int) offsets.get(index++)[0];
 				// Each piece after the first starts at the point it shares with the one before.
 				double start = run.arc[Math.max(0, startPoint == 0 ? 0 : startPoint - 1)];
-				run.members.put((OsmWater.Way) piece[0], new double[] {start, (Boolean) piece[1] ? 1 : 0});
+				// Where the whole way's start would be along the run: the piece may be cut short of either end.
+				Piece pc = pieces.get((OsmWater.Way) piece[0]);
+				boolean rev = (Boolean) piece[1];
+				run.members.put((OsmWater.Way) piece[0], new double[] {rev ? start - (pc.length() - pc.to()) : start - pc.from(), rev ? 1 : 0});
 				run.kind = (byte) Math.max(run.kind, ((OsmWater.Way) piece[0]).kind());
+			}
+			Piece head = pieces.get((OsmWater.Way) chain.peekFirst()[0]);
+			Piece tail = pieces.get((OsmWater.Way) chain.peekLast()[0]);
+			if ((Boolean) chain.peekFirst()[1] ? head.cutAtEnd() : head.cutAtStart()) {
+				run.cutEnds.add(beyond(flat, 0, 2));
+			}
+			if ((Boolean) chain.peekLast()[1] ? tail.cutAtStart() : tail.cutAtEnd()) {
+				run.cutEnds.add(beyond(flat, flat.length - 2, flat.length - 4));
 			}
 			runs.add(run);
 		}
 		return runs;
+	}
+
+	private static double length(double[] p) {
+		double length = 0;
+		for (int i = 0; i + 3 < p.length; i += 2) {
+			length += Math.hypot(p[i + 2] - p[i], p[i + 3] - p[i + 1]);
+		}
+		return length;
+	}
+
+	/** Half a sample on past point {@code a} of a line, away from its point {@code b}. */
+	private static double[] beyond(double[] p, int a, int b) {
+		double dx = p[a] - p[b];
+		double dy = p[a + 1] - p[b + 1];
+		double d = Math.max(1e-12, Math.hypot(dx, dy));
+		return new double[] {p[a] + dx / d * 0.5, p[a + 1] + dy / d * 0.5};
+	}
+
+	/** A bridge way's piece in its own map tile, cut at the tile's edge (Liang-Barsky); null if none of it lies there. */
+	private static Piece ownPiece(OsmWater.Way w) {
+		// The tile's own samples, as in outsideOwnTile.
+		double per = Mercator.TILE_SIZE * (double) (1 << (Mercator.ZOOM - OsmWater.ZOOM));
+		double x0 = w.tileX() * per - 0.5;
+		double y0 = w.tileY() * per - 0.5;
+		double[] p = w.points();
+		double[] out = new double[p.length];
+		int n = 0;
+		double along = 0;
+		double from = 0;
+		double to = 0;
+		boolean left = false;
+		for (int i = 0; i + 3 < p.length; i += 2) {
+			double dx = p[i + 2] - p[i];
+			double dy = p[i + 3] - p[i + 1];
+			double len = Math.hypot(dx, dy);
+			// The part of the segment in the tile: t0 to t1 of it.
+			double t0 = 0;
+			double t1 = 1;
+			double[] dir = {-dx, dx, -dy, dy};
+			double[] room = {p[i] - x0, x0 + per - p[i], p[i + 1] - y0, y0 + per - p[i + 1]};
+			for (int k = 0; k < 4; k++) {
+				if (dir[k] == 0) {
+					t1 = room[k] < 0 ? -1 : t1;
+				} else if (dir[k] < 0) {
+					t0 = Math.max(t0, room[k] / dir[k]);
+				} else {
+					t1 = Math.min(t1, room[k] / dir[k]);
+				}
+			}
+			if (t0 < t1 && !left) {
+				if (n == 0) {
+					out[n++] = p[i] + dx * t0;
+					out[n++] = p[i + 1] + dy * t0;
+					from = along + len * t0;
+				}
+				out[n++] = p[i] + dx * t1;
+				out[n++] = p[i + 1] + dy * t1;
+				to = along + len * t1;
+				// shortcut: a way leaving its tile and coming back keeps its first piece only; bridges don't, in practice.
+				left = t1 < 1;
+			} else if (n > 0) {
+				left = true;
+			}
+			along += len;
+		}
+		return n < 4 || to - from < 1e-9 ? null : new Piece(java.util.Arrays.copyOf(out, n), from, to, along);
+	}
+
+	/**
+	 * Where two copies of a way (from neighbouring map tiles, of one kind) are cut at the edge between their tiles, makes
+	 * their cut ends one point, so the copies join. Each tile rounds the map's points its own way, so the two cuts can lie a
+	 * little apart: an end goes with its nearest other (each the other's nearest), within {@link #CUT_JOIN}.
+	 */
+	private static void joinCuts(List<OsmWater.Way> bridges, Map<OsmWater.Way, Piece> pieces) {
+		List<int[]> cuts = new ArrayList<>();
+		for (int i = 0; i < bridges.size(); i++) {
+			Piece pc = pieces.get(bridges.get(i));
+			if (pc.cutAtStart()) {
+				cuts.add(new int[] {i, 0});
+			}
+			if (pc.cutAtEnd()) {
+				cuts.add(new int[] {i, pc.points().length - 2});
+			}
+		}
+		int[] nearest = new int[cuts.size()];
+		for (int i = 0; i < cuts.size(); i++) {
+			nearest[i] = -1;
+			OsmWater.Way a = bridges.get(cuts.get(i)[0]);
+			double[] p = pieces.get(a).points();
+			int pi = cuts.get(i)[1];
+			double best = CUT_JOIN;
+			for (int j = 0; j < cuts.size(); j++) {
+				OsmWater.Way b = bridges.get(cuts.get(j)[0]);
+				if (b.kind() != a.kind() || b.tileX() == a.tileX() && b.tileY() == a.tileY()) {
+					continue;
+				}
+				double[] q = pieces.get(b).points();
+				int qi = cuts.get(j)[1];
+				double d = Math.hypot(p[pi] - q[qi], p[pi + 1] - q[qi + 1]);
+				if (d < best) {
+					best = d;
+					nearest[i] = j;
+				}
+			}
+		}
+		for (int i = 0; i < cuts.size(); i++) {
+			int j = nearest[i];
+			if (j > i && nearest[j] == i) {
+				double[] p = pieces.get(bridges.get(cuts.get(i)[0])).points();
+				double[] q = pieces.get(bridges.get(cuts.get(j)[0])).points();
+				int a = cuts.get(i)[1];
+				int b = cuts.get(j)[1];
+				p[a] = q[b] = (p[a] + q[b]) / 2;
+				p[a + 1] = q[b + 1] = (p[a + 1] + q[b + 1]) / 2;
+			}
+		}
 	}
 
 	/**

@@ -2592,6 +2592,25 @@ final class SelfTest {
 						}
 					}
 				}
+				if (field.map().roadVersion() >= 10) {
+					// Its tracks, which a map tile's edge cuts (y = 2761207.5): each one run (road version 10), the length of its outline.
+					List<se.itssimple.realearth.osm.OsmWater.Way> tracks = new ArrayList<>();
+					for (int[] t : se.itssimple.realearth.osm.OsmWater.tilesCovering((long) bridge.minX() - 8, (long) bridge.minY() - 8,
+						(long) bridge.maxX() + 8, (long) bridge.maxY() + 8)) {
+						int x = Math.floorMod(t[0], 1 << se.itssimple.realearth.osm.OsmWater.ZOOM);
+						for (var w : field.map().tile(x, t[1]).get(120, java.util.concurrent.TimeUnit.SECONDS).ways()) {
+							if (w.bridge() && w.kind() == se.itssimple.realearth.osm.Ways.RAIL && insideRing(ring, (w.minX() + w.maxX()) / 2, (w.minY() + w.maxY()) / 2)) {
+								tracks.add(w);
+							}
+						}
+					}
+					List<Double> runs = se.itssimple.realearth.terrain.Bridges.runMeters(tracks, true);
+					double outline = far * spacing;
+					log("the IJsselspoorbrug: %d copies of its tracks in the map tiles, joined into runs of %s m; its outline %.0f m long", tracks.size(),
+						runs.stream().map(m -> String.format("%.0f", m)).toList(), outline);
+					check(runs.size() == 2 && runs.stream().allMatch(m -> m >= outline * 0.9), "the IJsselspoorbrug's two tracks are a run each across "
+						+ "the map tile's edge, its whole length (%s m of %.0f)", runs.stream().map(m -> String.format("%.0f", m)).toList(), outline);
+				}
 				// The trusses' extent along it.
 				double from = Double.MAX_VALUE;
 				double to = -Double.MAX_VALUE;
