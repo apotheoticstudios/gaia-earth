@@ -121,7 +121,7 @@ public final class EarthBiomes {
 	public static final ResourceKey<Biome> MEDITERRANEAN_CONIFER_FOREST = add("mediterranean_conifer_forest", "spruce:75 oak:25");
 	public static final ResourceKey<Biome> DEHESA = add("dehesa", "oak:95 spruce:5");
 	public static final ResourceKey<Biome> MALLEE = add("mallee", "oak:60 birch:40");
-	public static final ResourceKey<Biome> CHAPARRAL = add("chaparral", "oak:70 spruce:30");
+	public static final ResourceKey<Biome> CHAPARRAL = add("chaparral", "oak:90 spruce:10");
 	public static final ResourceKey<Biome> SHORTGRASS_PRAIRIE = add("shortgrass_prairie", "oak:50 birch:30 spruce:20");
 	public static final ResourceKey<Biome> MIXED_GRASS_PRAIRIE = add("mixed_grass_prairie", "oak:55 birch:30 spruce:15");
 	public static final ResourceKey<Biome> PAMPAS = add("pampas", "oak:60 acacia:40");
@@ -142,7 +142,7 @@ public final class EarthBiomes {
 	public static final ResourceKey<Biome> FOREST_TUNDRA = add("forest_tundra", "spruce:60 birch:40");
 	public static final ResourceKey<Biome> SUBALPINE_FOREST = add("subalpine_forest", "spruce:90 birch:10");
 	public static final ResourceKey<Biome> HEATHLAND = add("heathland", "birch:50 spruce:30 oak:20");
-	public static final ResourceKey<Biome> CYPRESS_SWAMP = add("cypress_swamp", "swamp:65 spruce:35");
+	public static final ResourceKey<Biome> CYPRESS_SWAMP = add("cypress_swamp", "swamp:85 spruce:15");
 	public static final ResourceKey<Biome> OAK_WOODLAND = add("oak_woodland", "oak:90 spruce:10");
 	public static final ResourceKey<Biome> HIMALAYAN_BROADLEAF_FOREST = add("himalayan_broadleaf_forest", "oak:60 dark_oak:25 spruce:15");
 	public static final ResourceKey<Biome> PONDEROSA_PINE_FOREST = add("ponderosa_pine_forest", "spruce:90 oak:10");
@@ -162,7 +162,7 @@ public final class EarthBiomes {
 	public static final ResourceKey<Biome> WET_TUNDRA = add("wet_tundra", "birch:70 spruce:30");
 	public static final ResourceKey<Biome> BRIGALOW_SCRUB = add("brigalow_scrub", "acacia:80 oak:20");
 	public static final ResourceKey<Biome> TROPICAL_ALPINE_GRASSLAND = add("tropical_alpine_grassland", "spruce:50 oak:30 birch:20");
-	public static final ResourceKey<Biome> SAWGRASS_MARSH = add("sawgrass_marsh", "swamp:60 spruce:40");
+	public static final ResourceKey<Biome> SAWGRASS_MARSH = add("sawgrass_marsh", "swamp:70 jungle:30");
 	public static final ResourceKey<Biome> PAPYRUS_SWAMP = add("papyrus_swamp", "swamp:70 jungle:30");
 	public static final ResourceKey<Biome> WET_MEADOW = add("wet_meadow", "birch:50 oak:50");
 	public static final ResourceKey<Biome> PALOUSE_PRAIRIE = add("palouse_prairie", "oak:40 spruce:40 birch:20");
@@ -173,7 +173,7 @@ public final class EarthBiomes {
 	public static final ResourceKey<Biome> OAK_HICKORY_FOREST = add("oak_hickory_forest", "oak:80 dark_oak:10 birch:10");
 	public static final ResourceKey<Biome> KOREAN_PINE_FOREST = add("korean_pine_forest", "spruce:50 oak:30 birch:20");
 	public static final ResourceKey<Biome> LOESS_PLATEAU = add("loess_plateau", "oak:50 birch:30 spruce:20");
-	public static final ResourceKey<Biome> TUGAI_FOREST = add("tugai_forest", "birch:60 oak:40");
+	public static final ResourceKey<Biome> TUGAI_FOREST = add("tugai_forest", "swamp:70 acacia:30");
 	public static final ResourceKey<Biome> MIXED_EVERGREEN_FOREST = add("mixed_evergreen_forest", "spruce:60 oak:40");
 	public static final ResourceKey<Biome> HIMALAYAN_CONIFER_FOREST = add("himalayan_conifer_forest", "spruce:85 birch:10 oak:5");
 	public static final ResourceKey<Biome> BABASSU_PALM_FOREST = add("babassu_palm_forest", "jungle:100");
@@ -206,7 +206,7 @@ public final class EarthBiomes {
 	public static final ResourceKey<Biome> BAIKIAEA_WOODLAND = add("baikiaea_woodland", "oak:45 acacia:35 jungle:20");
 	public static final ResourceKey<Biome> ALPINE_STEPPE = add("alpine_steppe", "birch:60 spruce:40");
 	public static final ResourceKey<Biome> ALPINE_MEADOW = add("alpine_meadow", "spruce:60 birch:40");
-	public static final ResourceKey<Biome> OASIS = add("oasis", "jungle:60 acacia:40");
+	public static final ResourceKey<Biome> OASIS = add("oasis", "jungle:80 acacia:20");
 	public static final ResourceKey<Biome> REED_MARSH = add("reed_marsh", "swamp:60 birch:40");
 	public static final ResourceKey<Biome> FLOODPLAIN_FOREST = add("floodplain_forest", "swamp:40 birch:30 oak:30");
 	public static final ResourceKey<Biome> PACIFIC_ISLAND_FOREST = add("pacific_island_forest", "jungle:75 acacia:25");

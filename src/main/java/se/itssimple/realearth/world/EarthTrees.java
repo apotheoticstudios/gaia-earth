@@ -589,6 +589,37 @@ public final class EarthTrees {
 	}
 
 	// shortcut: read once per server, so a /reload doesn't pick up new trees; reload them on data reload if that's needed.
+	/**
+	 * The species a biome grows at a place, each with its share of the trees, as world generation picks them (stands
+	 * aside): through the biome's kinds of tree, else any that grows there, else vanilla's ("vanilla &lt;kind&gt;"). For the
+	 * self-test's look at every biome's trees.
+	 */
+	public static Map<String, Double> speciesAt(MinecraftServer server, Holder<Biome> biome, int climate, double lat, double lon, double meters) {
+		Index trees = index(server);
+		double treeline = BiomePicker.treelineMeters(lat, lon);
+		String zone = meters >= treeline - TREELINE_BAND ? "high" : meters >= treeline / 2 ? "mid" : "low";
+		String code = Koppen.code(climate);
+		RandomSource random = RandomSource.create(1);
+		Map<String, Double> out = new java.util.TreeMap<>();
+		int steps = 200;
+		for (int i = 0; i < steps; i++) {
+			String kind = kind(biome, random, (i + 0.5) / steps, lat);
+			List<Row> rows = trees.rows.stream().filter(r -> r.matches(kind, code, zone, lat, lon)).toList();
+			if (rows.isEmpty() && !kind.equals("mangrove")) {
+				rows = trees.rows.stream().filter(r -> r.matches(null, code, zone, lat, lon)).toList();
+			}
+			if (rows.isEmpty()) {
+				out.merge("vanilla " + kind, 1.0 / steps, Double::sum);
+				continue;
+			}
+			double total = rows.stream().mapToDouble(Row::weight).sum();
+			for (Row r : rows) {
+				out.merge(r.species, r.weight / total / steps, Double::sum);
+			}
+		}
+		return out;
+	}
+
 	private static Index index(MinecraftServer server) {
 		Index i = index;
 		if (i == null || i.server != server) {

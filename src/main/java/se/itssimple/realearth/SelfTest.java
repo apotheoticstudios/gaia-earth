@@ -3157,7 +3157,7 @@ final class SelfTest {
 			}
 			int trees = se.itssimple.realearth.landcover.WorldCover.TREES;
 			int grass = se.itssimple.realearth.landcover.WorldCover.GRASS;
-			for (Place p : List.of(
+			List<Place> places = List.of(
 				new Place("the Olympic Peninsula", 47.8, -123.9, 200, net.minecraft.world.level.biome.Biomes.FOREST, trees,
 					se.itssimple.realearth.world.EarthBiomes.TEMPERATE_RAINFOREST),
 				new Place("the Sierra Nevada", 38.0, -120.0, 2000, net.minecraft.world.level.biome.Biomes.TAIGA, trees,
@@ -3463,10 +3463,30 @@ final class SelfTest {
 				new Place("Paris (town)", 48.86, 2.35, 35, net.minecraft.world.level.biome.Biomes.PLAINS,
 					se.itssimple.realearth.landcover.WorldCover.BUILT, net.minecraft.world.level.biome.Biomes.PLAINS),
 				new Place("the Beauce (fields)", 48.25, 1.75, 140, net.minecraft.world.level.biome.Biomes.PLAINS,
-					se.itssimple.realearth.landcover.WorldCover.CROPS, net.minecraft.world.level.biome.Biomes.PLAINS))) {
+					se.itssimple.realearth.landcover.WorldCover.CROPS, net.minecraft.world.level.biome.Biomes.PLAINS));
+			for (Place p : places) {
 				var got = se.itssimple.realearth.world.EarthBiomes.of(p.base(), p.cover(), koppen.classAt(p.lat(), p.lon()), p.lat(), p.lon(), p.meters());
 				check(got == p.expect(), "%s is %s (%s)", p.name(), p.expect().identifier().getPath(), got.identifier().getPath());
 			}
+			// Each biome's trees at its place: real species, through its own kinds of tree (EarthTrees.speciesAt).
+			List<String> vanillaTrees = new ArrayList<>();
+			for (Place p : places) {
+				if (p.expect().identifier().getNamespace().equals("minecraft")) {
+					continue;
+				}
+				Map<String, Double> grows = se.itssimple.realearth.world.EarthTrees.speciesAt(earth.getServer(), biomes.getOrThrow(p.expect()),
+					koppen.classAt(p.lat(), p.lon()), p.lat(), p.lon(), p.meters());
+				double treeline = BiomePicker.treelineMeters(p.lat(), p.lon());
+				log("trees of %s at %s (%s, %.0f m, treeline %.0f m): %s", p.expect().identifier().getPath(), p.name(),
+					se.itssimple.realearth.climate.Koppen.code(koppen.classAt(p.lat(), p.lon())), p.meters(), treeline, grows.entrySet().stream()
+					.sorted(Map.Entry.<String, Double>comparingByValue().reversed()).limit(10)
+					.map(e -> String.format("%s %.0f%%", e.getKey(), 100 * e.getValue())).collect(java.util.stream.Collectors.joining(", ")));
+				double vanilla = grows.entrySet().stream().filter(e -> e.getKey().startsWith("vanilla")).mapToDouble(Map.Entry::getValue).sum();
+				if (vanilla > 0) {
+					vanillaTrees.add(String.format("%s %.0f%%", p.expect().identifier().getPath(), 100 * vanilla));
+				}
+			}
+			check(vanillaTrees.isEmpty(), "every Earth biome grows real species at its place (vanilla trees: %s)", vanillaTrees);
 			// By the map: its beaches and dunes, and gallery forest along a dry country's rivers.
 			{
 				byte none = 0;
