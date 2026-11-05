@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
+    "gaia-earth:alpine_desert",
     "gaia-earth:alpine_tundra",
     "gaia-earth:boreal_forest",
     "gaia-earth:forest_tundra",
@@ -13,6 +14,7 @@
     "gaia-earth:temperate_conifer_forest",
     "gaia-earth:temperate_rainforest",
     "gaia-earth:tropical_pine_forest",
-    "gaia-earth:tundra"
+    "gaia-earth:tundra",
+    "gaia-earth:wet_tundra"
   ]
 }

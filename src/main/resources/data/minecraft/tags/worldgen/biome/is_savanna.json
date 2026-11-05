@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
+    "gaia-earth:argan_woodland",
     "gaia-earth:bushveld",
     "gaia-earth:cactus_scrub",
     "gaia-earth:cerrado",
@@ -11,6 +12,8 @@
     "gaia-earth:llanos",
     "gaia-earth:mallee",
     "gaia-earth:miombo_woodland",
+    "gaia-earth:mitchell_grass_downs",
+    "gaia-earth:monte_scrub",
     "gaia-earth:mopane_woodland",
     "gaia-earth:mulga_woodland",
     "gaia-earth:sahel",

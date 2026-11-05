@@ -22,5 +22,5 @@ tropical savanna.
 
 Which ecoregions are known for a landscape of their own -- temperate rainforest, redwoods, hemiboreal and larch forest,
 moorland, forest-steppe, prairie, fynbos, miombo, cerrado, thorn and cactus scrub, the Karoo, paramo and puna, salt
-marsh, polar desert, swamp forest, laurel forest, Australia's eucalypts, spinifex and mulga -- is decided in the script,
-by ecoregion, name and place (`SUBS`, `LAUREL`, `AUSTRALIA`).
+marsh, polar desert, swamp forest, laurel forest, Australia's eucalypts, spinifex and mulga, and some sixty more (each
+explained in `SUBS`) -- is decided in the script, by ecoregion, name and place (`SUBS`, `LAUREL`, `AUSTRALIA`).

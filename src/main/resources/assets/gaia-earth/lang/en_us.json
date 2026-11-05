@@ -94,5 +94,22 @@
   "biome.gaia-earth.forest_tundra": "Forest-Tundra",
   "biome.gaia-earth.subalpine_forest": "Subalpine Forest",
   "biome.gaia-earth.heathland": "Heathland",
-  "biome.gaia-earth.cypress_swamp": "Cypress Swamp"
+  "biome.gaia-earth.cypress_swamp": "Cypress Swamp",
+  "biome.gaia-earth.oak_woodland": "Oak Woodland",
+  "biome.gaia-earth.himalayan_broadleaf_forest": "Himalayan Broadleaf Forest",
+  "biome.gaia-earth.ponderosa_pine_forest": "Ponderosa Pine Forest",
+  "biome.gaia-earth.mitchell_grass_downs": "Mitchell Grass Downs",
+  "biome.gaia-earth.terai_grassland": "Terai Grassland",
+  "biome.gaia-earth.monte_scrub": "Monte Scrub",
+  "biome.gaia-earth.alpine_desert": "Alpine Desert",
+  "biome.gaia-earth.afromontane_grassland": "Afromontane Grassland",
+  "biome.gaia-earth.snow_gum_woodland": "Snow Gum Woodland",
+  "biome.gaia-earth.argan_woodland": "Argan Woodland",
+  "biome.gaia-earth.kwongan_heath": "Kwongan Heath",
+  "biome.gaia-earth.mojave_scrub": "Mojave Scrub",
+  "biome.gaia-earth.saltbush_shrubland": "Saltbush Shrubland",
+  "biome.gaia-earth.atlantic_forest": "Atlantic Forest",
+  "biome.gaia-earth.tepui": "Tepui",
+  "biome.gaia-earth.heath_forest": "Heath Forest",
+  "biome.gaia-earth.wet_tundra": "Wet Tundra"
 }

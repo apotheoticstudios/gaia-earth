@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
+    "gaia-earth:atlantic_forest",
     "gaia-earth:boreal_forest",
     "gaia-earth:cloud_forest",
     "gaia-earth:forest_tundra",

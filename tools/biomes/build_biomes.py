@@ -91,6 +91,23 @@ BIOMES = [
     ('subalpine_forest', 'taiga', '#7a9a5a', '#4a7046', 'Subalpine Forest'),
     ('heathland', 'plains', '#8a8256', '#6a7a48', 'Heathland'),
     ('cypress_swamp', 'swamp', '#5f8f40', '#4f7a32', 'Cypress Swamp'),
+    ('oak_woodland', 'plains', '#b0ad60', '#6a8a45', 'Oak Woodland'),
+    ('himalayan_broadleaf_forest', 'forest', '#6aa045', '#3f8a35', 'Himalayan Broadleaf Forest'),
+    ('ponderosa_pine_forest', 'plains', '#a3a65e', '#4f7a42', 'Ponderosa Pine Forest'),
+    ('mitchell_grass_downs', 'savanna', '#c2ad62', '#8f9a60', 'Mitchell Grass Downs'),
+    ('terai_grassland', 'plains', '#8fb048', '#5f9a35', 'Terai Grassland'),
+    ('monte_scrub', 'savanna', '#bea96c', '#8f9258', 'Monte Scrub'),
+    ('alpine_desert', 'snowy_plains', '#aaa183', '#8a8a6a', 'Alpine Desert'),
+    ('afromontane_grassland', 'meadow', '#8fae5a', '#5f8a45', 'Afromontane Grassland'),
+    ('snow_gum_woodland', 'forest', '#9aa872', '#7f9a80', 'Snow Gum Woodland'),
+    ('argan_woodland', 'savanna', '#b8a866', '#6f8a4a', 'Argan Woodland'),
+    ('kwongan_heath', 'plains', '#a6a065', '#7a8a5c', 'Kwongan Heath'),
+    ('mojave_scrub', 'desert', '#c2b07a', '#8f9a68', 'Mojave Scrub'),
+    ('saltbush_shrubland', 'desert', '#a8a882', '#8a9a7a', 'Saltbush Shrubland'),
+    ('atlantic_forest', 'jungle', '#3f9e35', '#2a8a2a', 'Atlantic Forest'),
+    ('tepui', 'sparse_jungle', '#7a9a50', '#4f7a3a', 'Tepui'),
+    ('heath_forest', 'sparse_jungle', '#6f9a40', '#4f8a30', 'Heath Forest'),
+    ('wet_tundra', 'snowy_plains', '#8fa06a', '#6f8a56', 'Wet Tundra'),
 ]
 # The flooded grasslands' water is clear (the Pantanal, the Okavango), not a swamp's murk; a bog's is brown with
 # peat, a tropical swamp forest's and a cypress swamp's dark with tannin, a salt marsh's the grey-green of a tidal creek.

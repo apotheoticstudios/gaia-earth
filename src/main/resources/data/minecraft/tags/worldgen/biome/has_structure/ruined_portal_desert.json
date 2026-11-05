@@ -1,6 +1,8 @@
 {
   "replace": false,
   "values": [
-    "gaia-earth:desert_steppe"
+    "gaia-earth:desert_steppe",
+    "gaia-earth:mojave_scrub",
+    "gaia-earth:saltbush_shrubland"
   ]
 }

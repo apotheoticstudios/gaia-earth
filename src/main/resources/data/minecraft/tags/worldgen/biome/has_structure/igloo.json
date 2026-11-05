@@ -1,8 +1,10 @@
 {
   "replace": false,
   "values": [
+    "gaia-earth:alpine_desert",
     "gaia-earth:alpine_tundra",
     "gaia-earth:polar_desert",
-    "gaia-earth:tundra"
+    "gaia-earth:tundra",
+    "gaia-earth:wet_tundra"
   ]
 }

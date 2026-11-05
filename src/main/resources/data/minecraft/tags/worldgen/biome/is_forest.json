@@ -3,9 +3,11 @@
   "values": [
     "gaia-earth:beech_forest",
     "gaia-earth:eucalypt_forest",
+    "gaia-earth:himalayan_broadleaf_forest",
     "gaia-earth:laurel_forest",
     "gaia-earth:mediterranean_woodland",
     "gaia-earth:mountain_birch_forest",
+    "gaia-earth:snow_gum_woodland",
     "gaia-earth:temperate_deciduous_forest",
     "gaia-earth:temperate_mixed_forest"
   ]

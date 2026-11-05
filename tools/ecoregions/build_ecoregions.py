@@ -46,12 +46,12 @@ SUBS = {
     # Forest-steppe: groves of birch, aspen and pine in the grassland, from Ukraine to Mongolia, and Canada's aspen parkland.
     'forest_steppe': {661, 726, 731, 737, 738, 386},
     # Oak savanna: North America's open oak woodland between prairie and forest.
-    'oak_savanna': {403, 390, 391, 387, 343},
+    'oak_savanna': {403, 390, 391, 387, 343, 400},
     # Tallgrass prairie: the wetter, eastern prairies of North America.
     'prairie': {388, 392, 397, 401},
     # Pine savanna: open longleaf and Caribbean pine over grass -- the US South's coastal plain, the pine barrens,
     # Belize's and the Miskito Coast's pine savannas.
-    'pine_savanna': {399, 564, 573, 347, 363},
+    'pine_savanna': {399, 564, 573, 347, 363, 393},
     # Fynbos and renosterveld: the Cape's fine-leaved shrubland.
     'fynbos': {89, 90},
     # Miombo: the Brachystegia woodland of south-central Africa.
@@ -59,10 +59,11 @@ SUBS = {
     # Cerrado: Brazil's savanna woodland of twisted, thick-barked trees.
     'cerrado': {567, 566},
     # Thorn scrub: acacia and commiphora bush -- East Africa, the Horn, India's thorn forests, the Chaco, the Caatinga,
-    # Madagascar's spiny thickets.
-    'thorn': {51, 55, 57, 45, 50, 314, 315, 605, 569, 525, 99},
-    # Cactus scrub: the deserts and matorral of Mexico and its borderlands, and Cuba's cactus scrub.
-    'cactus': {435, 428, 426, 431, 607, 427, 432, 436, 437, 610, 600},
+    # Madagascar's spiny thickets, Argentina's espinal.
+    'thorn': {51, 55, 57, 45, 50, 314, 315, 605, 569, 525, 99, 575},
+    # Cactus scrub: the deserts and matorral of Mexico and its borderlands, the Caribbean's and Venezuela's cardonales,
+    # the Galapagos.
+    'cactus': {435, 428, 426, 431, 607, 427, 432, 436, 437, 610, 600, 599, 597, 602, 603, 606, 601},
     # Sagebrush steppe: the Great Basin, the Snake and Columbia plains, Wyoming, the Colorado Plateau.
     'sagebrush': {430, 434, 438, 429},
     # The Karoo: South Africa's and Namibia's dwarf and succulent shrubland.
@@ -93,15 +94,15 @@ SUBS = {
     'chaparral': {422, 423, 424, 425},
     # Shortgrass and mixed-grass prairie: the drier, western Great Plains.
     'shortgrass': {396, 402},
-    'mixed_grass': {389, 395},
+    'mixed_grass': {389, 395, 394},
     # The pampas: the grasslands of Argentina and Uruguay.
     'pampas': {576, 574},
     # Patagonian steppe: the cold, windswept grass and shrub steppe east of the southern Andes.
     'patagonian': {578, 595},
-    # Tussock grassland: New Zealand's tussock country.
-    'tussock': {190, 194},
+    # Tussock grassland: New Zealand's tussock country, and the tussock of the sub-Antarctic islands.
+    'tussock': {190, 194, 196, 133, 129},
     # Desert steppe: the cold semi-deserts of the Gobi, Central Asia and the Caspian.
-    'desert_steppe': {824, 825, 826, 828, 724, 808, 827, 835, 807, 813, 829, 812, 815, 817, 819},
+    'desert_steppe': {824, 825, 826, 828, 724, 808, 827, 835, 807, 813, 829, 812, 815, 817, 819, 739, 740, 761},
     # Succulent thicket: South Africa's Albany thicket, Madagascar's succulent woodland.
     'succulent': {88, 100},
     # Alpine tundra: the treeless heights of the Alaskan, Yukon, Siberian and Labrador ranges, the Altai and Sayan.
@@ -109,9 +110,9 @@ SUBS = {
     # Alpine shrubland: the Himalaya's and Tibet's rhododendron, juniper and willow scrub above the forest.
     'alpine_shrub': {751, 760, 769, 765, 768},
     # Xeric woodland: the open juniper, pistachio and acacia woodland of dry mountains, from the Sahara's to Afghanistan's.
-    'xeric_woodland': {814, 816, 834, 844, 823, 846, 833, 106, 722, 723, 758},
-    # The llanos: the Orinoco's and Bolivia's seasonally flooded savannas, and the Guianas'.
-    'llanos': {572, 565, 570},
+    'xeric_woodland': {814, 816, 834, 844, 823, 846, 833, 106, 722, 723, 758, 730, 756, 757},
+    # The llanos: the Orinoco's and Bolivia's seasonally flooded savannas, the Guianas', the humid Chaco's palm savanna.
+    'llanos': {572, 565, 570, 571},
     # The Sahel: the dry acacia savanna south of the Sahara.
     'sahel': {53},
     # Forest-savanna mosaic: Africa's belt of gallery forest and savanna between rainforest and savanna.
@@ -121,9 +122,43 @@ SUBS = {
     # Bushveld: South Africa's and Zimbabwe's thorny savanna.
     'bushveld': {38, 48, 66},
     # The Kalahari: acacia savanna on red sand.
-    'kalahari': {47, 97},
+    'kalahari': {47, 97, 104},
     # Highveld grassland: South Africa's high treeless grassland.
     'highveld': {81, 41},
+    # Oak woodland: the dry oak forest of the Zagros and Anatolia.
+    'oak_woodland': {688, 662, 652},
+    # Himalayan broadleaf forest: the oak, laurel and rhododendron forest of the Himalaya's middle hills.
+    'himalayan_broadleaf': {306, 308},
+    # Ponderosa pine forest: the open, park-like pine forest of the dry interior West.
+    'ponderosa': {346, 362, 354, 348, 356},
+    # Mitchell grass downs: Queensland's treeless cracking-clay grassland.
+    'mitchell': {187},
+    # Terai: the tall elephant grass and sal of the Himalayan foothills.
+    'terai': {311},
+    # Monte: Argentina's creosote and mesquite scrub.
+    'monte': {577, 592},
+    # Alpine desert: the cold, near-barren high plateaus of the Kunlun, northern Tibet and the Pamirs.
+    'alpine_desert': {759, 762},
+    # Afromontane grassland: the grassy highlands and forest patches of Africa's mountains.
+    'afromontane': {77, 82, 84, 85, 87, 79},
+    # Snow gum woodland: the Australian Alps.
+    'snow_gum': {193},
+    # Argan woodland: Morocco's argan and acacia woodland.
+    'argan': {796},
+    # Kwongan: southwest Australia's sandplain heath.
+    'kwongan': {205},
+    # The Mojave: Joshua trees and creosote bush.
+    'mojave': {433},
+    # Saltbush shrubland: the Nullarbor's treeless saltbush and bluebush plain.
+    'saltbush': {212},
+    # The Atlantic Forest (Mata Atlantica): Brazil's coastal rainforest.
+    'atlantic': {439, 442, 443, 491, 492, 500},
+    # Tepui: the table mountains of the Guiana Highlands.
+    'tepui': {490},
+    # Heath forest (kerangas): Borneo's and Sumatra's stunted forest on white sand.
+    'heath_forest': {281},
+    # Wet tundra: the Arctic's flat coastal tundra of sedge, moss and thaw lakes.
+    'wet_tundra': {407, 784, 775, 781, 414},
 }
 # Laurel forests (laurisilva): warm-temperate evergreen broadleaf, in East Asia and on the Atlantic islands; the
 # temperate broadleaf ecoregions named "evergreen", and the Azores'.

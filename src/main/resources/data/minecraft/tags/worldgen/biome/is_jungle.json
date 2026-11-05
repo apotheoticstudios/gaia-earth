@@ -1,8 +1,11 @@
 {
   "replace": false,
   "values": [
+    "gaia-earth:atlantic_forest",
     "gaia-earth:cloud_forest",
+    "gaia-earth:heath_forest",
     "gaia-earth:monsoon_forest",
+    "gaia-earth:tepui",
     "gaia-earth:tropical_dry_forest",
     "gaia-earth:tropical_rainforest"
   ]
