@@ -17,8 +17,8 @@ import se.itssimple.realearth.world.GeoNoise;
 /**
  * The world's ecoregions: RESOLVE Ecoregions 2017, Dinerstein et al. (2017), BioScience 67(6): 534-545, CC BY 4.0. 846
  * regions of like nature, each in one of 14 biomes (the Sierra Nevada's forests are temperate conifer forest, the
- * Serengeti's bushland tropical savanna), bundled as a 0.05 degree grid by tools/ecoregions, with the forests some
- * ecoregions are known for (temperate rainforest, hemiboreal forest, laurel forest, eucalypts) as their sub-biome.
+ * Serengeti's bushland tropical savanna), bundled as a 0.05 degree grid by tools/ecoregions, with the landscape some
+ * ecoregions are known for (temperate rainforest, moorland, fynbos, puna...) as their sub-biome.
  */
 public final class Ecoregions {
 	public static final int ROCK_AND_ICE = 0;
@@ -37,7 +37,7 @@ public final class Ecoregions {
 	public static final int DESERT = 13;
 	public static final int MANGROVES = 14;
 
-	/** An ecoregion: its biome (above), and its sub-biome ("rainforest", "hemiboreal", "laurel", "eucalypt", or "-"). */
+	/** An ecoregion: its biome (above), and the landscape it is known for, its sub-biome ("rainforest", "moorland"... or "-"; tools/ecoregions). */
 	public record Region(int ecoId, int biome, String sub, String realm, String name) {
 	}
 

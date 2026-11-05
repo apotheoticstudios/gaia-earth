@@ -1,7 +1,17 @@
 {
   "replace": false,
   "values": [
+    "gaia-earth:forest_steppe",
+    "gaia-earth:fynbos",
+    "gaia-earth:mediterranean_scrub",
     "gaia-earth:montane_grassland",
+    "gaia-earth:moorland",
+    "gaia-earth:oak_savanna",
+    "gaia-earth:paramo",
+    "gaia-earth:pine_savanna",
+    "gaia-earth:puna",
+    "gaia-earth:sagebrush_steppe",
+    "gaia-earth:tallgrass_prairie",
     "gaia-earth:temperate_steppe"
   ]
 }

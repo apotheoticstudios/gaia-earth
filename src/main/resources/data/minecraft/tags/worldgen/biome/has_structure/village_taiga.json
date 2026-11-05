@@ -3,6 +3,8 @@
   "values": [
     "gaia-earth:boreal_forest",
     "gaia-earth:hemiboreal_forest",
+    "gaia-earth:larch_taiga",
+    "gaia-earth:redwood_forest",
     "gaia-earth:temperate_conifer_forest",
     "gaia-earth:temperate_rainforest",
     "gaia-earth:tropical_pine_forest"

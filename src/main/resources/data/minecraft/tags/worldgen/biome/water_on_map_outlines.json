@@ -1,6 +1,9 @@
 {
   "replace": false,
   "values": [
-    "gaia-earth:flooded_grassland"
+    "gaia-earth:flooded_grassland",
+    "gaia-earth:peat_bog",
+    "gaia-earth:salt_marsh",
+    "gaia-earth:swamp_forest"
   ]
 }

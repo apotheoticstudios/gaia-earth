@@ -20,5 +20,7 @@ Peninsula in the Central Pacific Northwest coastal forests (temperate conifer, a
 Eastern Australian temperate forests (eucalypts), Stockholm in the Sarmatic mixed forests, Kakadu in the Arnhem Land
 tropical savanna.
 
-Which ecoregions are known for a forest of their own (temperate rainforest, hemiboreal forest, laurel forest, eucalypts) is
-decided in the script, by name and place (`RAINFOREST`, `HEMIBOREAL`, `LAUREL`, `AUSTRALIA`).
+Which ecoregions are known for a landscape of their own -- temperate rainforest, redwoods, hemiboreal and larch forest,
+moorland, forest-steppe, prairie, fynbos, miombo, cerrado, thorn and cactus scrub, the Karoo, paramo and puna, salt
+marsh, polar desert, swamp forest, laurel forest, Australia's eucalypts, spinifex and mulga -- is decided in the script,
+by ecoregion, name and place (`SUBS`, `LAUREL`, `AUSTRALIA`).

@@ -3,7 +3,7 @@
 Which of the world's 846 ecoregions, in 14 biomes, a place lies in: RESOLVE Ecoregions 2017, Dinerstein et al.
 (2017), "An Ecoregion-Based Approach to Protecting Half the Terrestrial Realm", BioScience 67(6): 534-545,
 https://doi.org/10.1093/biosci/bix014; data CC BY 4.0 (https://ecoregions.appspot.com/). Earth's own biomes follow
-the ecoregion's biome, and some ecoregions are known for a forest of their own (SUBS below).
+the ecoregion's biome, and some ecoregions are known for a landscape of their own (SUBS below).
 
 Method: each 0.05 degree cell takes the ecoregion whose polygons cover its centre (even-odd, holes left out). Sea
 cells within COAST_CELLS of land take the nearest ecoregion, so a coast the terrain draws a little further out still
@@ -28,17 +28,60 @@ NORTH = 90.0
 WEST = -180.0
 COAST_CELLS = 3
 
-# Ecoregions known for a forest of their own, by ECO_ID (names in ecoregions.tsv):
-# temperate rainforests -- the Pacific coast from Alaska to the redwoods, Norway's coast, southern Chile, New Zealand,
-# Tasmania's west -- wet all year, mossy, tall.
-RAINFOREST = {349, 351, 359, 360, 365, 708, 561, 563, 167, 169, 170, 171, 172, 173, 174, 175, 179, 180}
-# Hemiboreal forests: where temperate mixed forest meets the taiga -- southern Sweden and Finland, the Baltic states,
-# western Siberia's southern edge, Canada's forest-boreal transition -- mostly pine and spruce, with birch and oak.
-HEMIBOREAL = {679, 687, 333}
+# Ecoregions known for a landscape of their own, by ECO_ID (names in ecoregions.tsv), each a sub-biome of Earth's:
+SUBS = {
+    # The redwoods: the coast of northern California, the tallest forest on Earth.
+    'redwood': {359},
+    # Temperate rainforests -- the Pacific coast from Alaska to Oregon, Norway's coast, southern Chile, New Zealand,
+    # Tasmania's west -- wet all year, mossy, tall.
+    'rainforest': {349, 351, 360, 365, 708, 561, 563, 167, 169, 170, 171, 172, 173, 174, 175, 179, 180},
+    # Hemiboreal forests: where temperate mixed forest meets the taiga -- southern Sweden and Finland, the Baltic states,
+    # western Siberia's southern edge, Canada's forest-boreal transition -- mostly pine and spruce, with birch and oak.
+    'hemiboreal': {679, 687, 333},
+    # Larch taiga: eastern Siberia and the Greater Khingan, where only larches stand the cold and the permafrost.
+    'larch': {710, 714, 718, 693},
+    # Moorland: the heather, bog and rough grass of Atlantic Europe's uplands -- Ireland, Scotland, Wales, the Faroes,
+    # Iceland -- where the land is open.
+    'moorland': {672, 691, 651, 729, 711},
+    # Forest-steppe: groves of birch, aspen and pine in the grassland, from Ukraine to Mongolia, and Canada's aspen parkland.
+    'forest_steppe': {661, 726, 731, 737, 738, 386},
+    # Oak savanna: North America's open oak woodland between prairie and forest.
+    'oak_savanna': {403, 390, 391, 387, 343},
+    # Tallgrass prairie: the wetter, eastern prairies of North America.
+    'prairie': {388, 392, 397, 401},
+    # Pine savanna: open longleaf and Caribbean pine over grass -- the US South's coastal plain, the pine barrens,
+    # Belize's and the Miskito Coast's pine savannas.
+    'pine_savanna': {399, 564, 573, 347, 363},
+    # Fynbos and renosterveld: the Cape's fine-leaved shrubland.
+    'fynbos': {89, 90},
+    # Miombo: the Brachystegia woodland of south-central Africa.
+    'miombo': {36, 39, 42},
+    # Cerrado: Brazil's savanna woodland of twisted, thick-barked trees.
+    'cerrado': {567, 566},
+    # Thorn scrub: acacia and commiphora bush -- East Africa, the Horn, India's thorn forests, the Chaco, the Caatinga,
+    # Madagascar's spiny thickets.
+    'thorn': {51, 55, 57, 45, 50, 314, 315, 605, 569, 525, 99},
+    # Cactus scrub: the deserts and matorral of Mexico and its borderlands, and Cuba's cactus scrub.
+    'cactus': {435, 428, 426, 431, 607, 427, 432, 436, 437, 610, 600},
+    # Sagebrush steppe: the Great Basin, the Snake and Columbia plains, Wyoming, the Colorado Plateau.
+    'sagebrush': {430, 434, 438, 429},
+    # The Karoo: South Africa's and Namibia's dwarf and succulent shrubland.
+    'karoo': {94, 101, 110, 102},
+    # Mulga: Australia's acacia shrubland.
+    'mulga': {191, 216},
+    # Paramo: the wet tropical alpine grassland of the northern Andes and East Africa's mountains (moorlands).
+    'paramo': {590, 591, 593, 594, 78, 80, 86},
+    # Puna: the dry high grassland of the central Andes.
+    'puna': {587, 588, 589},
+    # Salt marshes, saline meadows and salt pans.
+    'salt': {69, 70, 73, 745, 742, 748, 312, 747},
+    # Polar desert: the bare high Arctic.
+    'polar': {777, 778, 783},
+}
 # Laurel forests (laurisilva): warm-temperate evergreen broadleaf, in East Asia and on the Atlantic islands; the
 # temperate broadleaf ecoregions named "evergreen", and the Azores'.
 LAUREL = {645}
-# Australia: eucalypts, whatever the biome's forests are elsewhere.
+# Australia: eucalypts, whatever the biome's forests are elsewhere; its deserts are spinifex grassland.
 AUSTRALIA = (-44.5, -9.5, 112.0, 154.5)  # south, north, west, east of the mainland and Tasmania
 PLACES = [("Olympic Peninsula", 47.8, -123.9), ("Sierra Nevada", 38.0, -120.0), ("Amazon", -4.0, -63.0),
           ("Sahara", 26.0, 3.0), ("Serengeti", -2.3, 34.8), ("Central Spain", 40.0, -4.0), ("Siberian taiga", 62.0, 100.0),
@@ -145,17 +188,23 @@ def coast_fill(grid, width, height):
 def sub_biome(rec, bbox):
     eco = int(rec['ECO_ID'])
     biome = int(float(rec['BIOME_NUM'] or 0))
-    if eco in RAINFOREST:
-        return 'rainforest'
-    if eco in HEMIBOREAL:
-        return 'hemiboreal'
-    if eco in LAUREL or (biome == 4 and 'evergreen' in rec['ECO_NAME'].lower()):
+    name = rec['ECO_NAME'].lower()
+    for sub, ids in SUBS.items():
+        if eco in ids:
+            return sub
+    # Tropical swamp forests: freshwater and peat swamp forest, and the Amazon's flooded forests (varzea, igapo).
+    if biome == 1 and ('swamp' in name or 'v\u00e1rzea' in name or 'igap\u00f3' in name):
+        return 'swamp'
+    if eco in LAUREL or (biome == 4 and 'evergreen' in name):
         return 'laurel'
     s, n, w, e = AUSTRALIA
     mid_lon = (bbox[0] + bbox[2]) / 2
     mid_lat = (bbox[1] + bbox[3]) / 2
-    if rec['REALM'] == 'Australasia' and s <= mid_lat <= n and w <= mid_lon <= e and biome in (4, 5, 7, 8, 12):
-        return 'eucalypt'
+    if rec['REALM'] == 'Australasia' and s <= mid_lat <= n and w <= mid_lon <= e:
+        if biome in (4, 5, 7, 8, 12):
+            return 'eucalypt'
+        if biome == 13:
+            return 'spinifex'
     return '-'
 
 

@@ -39,9 +39,34 @@ BIOMES = [
     ('montane_grassland', 'meadow', '#a3a866', '#6c8a50', 'Montane Grassland'),
     ('tundra', 'snowy_plains', '#9a9d68', '#78895a', 'Tundra'),
     ('xeric_shrubland', 'savanna', '#b8a967', '#8e9a5c', 'Xeric Shrubland'),
+    # Sub-biomes: landscapes some ecoregions are known for, and wetlands, scrub and polar desert by place.
+    ('redwood_forest', 'taiga', '#4f9440', '#2c6b33', 'Redwood Forest'),
+    ('larch_taiga', 'taiga', '#8aa863', '#84a64e', 'Larch Taiga'),
+    ('peat_bog', 'swamp', '#8a9a52', '#6a8448', 'Peat Bog'),
+    ('moorland', 'plains', '#8f8f58', '#667a46', 'Moorland'),
+    ('forest_steppe', 'plains', '#a7b766', '#6a9a48', 'Forest-Steppe'),
+    ('oak_savanna', 'plains', '#b2b45e', '#6f9440', 'Oak Savanna'),
+    ('tallgrass_prairie', 'plains', '#8fb558', '#6aa040', 'Tallgrass Prairie'),
+    ('pine_savanna', 'plains', '#9fb55a', '#4f8a3f', 'Pine Savanna'),
+    ('mediterranean_scrub', 'plains', '#b5b062', '#7a8a4e', 'Mediterranean Scrub'),
+    ('fynbos', 'plains', '#9ea56a', '#74895a', 'Fynbos'),
+    ('miombo_woodland', 'savanna', '#a8b052', '#7e9a3a', 'Miombo Woodland'),
+    ('cerrado', 'savanna', '#b5ae58', '#7d9440', 'Cerrado'),
+    ('thorn_scrub', 'savanna', '#bfae66', '#8a9050', 'Thorn Scrub'),
+    ('cactus_scrub', 'savanna', '#c0ad6c', '#8f9356', 'Cactus Scrub'),
+    ('sagebrush_steppe', 'plains', '#a9ab82', '#7f8a6a', 'Sagebrush Steppe'),
+    ('karoo', 'savanna', '#bba770', '#8c8f5e', 'Karoo'),
+    ('spinifex_grassland', 'savanna', '#c9a656', '#8a9a6a', 'Spinifex Grassland'),
+    ('mulga_woodland', 'savanna', '#c1a660', '#7f8f62', 'Mulga Woodland'),
+    ('paramo', 'meadow', '#8e9f62', '#61804c', 'P\u00e1ramo'),
+    ('puna', 'meadow', '#b3a76d', '#7a8656', 'Puna'),
+    ('swamp_forest', 'swamp', '#3f9a30', '#2a7f24', 'Swamp Forest'),
+    ('salt_marsh', 'swamp', '#8aa25a', '#6f8a4a', 'Salt Marsh'),
+    ('polar_desert', 'snowy_plains', '#a09a80', '#8a8a6a', 'Polar Desert'),
 ]
-# The flooded grasslands' water is clear (the Pantanal, the Okavango), not a swamp's murk.
-WATER = {'flooded_grassland': '#4a7f9a'}
+# The flooded grasslands' water is clear (the Pantanal, the Okavango), not a swamp's murk; a bog's is brown with
+# peat, a tropical swamp forest's black with tannin, a salt marsh's the grey-green of a tidal creek.
+WATER = {'flooded_grassland': '#4a7f9a', 'peat_bog': '#5a5a3c', 'swamp_forest': '#4d4a2e', 'salt_marsh': '#4a7a8a'}
 BIOME_DIR = 'data/minecraft/worldgen/biome/'
 TAG_DIR = 'data/minecraft/tags/worldgen/biome/'
 
