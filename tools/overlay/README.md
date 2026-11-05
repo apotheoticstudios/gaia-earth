@@ -56,3 +56,18 @@ python3 bridges.py --self-test
 
 Central Delft (4.350, 52.008, 4.365, 52.016): 85 bridges, 58 with Wikidata, 79 surveyed parts, 2,062 measured deck
 points. Västerbron and Tranebergsbron (17.99, 59.315, 18.04, 59.34): 42 bridges, 38 with Wikidata.
+
+## Netherlands: water levels
+
+The water boards' level areas in force (peilgebieden, PDOK's Waterschappen Waterbeheergebieden IMWA, CC BY-SA 4.0)
+for a box, each clipped to it, with the level its decision fixes as cited in `water_levels.tsv` (the dataset has the
+areas, not their levels). List the archive in `buildingOverlays`; worlds from water surface version 4 let mapped water
+inside an area stand at its level. Being CC BY-SA, an archive made from it is shared alike, and credited.
+
+```bash
+python3 water_levels_nl.py <min lon> <min lat> <max lon> <max lat> data/<name>.pmtiles
+python3 water_levels_nl.py --self-test
+```
+
+Central Delft (4.345, 52.004, 4.372, 52.020): the Delflandse boezem, NAP -0.43 m, over 4 tiles; 13 other areas there
+have no cited level yet.

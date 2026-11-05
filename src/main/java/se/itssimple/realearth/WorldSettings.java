@@ -32,7 +32,10 @@ public final class WorldSettings {
 	public Double scaleLatitude;
 	/** Lidar elevation tiles over the Terrarium ones (EarthConfig.lidarUrl); empty for none. */
 	public String lidarUrl;
-	/** 0 is original terrain, 1 fits water surfaces, and 2 adds directed profiles and wrap fixes. */
+	/**
+	 * 0 is original terrain, 1 fits water surfaces, and 2 adds directed profiles and wrap fixes; 4 lets water a water
+	 * board holds at a fixed level stand at it, where an overlay gives the level (tools/overlay/water_levels_nl.py).
+	 */
 	public int waterSurfaceVersion;
 	/**
 	 * 0 is roads a fixed width by class; 1 widens them by region and paints their markings in Saro's asphalt; 2 adds
@@ -81,7 +84,7 @@ public final class WorldSettings {
 		settings.startLatitude = defaults.startLatitude;
 		settings.startLongitude = defaults.startLongitude;
 		settings.lidarUrl = defaults.lidarUrl == null ? "" : defaults.lidarUrl;
-		settings.waterSurfaceVersion = 3;
+		settings.waterSurfaceVersion = 4;
 		settings.roadVersion = 10;
 		if (settings.projection.equals("sinusoidal")) {
 			settings.originLatitude = defaults.startLatitude;

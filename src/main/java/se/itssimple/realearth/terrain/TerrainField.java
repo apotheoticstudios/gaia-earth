@@ -750,6 +750,16 @@ public final class TerrainField implements AutoCloseable {
 						key -> detail.surfaces(tx, ty).copy().completeOnTimeout(List.of(), DETAIL_WAIT_S, TimeUnit.SECONDS));
 				}
 			}
+			// The water levels the overlays fix in the chunk's z14 tiles (water surface version 4).
+			Map<Long, CompletableFuture<List<OsmDetail.WaterLevel>>> levelTiles = new HashMap<>();
+			for (int k : new int[] {0, span - 1, span * (span - 1), span * span - 1}) {
+				if (detail != null && waterSurfaceVersion >= 4 && onGlobe[k]) {
+					int tx = (int) Math.floor((sx[k] + 0.5) / perMapTile);
+					int ty = (int) Math.floor((sy[k] + 0.5) / perMapTile);
+					levelTiles.computeIfAbsent(((long) tx << 32) | (ty & 0xFFFFFFFFL),
+						key -> detail.waterLevels(tx, ty).copy().completeOnTimeout(List.of(), DETAIL_WAIT_S, TimeUnit.SECONDS));
+				}
+			}
 			// And the road surfaces mapped in the chunk's z14 tiles, where this world's roads use them.
 			Map<Long, CompletableFuture<OsmRoads.Tile>> roadTiles = new HashMap<>();
 			OsmRoads mappedRoads = map == null || map.roadVersion() < 2 ? null : map.roads();
@@ -765,6 +775,7 @@ public final class TerrainField implements AutoCloseable {
 			waits.addAll(roadTiles.values());
 			waits.addAll(surfaceTiles.values());
 			waits.addAll(bridgeTiles.values());
+			waits.addAll(levelTiles.values());
 			return CompletableFuture.allOf(waits.toArray(CompletableFuture[]::new)).thenApplyAsync(w -> {
 				Map<Long, ProcessedTile> all2 = new HashMap<>();
 				withBuildings.forEach((key, f) -> all2.put(key, f.join()));
@@ -776,7 +787,7 @@ public final class TerrainField implements AutoCloseable {
 				List<OsmDetail.Surface> surfaces = surfaceTiles.values().stream().flatMap(f -> f.join().stream()).toList();
 				OsmDetail.BridgeTile bridgeData = Bridges.merge(bridgeTiles.values().stream().map(CompletableFuture::join).toList());
 				ChunkTerrain built = build(terrain, all2, needed.keySet(), coverLookup.join(), shapes, candidates, details, trees, surfaces, segments,
-					chunkRuns, bridgeData, sx, sy, onGlobe, chunkX, chunkZ);
+					chunkRuns, bridgeData, levelTiles.values().stream().flatMap(f -> f.join().stream()).distinct().toList(), sx, sy, onGlobe, chunkX, chunkZ);
 				se.itssimple.realearth.Perf.stop("terrain", started);
 				se.itssimple.realearth.data.Net.waited("everything (chunk ready)", System.nanoTime() - asked, built.degraded);
 				return built;
@@ -787,7 +798,8 @@ public final class TerrainField implements AutoCloseable {
 	/** The chunk's terrain from everything fetched for it. */
 	private ChunkTerrain build(ChunkTerrain terrain, Map<Long, ProcessedTile> tiles, java.util.Set<Long> own, WorldCover.Lookup landCover,
 		List<OsmWater.Shapes> shapes, List<Buildings.Candidate> candidates, Map<Long, OsmDetail.Tile> details, List<OsmTrees.Tile> trees,
-		List<OsmDetail.Surface> surfaces, List<OsmRoads.Segment> segments, List<Bridges.Run> runs, OsmDetail.BridgeTile bridgeData, double[] sx,
+		List<OsmDetail.Surface> surfaces, List<OsmRoads.Segment> segments, List<Bridges.Run> runs, OsmDetail.BridgeTile bridgeData,
+		List<OsmDetail.WaterLevel> levels, double[] sx,
 		double[] sy, boolean[] onGlobe, int chunkX, int chunkZ) {
 		int n = ChunkTerrain.SPAN;
 		Bridges.Network bridges = null;
@@ -804,6 +816,19 @@ public final class TerrainField implements AutoCloseable {
 					// Corners of the projection beyond the antimeridian: open ocean.
 					terrain.groundMeters[k] = -3000f;
 					terrain.waterMeters[k] = 0f;
+				}
+			}
+			// Water a water board holds at a fixed level stands at it (water surface version 4, an overlay's: a canal's level
+			// is not in the elevation, which has none over water).
+			for (int k = 0; k < n * n && !levels.isEmpty(); k++) {
+				if (!onGlobe[k] || Float.isNaN(terrain.waterMeters[k])) {
+					continue;
+				}
+				for (OsmDetail.WaterLevel l : levels) {
+					if (sx[k] >= l.minX() && sx[k] <= l.maxX() && sy[k] >= l.minY() && sy[k] <= l.maxY() && BuildingPlan.contains(l.rings(), sx[k], sy[k])) {
+						terrain.waterMeters[k] = (float) l.meters();
+						break;
+					}
 				}
 			}
 			if (!shapes.isEmpty()) {

@@ -2396,6 +2396,52 @@ final class SelfTest {
 			}
 		}));
 
+		phases.add(Map.entry("Water: Delft's canals at their fixed level", () -> {
+			// From a water level overlay (tools/overlay/water_levels_nl.py), where one is installed (water surface version 4):
+			// central Delft's canals stand at Delfland's boezem level, NAP -0.43 m (water_levels.tsv cites it), each water
+			// column's top block at that level.
+			TerrainField field = RealEarth.terrain();
+			var detail = field.map() == null ? null : field.map().detail();
+			if (RealEarth.config().buildingOverlays.isBlank() || detail == null) {
+				log("no water level overlay installed; Delft's canals not checked");
+				return;
+			}
+			try {
+				var levels = detail.waterLevels((int) Math.floor(Mercator.sampleX(4.3575) / (Mercator.TILE_SIZE * 2)),
+					(int) Math.floor(Mercator.sampleY(52.0110) / (Mercator.TILE_SIZE * 2))).get(120, java.util.concurrent.TimeUnit.SECONDS);
+				if (levels.isEmpty()) {
+					log("the overlays fix no water level in central Delft; Delft's canals not checked");
+					return;
+				}
+				int cx0 = (int) field.projection().blockX(52.0110, 4.3575) >> 4;
+				int cz0 = (int) field.projection().blockZ(52.0110) >> 4;
+				int canal = 0;
+				int level = 0;
+				List<Float> meters = new ArrayList<>();
+				for (int cx = cx0 - 2; cx <= cx0 + 2; cx++) {
+					for (int cz = cz0 - 2; cz <= cz0 + 2; cz++) {
+						ChunkTerrain c = field.chunkBlocking(cx, cz, 120);
+						for (int k16 = 0; k16 < 256; k16++) {
+							int k = ChunkTerrain.index(k16 & 15, k16 >> 4);
+							if (!c.lake[k] || c.waterTopY[k] == Integer.MIN_VALUE) {
+								continue;
+							}
+							canal++;
+							meters.add(c.waterMeters[k]);
+							level += c.waterTopY[k] == (int) Math.round(field.toY(-0.43, c.latitude[k])) - 1 ? 1 : 0;
+						}
+					}
+				}
+				meters.sort(null);
+				float middle = meters.isEmpty() ? Float.NaN : meters.get(meters.size() / 2);
+				log("Delft: %d canal columns in 5 x 5 chunks, their water at %.2f m (the middle), %d with their top block at NAP -0.43 m", canal, middle, level);
+				check(canal > 500 && Math.abs(middle + 0.43) < 0.01 && level * 100 >= canal * 95,
+					"Delft's canals stand at Delfland's boezem level, NAP -0.43 m (cited) (%d of %d columns, %.2f m)", level, canal, middle);
+			} catch (Exception e) {
+				check(false, "Delft's canals: %s", e);
+			}
+		}));
+
 		phases.add(Map.entry("Bridges: Västerbron's arches", () -> {
 			// Västerbron from a bridge overlay, where one is installed (road version 7), against its cited sizes
 			// (tools/overlay/bridge_facts.tsv): its arch over Riddarfjärden clears the water by 26 m; between their piers its

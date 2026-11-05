@@ -61,6 +61,10 @@ public final class OsmDetail {
 		public static final BridgeTile EMPTY = new BridgeTile(List.of(), List.of(), List.of());
 	}
 
+	/** An area whose water a water board holds at a fixed level, from an overlay (tools/overlay/water_levels_nl.py), metres. */
+	public record WaterLevel(List<double[]> rings, double meters, double minX, double minY, double maxX, double maxY) {
+	}
+
 	/** Surface kinds. */
 	public static final int ROAD = 1, FOOTWAY = 2, CYCLEWAY = 3, PARKING = 4, STEPS = 5;
 	/** Surface materials. */
@@ -88,6 +92,12 @@ public final class OsmDetail {
 	private final Map<Long, CompletableFuture<List<Surface>>> surfaceCache = new LinkedHashMap<>(32, 0.75f, true) {
 		@Override
 		protected boolean removeEldestEntry(Map.Entry<Long, CompletableFuture<List<Surface>>> eldest) {
+			return size() > 32;
+		}
+	};
+	private final Map<Long, CompletableFuture<List<WaterLevel>>> levelCache = new LinkedHashMap<>(32, 0.75f, true) {
+		@Override
+		protected boolean removeEldestEntry(Map.Entry<Long, CompletableFuture<List<WaterLevel>>> eldest) {
 			return size() > 32;
 		}
 	};
@@ -171,6 +181,37 @@ public final class OsmDetail {
 						}
 					} catch (IOException | RuntimeException e) {
 						RealEarth.LOGGER.warn("Surface overlay {} unreadable for map tile {}/{}/{}: {}", overlay.url(), OsmWater.ZOOM, wx, wy, e.toString());
+					}
+				}
+				return List.copyOf(out);
+			}, downloads));
+		}
+	}
+
+	/** The overlays' fixed water levels in a z14 map tile; none, at once, without overlays. */
+	public CompletableFuture<List<WaterLevel>> waterLevels(int x, int y) {
+		List<PmTiles> list = overlays;
+		if (list.isEmpty()) {
+			return CompletableFuture.completedFuture(List.of());
+		}
+		int n = 1 << OsmWater.ZOOM;
+		int wx = Math.floorMod(x, n);
+		int wy = Math.max(0, Math.min(n - 1, y));
+		synchronized (levelCache) {
+			return levelCache.computeIfAbsent(((long) wx << 32) | wy, k -> CompletableFuture.supplyAsync(() -> {
+				List<WaterLevel> out = new ArrayList<>();
+				for (PmTiles overlay : list) {
+					try {
+						byte[] data = overlay.tile(OsmWater.ZOOM, wx, wy);
+						for (VectorTile.Feature f : data == null ? List.<VectorTile.Feature>of() : VectorTile.decode(data, Set.of("water_levels"))) {
+							List<double[]> rings = rings(f, wx, wy);
+							double[] box = box(rings);
+							if (f.type() == VectorTile.POLYGON && !Double.isNaN(f.number("level"))) {
+								out.add(new WaterLevel(rings, f.number("level"), box[0], box[1], box[2], box[3]));
+							}
+						}
+					} catch (IOException | RuntimeException e) {
+						RealEarth.LOGGER.warn("Water level overlay {} unreadable for map tile {}/{}/{}: {}", overlay.url(), OsmWater.ZOOM, wx, wy, e.toString());
 					}
 				}
 				return List.copyOf(out);
