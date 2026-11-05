@@ -2792,7 +2792,10 @@ final class SelfTest {
 			// whose ways (a busway, a cycleway and a footway) the map draws apart. Built as one bridge: its deck fills its outline,
 			// paved (no dirt path), railings from Macaw's Fences and Walls along its edge and inside it only at a drop (where the
 			// South East Busway's viaduct meets its south end higher), joined diagonally
-			// where Diagonal Fences is installed, and its deck over the river standing on girders and piers.
+			// where Diagonal Fences is installed, and its deck over the river standing on girders and piers. Where a bridge overlay
+			// describes it (tools/overlay/data/brisbane-bridges.pmtiles, road version 12), as cited (tools/overlay/bridge_facts.tsv):
+			// 11.4 m clear of the river under its main span (Maritime Safety Queensland, above HAT), 146.3 m between the piers
+			// either side of it (Wikipedia), its girder haunched (shallower at the main span's middle than at its piers).
 			TerrainField field = RealEarth.terrain();
 			if (field.map() == null || field.map().roadVersion() < 11) {
 				log("road version under 11; Victoria Bridge not checked");
@@ -2825,6 +2828,23 @@ final class SelfTest {
 				int standing = 0;
 				int piers = 0;
 				List<Integer> clears = new ArrayList<>();
+				List<Double> pierAt = new ArrayList<>();
+				Map<Integer, Integer> clearAt = new java.util.TreeMap<>();
+				double[] ring = outline.rings().get(0);
+				double[] a = {0, 0};
+				double[] b = {0, 0};
+				double far = -1;
+				for (int i = 0; i < ring.length; i += 2) {
+					for (int j = i + 2; j < ring.length; j += 2) {
+						double d = Math.hypot(ring[i] - ring[j], ring[i + 1] - ring[j + 1]);
+						if (d > far) {
+							far = d;
+							a = new double[] {ring[i], ring[i + 1]};
+							b = new double[] {ring[j], ring[j + 1]};
+						}
+					}
+				}
+				double spacing = Mercator.sampleSpacingMeters(lat0);
 				int bx0 = (int) Math.floor(field.projection().blockX(Mercator.latitudeOfSampleY(outline.minY()), (outline.minX() + 0.5) / Mercator.SAMPLES_PER_AXIS * 360 - 180));
 				int bz0 = (int) Math.floor(field.projection().blockZ(Mercator.latitudeOfSampleY(outline.minY())));
 				int bx1 = (int) Math.floor(field.projection().blockX(Mercator.latitudeOfSampleY(outline.maxY()), (outline.maxX() + 0.5) / Mercator.SAMPLES_PER_AXIS * 360 - 180));
@@ -2881,12 +2901,17 @@ final class SelfTest {
 									pier |= fill[i] <= c.waterTopY[k] + 1 && fill[i + 1] >= c.deckY[k] - 1;
 								}
 								piers += pier ? 1 : 0;
+								double along = ((sx - a[0]) * (b[0] - a[0]) + (sy - a[1]) * (b[1] - a[1])) / far * spacing;
+								if (pier) {
+									pierAt.add(along);
+								}
 								int lowest = c.deckY[k];
 								for (int i = 0; fill != null && i < fill.length; i += 3) {
 									lowest = Math.min(lowest, fill[i]);
 								}
 								if (!pier) {
 									clears.add(lowest - c.waterTopY[k] - 1);
+									clearAt.merge((int) Math.floor(along / 10) * 10, lowest - c.waterTopY[k] - 1, Math::max);
 								}
 							}
 						}
@@ -2906,6 +2931,42 @@ final class SelfTest {
 				check(dirt == 0, "Victoria Bridge's paths are paved (%d dirt path)", dirt);
 				check(overWater > 500 && standing * 10 >= overWater * 9 && piers > 0, "Victoria Bridge stands on girders and piers over the river (%d of %d "
 					+ "columns, %d pier columns)", standing, overWater, piers);
+				// As cited, where a bridge overlay describes it.
+				var detail = field.map().detail();
+				var cited = detail == null || RealEarth.config().buildingOverlays.isBlank() ? null : detail.bridges(tx, ty).get(120, java.util.concurrent.TimeUnit.SECONDS)
+					.bridges().stream().filter(x -> "osm:way/483669189".equals(x.osm()) && x.spans().length == 3).findFirst().orElse(null);
+				if (cited == null || field.map().roadVersion() < 12) {
+					log("no bridge overlay describes Victoria Bridge (or road version under 12); its cited height and spans not checked");
+					return;
+				}
+				pierAt.sort(null);
+				List<Double> centres = new ArrayList<>();
+				for (int i = 0, j = 0; i < pierAt.size(); i = j) {
+					while (j < pierAt.size() && pierAt.get(j) - pierAt.get(i) <= 8) {
+						j++;
+					}
+					centres.add((pierAt.get(i) + pierAt.get(j - 1)) / 2);
+				}
+				double mainFrom = 0;
+				double mainTo = 0;
+				List<Long> gaps = new ArrayList<>();
+				for (int i = 1; i < centres.size(); i++) {
+					gaps.add(Math.round(centres.get(i) - centres.get(i - 1)));
+					if (centres.get(i) - centres.get(i - 1) > mainTo - mainFrom) {
+						mainFrom = centres.get(i - 1);
+						mainTo = centres.get(i);
+					}
+				}
+				int middle = clearAt.getOrDefault((int) Math.floor((mainFrom + mainTo) / 2 / 10) * 10, Integer.MIN_VALUE);
+				int nearPier = clearAt.getOrDefault((int) Math.floor((mainFrom + 10) / 10) * 10, Integer.MIN_VALUE);
+				log("Victoria Bridge as cited: metres between its piers %s; clear of the river %d blocks at its main span's middle (%.1f m), %d blocks 10 m "
+					+ "from its pier; by 10 m along it: %s", gaps, middle, middle / perMeter, nearPier, clearAt);
+				check(gaps.stream().anyMatch(g -> Math.abs(g - 146.3) <= 146.3 * 0.05), "Victoria Bridge's main span is 146.3 m (cited) between its piers, "
+					+ "within 5 %% (%s)", gaps);
+				check(Math.abs(middle - 11.4 * perMeter) <= 1, "Victoria Bridge clears the river by 11.4 m (cited, Maritime Safety Queensland) under its main "
+					+ "span, within a block (%d blocks)", middle);
+				check(nearPier != Integer.MIN_VALUE && middle > nearPier, "Victoria Bridge's girder is haunched: deeper at its piers than at its main span's "
+					+ "middle (%d blocks clear there, %d by its pier)", middle, nearPier);
 			} catch (Exception e) {
 				check(false, "Victoria Bridge: %s", e);
 			}

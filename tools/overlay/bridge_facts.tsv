@@ -13,3 +13,8 @@ wikidata:Q16070584	main_span	10.35	https://nl.wikipedia.org/wiki/Koepoortbrug_(D
 wikidata:Q16070584	clearance	2.5	https://nl.wikipedia.org/wiki/Koepoortbrug_(Delft) (doorvaarthoogte in gesloten toestand 2,50 m)
 wikidata:Q21012706	truss	warren	https://structurae.net/en/structures/deventer-railroad-bridge (Deventer Railroad Bridge, 1982: through truss bridge, Warren type truss bridge; main span 95.7 m)
 wikidata:Q21012706	material	steel	https://www.openstreetmap.org/way/593094632 (bridge:material=steel); https://nl.wikipedia.org/wiki/IJsselspoorbrug_(Deventer) (materiaal: staal en beton)
+wikidata:Q7926597	structure	beam	https://en.wikipedia.org/wiki/List_of_bridges_in_Australia (Victoria Bridge, Brisbane, 1969: box girder, prestressed concrete; OSM tags it an arch)
+wikidata:Q7926597	material	concrete	https://en.wikipedia.org/wiki/Victoria_Bridge,_Brisbane (material: concrete; Wikidata's P186 says stone, the 1897 bridge's abutments)
+wikidata:Q7926597	length	313	https://en.wikipedia.org/wiki/Victoria_Bridge,_Brisbane (total length 313 m)
+wikidata:Q7926597	spans	83.35;146.3;83.35	https://en.wikipedia.org/wiki/Bridges_over_the_Brisbane_River (main span 146.3 m); https://en.wikipedia.org/wiki/Victoria_Bridge,_Brisbane (3 spans, 313 m); the side spans are given nowhere: (313 - 146.3) / 2 each, taken equal
+wikidata:Q7926597	clearance	11.4	https://www.publications.qld.gov.au/dataset/0b23b6c7-713a-474b-bfc4-b1520c947d3e/resource/cd2d413a-f9bf-4a01-a4fa-2e06aa8c3ae5/download/brisbane_ppm_master_august_2023-sec-15.5.pdf (Maritime Safety Queensland, Port Procedures and Information for Shipping, Brisbane, August 2024, air draft: Victoria Bridge 11.4 m above HAT)

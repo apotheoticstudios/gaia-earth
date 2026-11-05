@@ -140,8 +140,8 @@ final class BridgeStructure {
 			if (span == leaf) {
 				fill.add(new int[] {under, under, material}); // the leaf: a slab, no girders
 			} else if (!span.arch()) {
-				// Girders or a slab under the deck.
-				int depth = (int) Math.max(1, Math.round(span.length() / 20 * perMeter));
+				// Girders or a slab under the deck (haunched over a long span, road version 12).
+				int depth = (int) Math.max(1, Math.round(Bridges.girderMeters(span, m, field.map() == null ? 0 : field.map().roadVersion()) * perMeter));
 				fill.add(new int[] {Math.max(bed, under - depth + 1), under, material});
 			} else {
 				arch(field, tiles, t, k, r, span, m, side, perMeter, top, under, bed, material, fill);

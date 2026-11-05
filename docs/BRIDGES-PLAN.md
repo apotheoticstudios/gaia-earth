@@ -146,9 +146,17 @@ with nothing else known, a concrete beam bridge, wherever no overlay has one the
   along its edge and drops only (none on level deck, 343 diagonal joins), no dirt path, every deck column over the river
   on its structure.
 
+Victoria Bridge as cited (road version 12, `tools/overlay/data/brisbane-bridges.pmtiles`, built with
+`bridges.py 153.0150 -27.4780 153.0280 -27.4680`): a prestressed concrete box girder (Wikipedia's list of Australian bridges;
+OSM calls it an arch, Wikidata stone), 313 m on three spans, its main span 146.3 m (Wikipedia; the side spans are cited
+nowhere, so equal), 11.4 m clear of the river (Maritime Safety Queensland's port procedures, above HAT; the game's water
+stands for HAT). Road version 12 haunches a beam span over 76 m: its girder a twentieth of the span deep at its piers and a
+forty-fifth at its middle (ASPIRE, Winter 2025: span/depth 18-22 at piers, 35-50 at midspan for variable-depth girders,
+which pay off beyond 250 ft), and the cited clearance holds under that middle. Checked: 146 m between the piers either
+side of its main span, 7 blocks clear at its middle (12.2 m at the test world's scale), 5 by its pier.
+
 Not yet:
-- A map-outlined bridge's real height, spans and type: Victoria Bridge clears the river by 11.4 m on three spans (its main
-  146.3 m, Structurae), and is built three blocks over it on 20 m beams. An overlay with its cited facts gives them.
+- The side spans' real lengths, and the two short spans the run's last 15 m past the cited 313 m make by the south bank.
 - Lamps on bridges (Saro's street lamps), and footbridges from Macaw's Bridges.
 - Lane markings on road decks: a deck is plain asphalt (Vasabron's road had its markings while road version 10 laid it as a
   raised road).

@@ -686,7 +686,11 @@ public final class Bridges {
 		double gradient = plain ? GRADIENT : r.rail ? RAIL_GRADIENT : ROAD_GRADIENT;
 		// A cited clearance holds over the middle of the longest span, under its deck and the structure at its crown.
 		Span main = r.spans.stream().max(Comparator.comparingDouble(Span::length)).orElse(null);
-		double clearance = plain || main == null ? 0 : r.facts.clearanceMeters() + crownDepth(main.length());
+		// (From road version 12 a haunched beam span's: its girder at its middle and the deck block on it.)
+		int version = field.map() == null ? 0 : field.map().roadVersion();
+		double crown = main == null ? 0 : !main.arch() && version >= 12 && main.length() > HAUNCHED_SPAN
+			? girderMeters(main, (main.from() + main.to()) / 2, version) + 1 / perMeter : crownDepth(main.length());
+		double clearance = plain || main == null ? 0 : r.facts.clearanceMeters() + crown;
 		for (int i = 0; i < n; i++) {
 			double s = r.length() * i / (n - 1);
 			arcAt[i] = s;
@@ -925,6 +929,22 @@ public final class Bridges {
 		}
 		r.halfWidth = Math.abs(area) / 2 / Math.max(1e-9, r.length() * bestIn / (steps + 1)) / 2;
 	}
+
+	/**
+	 * A girder's depth (metres) {@code m} metres along its run in a beam span: a twentieth of the span; from road version 12 a
+	 * span longer than 76 m is haunched, a twentieth deep at its piers and a forty-fifth at its middle, a parabola between
+	 * (variable-depth girders pay off beyond about 250 ft, and are kept to span/depth 18-22 at the piers and 35-50 at midspan,
+	 * targets 20 and 45: ASPIRE, Winter 2025, "Concrete Segmental Bridges: Preliminary Design Approximations").
+	 */
+	static double girderMeters(Span span, double m, int roadVersion) {
+		if (roadVersion < 12 || span.length() <= HAUNCHED_SPAN) {
+			return span.length() / 20;
+		}
+		double u = (m - (span.from() + span.to()) / 2) / (span.length() / 2);
+		return span.length() / 45 + (span.length() / 20 - span.length() / 45) * u * u;
+	}
+
+	private static final double HAUNCHED_SPAN = 76;
 
 	/** How deep a bridge's structure is at the crown of a span, metres: its deck and an arch's ring there (BridgeStructure). */
 	static double crownDepth(double spanMeters) {
