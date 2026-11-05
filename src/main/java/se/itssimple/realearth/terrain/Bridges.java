@@ -70,8 +70,9 @@ public final class Bridges {
 		final double[] points;
 		final double[] arc;
 		final boolean rail;
-		/** The way kind it carries, its members' highest. */
+		/** The way kind it carries, its members' highest; and the layer it is on (OSM's), its longest member's. */
 		byte kind;
+		byte layer;
 		/** The overlay's bridge it is (road version 7, {@link #match}), or null; the measured deck tops and parts in its outline. */
 		OsmDetail.Bridge facts;
 		List<double[]> measured = List.of();
@@ -331,6 +332,7 @@ public final class Bridges {
 			}
 			Run run = new Run(flat, rail);
 			int index = 0;
+			double longest = -1;
 			for (Object[] piece : chain) {
 				int startPoint = (int) offsets.get(index++)[0];
 				// Each piece after the first starts at the point it shares with the one before.
@@ -340,6 +342,10 @@ public final class Bridges {
 				boolean rev = (Boolean) piece[1];
 				run.members.put((OsmWater.Way) piece[0], new double[] {rev ? start - (pc.length() - pc.to()) : start - pc.from(), rev ? 1 : 0});
 				run.kind = (byte) Math.max(run.kind, ((OsmWater.Way) piece[0]).kind());
+				if (pc.to() - pc.from() > longest) {
+					longest = pc.to() - pc.from();
+					run.layer = ((OsmWater.Way) piece[0]).layer();
+				}
 			}
 			Piece head = pieces.get((OsmWater.Way) chain.peekFirst()[0]);
 			Piece tail = pieces.get((OsmWater.Way) chain.peekLast()[0]);
@@ -509,6 +515,8 @@ public final class Bridges {
 			r.main = r.facts == null ? null : mains.get(r.facts.osm());
 		}
 		Map<Long, double[]> onDecks = new HashMap<>();
+		List<Run> mapMains = new ArrayList<>();
+		double[] q = new double[2];
 		List<Run> pending = new ArrayList<>(wanted);
 		while (!pending.isEmpty()) {
 			Run next = null;
@@ -529,9 +537,23 @@ public final class Bridges {
 			if (r.main == r) {
 				r.spans = layout(r, tiles);
 				profile(field, tiles, ways, r, onDecks);
+				if (r.facts.osm().startsWith("map:")) {
+					mapMains.add(r);
+				}
 			} else if (r.main != null) {
 				follow(field, r, r.main);
 			} else {
+				// An end inside a bridge the map outlines (a way forking off its deck to the bank, road version 11) starts on its deck.
+				for (int end = 0; end < 2; end++) {
+					double x = r.points[end == 0 ? 0 : r.points.length - 2];
+					double y = r.points[end == 0 ? 1 : r.points.length - 1];
+					for (Run m : mapMains) {
+						if (!onDecks.containsKey(node(x, y)) && BuildingPlan.contains(m.facts.rings(), x, y)) {
+							project(m, x, y, q);
+							onDecks.put(node(x, y), new double[] {m.heightAt(q[0])});
+						}
+					}
+				}
 				profile(field, tiles, ways, r, onDecks);
 			}
 			for (int i = 0; i < r.points.length / 2; i++) {
@@ -657,11 +679,14 @@ public final class Bridges {
 		double abutment = Math.min(ABUTMENT_FRACTION * r.length(), MAX_ABUTMENT_BLOCKS / perMeter / spacing);
 		double waterClear = WATER_CLEARANCE_BLOCKS / perMeter;
 		double wayClear = WAY_CLEARANCE_BLOCKS / perMeter;
-		double maxLift = r.facts == null ? MAX_LIFT_BLOCKS / perMeter : Double.MAX_VALUE;
-		double gradient = r.facts == null ? GRADIENT : r.rail ? RAIL_GRADIENT : ROAD_GRADIENT;
+		// A bridge only the map outlines (road version 11) has no height or clearance in its data: its deck is laid as one the
+		// overlays don't describe (a guess from its water's width suits one bridge and not the next: Victoria Bridge, Centralbron).
+		boolean plain = r.facts == null || r.facts.osm().startsWith("map:");
+		double maxLift = plain ? MAX_LIFT_BLOCKS / perMeter : Double.MAX_VALUE;
+		double gradient = plain ? GRADIENT : r.rail ? RAIL_GRADIENT : ROAD_GRADIENT;
 		// A cited clearance holds over the middle of the longest span, under its deck and the structure at its crown.
 		Span main = r.spans.stream().max(Comparator.comparingDouble(Span::length)).orElse(null);
-		double clearance = r.facts == null || main == null ? 0 : r.facts.clearanceMeters() + crownDepth(main.length());
+		double clearance = plain || main == null ? 0 : r.facts.clearanceMeters() + crownDepth(main.length());
 		for (int i = 0; i < n; i++) {
 			double s = r.length() * i / (n - 1);
 			arcAt[i] = s;
@@ -749,8 +774,101 @@ public final class Bridges {
 	}
 
 	/**
-	 * Matches a run to the overlay's bridge whose outline most of it lies in (three tenths at least), and takes the measured
-	 * deck tops in that outline and the parts round it.
+	 * Road version 11: the map's own bridge outlines (OsmWater.BridgeArea) as bridges where no overlay has one, so every bridge
+	 * the map outlines is built whole: its deck filling its outline, girders and piers under it, railings along its edge only.
+	 * Nothing else is known of them, so each is a concrete beam bridge. The pieces of an outline cut by map tiles' edges, on one
+	 * layer and meeting along an edge, are one bridge.
+	 */
+	static OsmDetail.BridgeTile withMapOutlines(OsmDetail.BridgeTile overlay, List<OsmWater.Shapes> shapes) {
+		List<OsmWater.BridgeArea> pieces = new ArrayList<>();
+		java.util.Set<String> seen = new java.util.HashSet<>();
+		for (OsmWater.Shapes s : shapes) {
+			for (OsmWater.BridgeArea a : s.bridges()) {
+				if (seen.add(a.layer() + "@" + a.minX() + "," + a.minY() + "," + a.maxX() + "," + a.maxY())) {
+					pieces.add(a);
+				}
+			}
+		}
+		int[] group = new int[pieces.size()];
+		for (int i = 0; i < group.length; i++) {
+			group[i] = i;
+		}
+		for (int i = 0; i < pieces.size(); i++) {
+			for (int j = i + 1; j < pieces.size(); j++) {
+				if (meet(pieces.get(i), pieces.get(j))) {
+					int a = root(group, i);
+					int b = root(group, j);
+					group[Math.max(a, b)] = Math.min(a, b);
+				}
+			}
+		}
+		List<OsmDetail.Bridge> bridges = new ArrayList<>(overlay.bridges());
+		for (int i = 0; i < pieces.size(); i++) {
+			if (root(group, i) != i) {
+				continue;
+			}
+			List<double[]> rings = new ArrayList<>();
+			double[] box = {Double.MAX_VALUE, Double.MAX_VALUE, -Double.MAX_VALUE, -Double.MAX_VALUE};
+			for (int j = i; j < pieces.size(); j++) {
+				OsmWater.BridgeArea a = pieces.get(j);
+				if (root(group, j) == i) {
+					rings.addAll(a.rings());
+					box = new double[] {Math.min(box[0], a.minX()), Math.min(box[1], a.minY()), Math.max(box[2], a.maxX()), Math.max(box[3], a.maxY())};
+				}
+			}
+			OsmWater.BridgeArea first = pieces.get(i);
+			double mx = (first.minX() + first.maxX()) / 2;
+			double my = (first.minY() + first.maxY()) / 2;
+			if (overlay.bridges().stream().anyMatch(b -> BuildingPlan.contains(b.rings(), mx, my))) {
+				continue; // the overlay's, with what it knows
+			}
+			bridges.add(new OsmDetail.Bridge(List.copyOf(rings), "", "", "", "", 0, 0, 0, new double[0], 0, 0, "", 0, first.layer(),
+				"map:" + first.layer() + "@" + Math.round(box[0]) + "," + Math.round(box[1]), box[0], box[1], box[2], box[3]));
+		}
+		return new OsmDetail.BridgeTile(List.copyOf(bridges), overlay.parts(), overlay.heights());
+	}
+
+	private static int root(int[] group, int i) {
+		while (group[i] != i) {
+			i = group[i];
+		}
+		return i;
+	}
+
+	/** Whether two pieces of the map's bridge outlines are one bridge cut by a tile's edge: on one layer, sharing a stretch of the edge. */
+	static boolean meet(OsmWater.BridgeArea a, OsmWater.BridgeArea b) {
+		if (a.layer() != b.layer()) {
+			return false;
+		}
+		double[][] lines = {{0, a.maxX()}, {0, a.minX()}, {1, a.maxY()}, {1, a.minY()}};
+		for (double[] line : lines) {
+			double[] p = onLine(a.rings(), (int) line[0], line[1]);
+			double[] q = onLine(b.rings(), (int) line[0], line[1]);
+			if (p != null && q != null && Math.min(p[1], q[1]) - Math.max(p[0], q[0]) > 1e-6) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/** The extent along a line (x = value for axis 0, y = value for axis 1) of rings' points lying on it, or null for none. */
+	private static double[] onLine(List<double[]> rings, int axis, double value) {
+		double lo = Double.MAX_VALUE;
+		double hi = -Double.MAX_VALUE;
+		for (double[] ring : rings) {
+			for (int i = 0; i + 1 < ring.length; i += 2) {
+				if (Math.abs(ring[i + axis] - value) < 1e-6) {
+					lo = Math.min(lo, ring[i + 1 - axis]);
+					hi = Math.max(hi, ring[i + 1 - axis]);
+				}
+			}
+		}
+		return lo <= hi ? new double[] {lo, hi} : null;
+	}
+
+	/**
+	 * Matches a run to the overlay's bridge whose outline most of it lies in (three tenths at least; a map outline's seven tenths,
+	 * or where it crosses most of it), and takes the measured deck tops in that outline and the parts round it.
 	 */
 	private static void match(Run r, OsmDetail.BridgeTile overlay) {
 		if (overlay == null || overlay.bridges().isEmpty()) {
@@ -764,6 +882,9 @@ public final class Bridges {
 			if (b.maxX() < r.minX || b.minX() > r.maxX || b.maxY() < r.minY || b.minY() > r.maxY) {
 				continue;
 			}
+			if (b.osm().startsWith("map:") && b.layer() != r.layer) {
+				continue; // the map's outline of a bridge over or under it
+			}
 			int in = 0;
 			for (int i = 0; i <= steps; i++) {
 				r.pointAt(r.length() * i / steps, at);
@@ -774,7 +895,15 @@ public final class Bridges {
 				best = b;
 			}
 		}
-		if (best == null || bestIn * 10 < (steps + 1) * 3) {
+		if (best == null) {
+			return;
+		}
+		// A map outline's (road version 11): a run mostly in it (seven tenths; a way forking off it to the bank keeps its own deck,
+		// Strömsborgsbron off Vasabron), or one going on over other bridges that crosses most of it (a busway on a string of them).
+		boolean map = best.osm().startsWith("map:");
+		double across = Math.hypot(best.maxX() - best.minX(), best.maxY() - best.minY());
+		boolean crosses = map && r.length() * bestIn / (steps + 1) >= 0.6 * across;
+		if (bestIn * 10 < (steps + 1) * (map ? 7 : 3) && !crosses) {
 			return;
 		}
 		OsmDetail.Bridge b = best;
@@ -786,11 +915,13 @@ public final class Bridges {
 		// A truss's strip (BridgeTrusses) holds nothing up.
 		r.parts = near.stream().filter(p -> !p.kind().equals("deck") && !p.kind().equals("truss")).toList();
 		r.decks = near.stream().filter(p -> p.kind().equals("deck")).toList();
-		// Half the deck's width: the outline's area over the length of run inside it.
-		double[] ring = b.rings().get(0);
+		// Half the deck's width: the outline's area (all its rings: the map's pieces add up, holes take away) over the length of
+		// run inside it.
 		double area = 0;
-		for (int i = 0, j = ring.length - 2; i < ring.length; j = i, i += 2) {
-			area += ring[j] * ring[i + 1] - ring[i] * ring[j + 1];
+		for (double[] ring : b.rings()) {
+			for (int i = 0, j = ring.length - 2; i < ring.length; j = i, i += 2) {
+				area += ring[j] * ring[i + 1] - ring[i] * ring[j + 1];
+			}
 		}
 		r.halfWidth = Math.abs(area) / 2 / Math.max(1e-9, r.length() * bestIn / (steps + 1)) / 2;
 	}

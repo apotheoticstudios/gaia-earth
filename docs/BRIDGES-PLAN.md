@@ -127,7 +127,31 @@ map's points its own way, so the nearest end within a sample), as `RailTracks` l
 reads the map tiles its bridges go on into, as it does for tunnels. Checked (`SelfTest` "Bridges: the
 IJsselspoorbrug's trusses"): its two tracks are one run each, 494 m, the length of its outline.
 
+Every bridge the map outlines (road version 11), no overlay needed. The mod's own map tiles (OpenMapTiles) carry OSM's
+`man_made=bridge` outlines (transportation class "bridge", with their layer), which it used to drop. Now each is a bridge
+with nothing else known, a concrete beam bridge, wherever no overlay has one there:
+- **One deck:** the deck fills the outline, so a bridge whose ways the map draws apart (Victoria Bridge in Brisbane: a
+  busway, a cycleway and a footway) is one deck, with no water between its strips and no railings between them. Outlines
+  cut by a map tile's edge are joined piece to piece; a run matches an outline on its own layer only, and also where it
+  crosses most of it (a busway going on over a string of bridges).
+- **Under it:** girders and piers, as for an overlay's beam bridge (20 m spans, concrete).
+- **On it:** paths paved, not dirt path (Saro's pavement; planks on a wooden bridge). Railings from Macaw's Fences and Walls,
+  only along the deck's edge and its drops: a balustrade on an andesite kerb (stone brick on a stone bridge). Diagonal
+  Fences' copies of them join diagonally, so a railing along a diagonal edge is one line, not loose posts.
+- **Height:** as before (three blocks over the water, crests over what is under it). A guess from the water's width was
+  tried and dropped: Victoria Bridge's 11.4 m over 267 m of river (Structurae) lifted Centralbron, low over Söderström, to
+  12 m, seven blocks over Riddarholmsbron, which crosses it. A way forking off a map-outlined deck to the bank starts on
+  that deck (Strömsborgsbron off Vasabron).
+- **Checked** (`SelfTest` "Bridges: Brisbane's Victoria Bridge"): its deck fills its outline (2682 of 2682 columns), railed
+  along its edge and drops only (none on level deck, 343 diagonal joins), no dirt path, every deck column over the river
+  on its structure.
+
 Not yet:
+- A map-outlined bridge's real height, spans and type: Victoria Bridge clears the river by 11.4 m on three spans (its main
+  146.3 m, Structurae), and is built three blocks over it on 20 m beams. An overlay with its cited facts gives them.
+- Lamps on bridges (Saro's street lamps), and footbridges from Macaw's Bridges.
+- Lane markings on road decks: a deck is plain asphalt (Vasabron's road had its markings while road version 10 laid it as a
+  raised road).
 - Which end a drawbridge is hinged at (in none of the data): its end nearer the run's start. Its portal stands on the
   leaf's first metre and a half, not on the abutment behind, and its beams don't reach back past it.
 - A bascule's counterweight and pit, a lift bridge's towers, a swing bridge's pivot: their leaves only.

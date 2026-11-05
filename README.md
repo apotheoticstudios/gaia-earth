@@ -4,7 +4,10 @@ A Minecraft **26.1** (Fabric) mod that adds an **Earth dimension**, generated fr
 **one block per metre** (true to scale where you start) instead of Perlin noise.
 
 Minecraft clients require Sodium 0.8.9 or a later 0.8 release for terrain rendering. Dedicated servers can run without Sodium.
-Clients and servers both need [Saro's Road Blocks](https://modrinth.com/mod/saros-road-blocks) 5.12+ for its asphalt and road markings.
+Clients and servers both need [Saro's Road Blocks](https://modrinth.com/mod/saros-road-blocks) 5.12+ for its asphalt and road markings,
+[Macaw's Fences and Walls](https://modrinth.com/mod/macaws-fences-and-walls) 1.2.1+ for bridges' railings, and
+[Diagonal Fences](https://modrinth.com/mod/diagonal-fences) 26.1.0+ (with [Puzzles Lib](https://modrinth.com/mod/puzzles-lib) and
+[Forge Config API Port](https://modrinth.com/mod/forge-config-api-port)) so railings join diagonally.
 
 - Elevation: AWS Terrain Tiles (Terrarium encoding) at **zoom 15**, the highest the service serves (z16 is 404).
   Sample spacing is 4.8 m at the equator and 2.4 m at 60°N, so it is interpolated up to 1 m blocks.
@@ -494,7 +497,8 @@ Requires Java 25 installed. Gradle runs on it even when started from an older JV
 
 Distant Horizons, Jade and Xaero's Minimap and World Map are compile-only dependencies, which the build downloads
 from Modrinth's Maven repository (xaerolib comes from inside the minimap's jar, the only place it is published for
-26.1). Saro's Road Blocks is a runtime dependency every run loads, from the same repository. `./gradlew runClient` loads Xaero's Minimap and World Map too; for the other mods, or other runs, put them
+26.1). Saro's Road Blocks, Macaw's Fences and Walls and Diagonal Fences (with Puzzles Lib and Forge Config API Port) are runtime
+dependencies every run loads, from the same repository. `./gradlew runClient` loads Xaero's Minimap and World Map too; for the other mods, or other runs, put them
 in that run's `mods/` folder. `-PshotHud=true` keeps the HUD in screenshots, for what those
 mods show. The elevation tile approach (global sample grid, pixel-centre sampling,
 the 404-over-ocean behaviour) carried over from the GeoWorld project.

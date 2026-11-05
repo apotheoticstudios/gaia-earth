@@ -132,7 +132,7 @@ final class WayRaster {
 							if (kind >= t.deckWay[k]) {
 								deck[k] = d;
 								t.deckWay[k] = kind;
-								t.surveyedDeck[k] = run.facts != null;
+								t.surveyedDeck[k] = run.facts != null && !run.facts.osm().startsWith("map:"); // a map outline's isn't
 							}
 							continue;
 						}
@@ -210,7 +210,7 @@ final class WayRaster {
 				if (!Float.isNaN(t.waterMeters[k]) || (d - t.groundMeters[k]) * perMeter >= DECK_MIN_BLOCKS) {
 					deck[k] = d;
 					t.deckWay[k] = run.kind;
-					t.surveyedDeck[k] = true;
+					t.surveyedDeck[k] = !run.facts.osm().startsWith("map:");
 				} else if (t.way[k] == Ways.NONE && d > t.groundMeters[k]) {
 					target[k] = d;
 					raised[k] = true;

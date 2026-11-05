@@ -786,6 +786,9 @@ public final class TerrainField implements AutoCloseable {
 				List<OsmRoads.Segment> segments = roadTiles.values().stream().flatMap(f -> f.join().segments().stream()).toList();
 				List<OsmDetail.Surface> surfaces = surfaceTiles.values().stream().flatMap(f -> f.join().stream()).toList();
 				OsmDetail.BridgeTile bridgeData = Bridges.merge(bridgeTiles.values().stream().map(CompletableFuture::join).toList());
+				if (map != null && map.roadVersion() >= 11) {
+					bridgeData = Bridges.withMapOutlines(bridgeData, shapes);
+				}
 				ChunkTerrain built = build(terrain, all2, needed.keySet(), coverLookup.join(), shapes, candidates, details, trees, surfaces, segments,
 					chunkRuns, bridgeData, levelTiles.values().stream().flatMap(f -> f.join().stream()).distinct().toList(), sx, sy, onGlobe, chunkX, chunkZ);
 				se.itssimple.realearth.Perf.stop("terrain", started);

@@ -420,7 +420,7 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 				}
 				boolean rail = Ways.isRail(t.deckWay[k]);
 				chunk.setBlockState(new BlockPos(x, y, z), rail ? block(Blocks.STONE_BRICKS)
-					: RoadBlocks.high(waySurface(t.deckWay[k], baseX + x, baseZ + z), t.deckHeight[k]), 0);
+					: RoadBlocks.high(deckSurface(t, k, baseX + x, baseZ + z), t.deckHeight[k]), 0);
 				for (int up = 1; up <= 3; up++) {
 					chunk.setBlockState(new BlockPos(x, y + up, z), AIR, 0);
 				}
@@ -616,8 +616,61 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 		return false;
 	}
 
-	/** A railing in its bridge's material, joined to the railing beside it: iron bars, a brick or stone wall, a wooden fence. */
+	/**
+	 * A deck's surface: its way's; from road version 11 a path on a bridge is paved (the map seldom says how, and a bridge's
+	 * footway and cycle path almost always are), in planks on a wooden bridge.
+	 */
+	private static BlockState deckSurface(ChunkTerrain t, int k, int worldX, int worldZ) {
+		if (roadVersion() < 11 || t.deckWay[k] != Ways.PATH) {
+			return waySurface(t.deckWay[k], worldX, worldZ);
+		}
+		return t.bridgeMaterial[k] == ChunkTerrain.WOOD ? block(Blocks.SPRUCE_PLANKS) : RoadBlocks.SIDEWALK != null ? RoadBlocks.SIDEWALK
+			: block(Blocks.SMOOTH_STONE);
+	}
+
+	/**
+	 * Road version 11: a railing from Macaw's Fences and Walls in its bridge's material (a balustrade on an andesite kerb on a
+	 * concrete or unknown bridge, on stone brick on a stone one, a wooden fence on a wooden one, brick wall on brick), joined
+	 * to the railings beside it, and with Diagonal Fences diagonally where the deck's edge steps across the grid.
+	 */
+	private static BlockState railingState11(ChunkTerrain t, int x, int z) {
+		String id = switch (t.bridgeMaterial[ChunkTerrain.index(x, z)]) {
+			case ChunkTerrain.STONE -> "mcwfences:railing_stone_brick_wall";
+			case ChunkTerrain.BRICK -> null;
+			case ChunkTerrain.WOOD -> "minecraft:spruce_fence";
+			default -> "mcwfences:railing_andesite_wall";
+		};
+		if (id == null) {
+			return railingState7(t, x, z);
+		}
+		net.minecraft.resources.Identifier name = net.minecraft.resources.Identifier.parse(id);
+		var registry = net.minecraft.core.registries.BuiltInRegistries.BLOCK;
+		// Diagonal Fences' copy of a fence (Diagonal Blocks names it after the fence's own name), else the fence, else iron bars.
+		BlockState b = registry.getOptional(net.minecraft.resources.Identifier.fromNamespaceAndPath("diagonalfences", name.getNamespace() + "/" + name.getPath()))
+			.or(() -> registry.getOptional(name)).map(Block::defaultBlockState).orElse(block(Blocks.IRON_BARS));
+		boolean north = railing(t, x, z - 1);
+		boolean east = railing(t, x + 1, z);
+		boolean south = railing(t, x, z + 1);
+		boolean west = railing(t, x - 1, z);
+		// Diagonally only where no straight join turns the corner (as Diagonal Fences joins them).
+		String[][] corners = {{"north_east", "1", "-1"}, {"south_east", "1", "1"}, {"south_west", "-1", "1"}, {"north_west", "-1", "-1"}};
+		for (String[] c : corners) {
+			int dx = Integer.parseInt(c[1]);
+			int dz = Integer.parseInt(c[2]);
+			boolean across = (dz < 0 ? north : south) || (dx > 0 ? east : west);
+			b = RoadBlocks.with(b, c[0], Boolean.toString(!across && railing(t, x + dx, z + dz)));
+		}
+		return RoadBlocks.with(RoadBlocks.with(RoadBlocks.with(RoadBlocks.with(b, "north", Boolean.toString(north)), "east", Boolean.toString(east)),
+			"south", Boolean.toString(south)), "west", Boolean.toString(west));
+	}
+
+	/** A railing in its bridge's material, joined to the railing beside it. */
 	private static BlockState railingState(ChunkTerrain t, int x, int z) {
+		return roadVersion() >= 11 ? railingState11(t, x, z) : railingState7(t, x, z);
+	}
+
+	/** Road version 7's railing: iron bars, a brick or stone wall, a wooden fence. */
+	private static BlockState railingState7(ChunkTerrain t, int x, int z) {
 		BlockState b = block(switch (t.bridgeMaterial[ChunkTerrain.index(x, z)]) {
 			case ChunkTerrain.STONE -> Blocks.STONE_BRICK_WALL;
 			case ChunkTerrain.BRICK -> Blocks.BRICK_WALL;

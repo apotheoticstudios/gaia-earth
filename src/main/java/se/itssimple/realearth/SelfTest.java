@@ -706,7 +706,7 @@ final class SelfTest {
 		var overlap = new se.itssimple.realearth.osm.OsmWater.Line(
 			new double[] {originX + 106, originY + 40, originX + 114, originY + 40}, 10);
 		var shapes = new se.itssimple.realearth.osm.OsmWater.Shapes(List.of(river, lake), List.of(line, overlap), true,
-			List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of());
+			List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of());
 		var legacy = se.itssimple.realearth.terrain.ProcessedTile.build(elevation, tileX, tileY, RealEarth.config(), List.of(shapes), 0);
 		var fitted = se.itssimple.realearth.terrain.ProcessedTile.build(elevation, tileX, tileY, RealEarth.config(), List.of(shapes), 2);
 		float oldDifference = Math.abs(legacy.lakeLevel[37 * size + 50] - legacy.lakeLevel[40 * size + 50]);
@@ -816,7 +816,7 @@ final class SelfTest {
 	private static se.itssimple.realearth.osm.OsmWater.Shapes waterShapes(se.itssimple.realearth.osm.OsmWater.Area area,
 		se.itssimple.realearth.osm.OsmWater.Line line) {
 		return new se.itssimple.realearth.osm.OsmWater.Shapes(List.of(area), List.of(line), true,
-			List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of());
+			List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of());
 	}
 
 	private static se.itssimple.realearth.osm.OsmWater.Area waterArea(double x0, double y0, double x1, double y1, boolean river) {
@@ -1478,6 +1478,15 @@ final class SelfTest {
 	/** Whether a column carries a bridge deck. */
 	private static boolean isDeck(ChunkTerrain c, int k) {
 		return c.deckY[k] != Integer.MIN_VALUE && c.deckWay[k] != se.itssimple.realearth.osm.Ways.NONE;
+	}
+
+	/** Whether (x, y) lies inside rings of interleaved x, y, even-odd. */
+	private static boolean insideRings(List<double[]> rings, double x, double y) {
+		boolean inside = false;
+		for (double[] r : rings) {
+			inside ^= insideRing(r, x, y);
+		}
+		return inside;
 	}
 
 	/** Whether (x, y) lies inside a ring of interleaved x, y, by ray casting. */
@@ -2554,14 +2563,19 @@ final class SelfTest {
 						LevelChunk chunk = earth.getChunk(cx + dx, cz + dz);
 						for (int k16 = 0; k16 < 256; k16++) {
 							int k = ChunkTerrain.index(k16 & 15, k16 >> 4);
-							if (c.deckY[k] != Integer.MIN_VALUE && chunk.getBlockState(new BlockPos((cx + dx) * 16 + (k16 & 15), c.deckY[k] + 1,
-								(cz + dz) * 16 + (k16 >> 4))).is(Blocks.IRON_BARS)) {
+							if (c.deckY[k] == Integer.MIN_VALUE) {
+								continue;
+							}
+							// Iron bars; from road version 11 Macaw's railing walls (fences to the game), or a wall or fence.
+							Block railing = chunk.getBlockState(new BlockPos((cx + dx) * 16 + (k16 & 15), c.deckY[k] + 1, (cz + dz) * 16 + (k16 >> 4))).getBlock();
+							if (railing instanceof net.minecraft.world.level.block.IronBarsBlock || railing instanceof net.minecraft.world.level.block.FenceBlock
+								|| railing instanceof net.minecraft.world.level.block.WallBlock) {
 								bars++;
 							}
 						}
 					}
 				}
-				check(bars >= 16, "Västerbron has railings along its sides (%d columns of iron bars in the 3 x 3 chunks at its middle)", bars);
+				check(bars >= 16, "Västerbron has railings along its sides (%d railing columns in the 3 x 3 chunks at its middle)", bars);
 			} catch (Exception e) {
 				check(false, "Västerbron: %s", e);
 			}
@@ -2770,6 +2784,130 @@ final class SelfTest {
 					+ "(%d of %d columns)", clear, overWater);
 			} catch (Exception e) {
 				check(false, "the IJsselspoorbrug: %s", e);
+			}
+		}));
+
+		phases.add(Map.entry("Bridges: Brisbane's Victoria Bridge", () -> {
+			// Road version 11, no overlay needed: Victoria Bridge from the map's own outline of it (OSM way 483669189, layer 3),
+			// whose ways (a busway, a cycleway and a footway) the map draws apart. Built as one bridge: its deck fills its outline,
+			// paved (no dirt path), railings from Macaw's Fences and Walls along its edge and inside it only at a drop (where the
+			// South East Busway's viaduct meets its south end higher), joined diagonally
+			// where Diagonal Fences is installed, and its deck over the river standing on girders and piers.
+			TerrainField field = RealEarth.terrain();
+			if (field.map() == null || field.map().roadVersion() < 11) {
+				log("road version under 11; Victoria Bridge not checked");
+				return;
+			}
+			try {
+				var blocks = net.minecraft.core.registries.BuiltInRegistries.BLOCK;
+				boolean macaw = blocks.containsKey(net.minecraft.resources.Identifier.parse("mcwfences:railing_andesite_wall"));
+				boolean diagonal = blocks.containsKey(net.minecraft.resources.Identifier.parse("diagonalfences:mcwfences/railing_andesite_wall"));
+				check(macaw && diagonal, "Macaw's railing and Diagonal Fences' copy of it are installed (%s, %s)", macaw, diagonal);
+				double lat0 = -27.4724;
+				double lon0 = 153.0212;
+				double sx0 = Mercator.sampleX(lon0);
+				double sy0 = Mercator.sampleY(lat0);
+				int tx = (int) Math.floor((sx0 + 0.5) / (Mercator.TILE_SIZE * 2));
+				int ty = (int) Math.floor((sy0 + 0.5) / (Mercator.TILE_SIZE * 2));
+				var outline = field.map().tile(tx, ty).get(120, java.util.concurrent.TimeUnit.SECONDS).bridges().stream()
+					.filter(a -> a.layer() == 3 && insideRings(a.rings(), sx0, sy0)).findFirst().orElse(null);
+				if (outline == null) {
+					check(false, "the map outlines Victoria Bridge (layer 3) at %.4f, %.4f", lat0, lon0);
+					return;
+				}
+				int inOutline = 0;
+				int laid = 0;
+				int inner = 0;
+				int edge = 0;
+				int diagonals = 0;
+				int dirt = 0;
+				int overWater = 0;
+				int standing = 0;
+				int piers = 0;
+				List<Integer> clears = new ArrayList<>();
+				int bx0 = (int) Math.floor(field.projection().blockX(Mercator.latitudeOfSampleY(outline.minY()), (outline.minX() + 0.5) / Mercator.SAMPLES_PER_AXIS * 360 - 180));
+				int bz0 = (int) Math.floor(field.projection().blockZ(Mercator.latitudeOfSampleY(outline.minY())));
+				int bx1 = (int) Math.floor(field.projection().blockX(Mercator.latitudeOfSampleY(outline.maxY()), (outline.maxX() + 0.5) / Mercator.SAMPLES_PER_AXIS * 360 - 180));
+				int bz1 = (int) Math.floor(field.projection().blockZ(Mercator.latitudeOfSampleY(outline.maxY())));
+				for (int cx = (Math.min(bx0, bx1) >> 4) - 1; cx <= (Math.max(bx0, bx1) >> 4) + 1; cx++) {
+					for (int cz = (Math.min(bz0, bz1) >> 4) - 1; cz <= (Math.max(bz0, bz1) >> 4) + 1; cz++) {
+						ChunkTerrain c = field.chunkBlocking(cx, cz, 120);
+						LevelChunk chunk = earth.getChunk(cx, cz);
+						for (int k16 = 0; k16 < 256; k16++) {
+							int k = ChunkTerrain.index(k16 & 15, k16 >> 4);
+							double sx = Mercator.sampleX(c.longitude[k]);
+							double sy = Mercator.sampleY(c.latitude[k]);
+							if (!insideRings(outline.rings(), sx, sy)) {
+								continue;
+							}
+							inOutline++;
+							boolean deck = isDeck(c, k);
+							laid += deck || c.way[k] != se.itssimple.realearth.osm.Ways.NONE ? 1 : 0;
+							if (!deck) {
+								continue;
+							}
+							BlockPos at = new BlockPos(cx * 16 + (k16 & 15), c.deckY[k], cz * 16 + (k16 >> 4));
+							dirt += chunk.getBlockState(at).is(Blocks.DIRT_PATH) ? 1 : 0;
+							BlockState above = chunk.getBlockState(at.above());
+							boolean railing = above.getBlock() instanceof net.minecraft.world.level.block.FenceBlock
+								|| above.getBlock() instanceof net.minecraft.world.level.block.WallBlock
+								|| above.getBlock() instanceof net.minecraft.world.level.block.IronBarsBlock;
+							// Inside: the outline and the deck all round it, a block and more from the outline's edge, level with it.
+							boolean surrounded = true;
+							for (int d = 0; d < 8 && surrounded; d++) {
+								int nx = (k16 & 15) + new int[] {-1, 0, 1, 1, 1, 0, -1, -1}[d];
+								int nz = (k16 >> 4) + new int[] {-1, -1, -1, 0, 1, 1, 1, 0}[d];
+								int nk = ChunkTerrain.index(nx, nz);
+								surrounded = isDeck(c, nk) && Math.abs(c.deckY[nk] - c.deckY[k]) <= 1
+									&& insideRings(outline.rings(), Mercator.sampleX(c.longitude[nk]), Mercator.sampleY(c.latitude[nk]));
+							}
+							if (railing) {
+								if (surrounded) {
+									inner++;
+								} else {
+									edge++;
+									for (String corner : new String[] {"north_east", "south_east", "south_west", "north_west"}) {
+										var property = above.getBlock().getStateDefinition().getProperty(corner);
+										diagonals += property != null && "true".equals(above.getValue(property).toString()) ? 1 : 0;
+									}
+								}
+							}
+							if (c.waterTopY[k] != Integer.MIN_VALUE) {
+								overWater++;
+								int[] fill = c.bridgeFill[k];
+								standing += fill != null ? 1 : 0;
+								boolean pier = false;
+								for (int i = 0; fill != null && i < fill.length; i += 3) {
+									pier |= fill[i] <= c.waterTopY[k] + 1 && fill[i + 1] >= c.deckY[k] - 1;
+								}
+								piers += pier ? 1 : 0;
+								int lowest = c.deckY[k];
+								for (int i = 0; fill != null && i < fill.length; i += 3) {
+									lowest = Math.min(lowest, fill[i]);
+								}
+								if (!pier) {
+									clears.add(lowest - c.waterTopY[k] - 1);
+								}
+							}
+						}
+					}
+				}
+				clears.sort(null);
+				int clear = clears.isEmpty() ? 0 : clears.get(clears.size() / 2);
+				double perMeter = field.projection().blocksPerMeter(lat0);
+				log("Victoria Bridge: %d columns in its outline, %d laid; railings: %d along its edge or a drop (%d diagonal joins), %d on level deck; %d dirt path; "
+					+ "%d deck columns over the river, %d on its structure, %d of them piers; %d blocks clear of the river (middle), %.1f m (cited 11.4 m: "
+					+ "a bridge only the map outlines has no clearance in its data)",
+					inOutline, laid, edge, diagonals, inner, dirt, overWater, standing, piers, clear, clear / perMeter);
+				check(inOutline > 1000 && laid * 10 >= inOutline * 9, "Victoria Bridge's deck fills the map's outline of it (%d of %d columns)", laid,
+					inOutline);
+				check(inner == 0 && edge >= 100, "Victoria Bridge is railed along its edge and drops only (%d there, %d on level deck)", edge, inner);
+				check(!diagonal || diagonals > 0, "Victoria Bridge's railings join diagonally where its edge steps (%d joins)", diagonals);
+				check(dirt == 0, "Victoria Bridge's paths are paved (%d dirt path)", dirt);
+				check(overWater > 500 && standing * 10 >= overWater * 9 && piers > 0, "Victoria Bridge stands on girders and piers over the river (%d of %d "
+					+ "columns, %d pier columns)", standing, overWater, piers);
+			} catch (Exception e) {
+				check(false, "Victoria Bridge: %s", e);
 			}
 		}));
 
@@ -3226,7 +3364,8 @@ final class SelfTest {
 							if (!se.itssimple.realearth.osm.Ways.isPaved(c.way[k])) {
 								continue;
 							}
-							if (c.marking[k] != 0) {
+							// Lines; a stop bar or crossing is white concrete (see the generator's paint).
+							if (c.marking[k] != 0 && (c.marking[k] & 3) != se.itssimple.realearth.terrain.Markings.BAR) {
 								painted++;
 								lines += block.equals("saros_road_blocks_mod:asphalt") && state.toString().contains("texture_variant=straight") ? 1 : 0;
 								for (int dy = -1; dy <= 1; dy++) {

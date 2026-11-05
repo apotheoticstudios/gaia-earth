@@ -42,7 +42,9 @@
     "java": ">=25",
     "fabric-api": "*",
     "gaia-earth-client": "*",
-    "saros_road_blocks_mod": ">=5.12"
+    "saros_road_blocks_mod": ">=5.12",
+    "mcwfences": ">=1.2.1",
+    "diagonalfences": ">=26.1.0"
   },
   "suggests": {
     "distanthorizons": ">=3.3.0",

@@ -69,12 +69,20 @@ public final class OsmWater {
 	 * the ground.
 	 */
 	public record Way(double[] points, double widthMeters, byte kind, boolean bridge, double minX, double minY, double maxX, double maxY, int tileX,
-		int tileY, byte markings, byte surface, byte sides) {
-		/** A way with no markings (see Markings.style) and no mapped surface. */
+		int tileY, byte markings, byte surface, byte sides, byte layer) {
+		/** A way with no markings (see Markings.style), no mapped surface and no layer. */
 		public Way(double[] points, double widthMeters, byte kind, boolean bridge, double minX, double minY, double maxX, double maxY, int tileX,
 			int tileY) {
-			this(points, widthMeters, kind, bridge, minX, minY, maxX, maxY, tileX, tileY, (byte) 0, (byte) 0, (byte) 0);
+			this(points, widthMeters, kind, bridge, minX, minY, maxX, maxY, tileX, tileY, (byte) 0, (byte) 0, (byte) 0, (byte) 0);
 		}
+	}
+
+	/**
+	 * A bridge's outline as the map draws it (OSM's man_made=bridge, OpenMapTiles' transportation class "bridge"): rings of
+	 * interleaved x, y in global z15 sample coordinates (even-odd), cut to its map tile, and the layer it is on. A bridge
+	 * reaching into the next tile comes as a piece in each, meeting at the tile's edge.
+	 */
+	public record BridgeArea(List<double[]> rings, int layer, double minX, double minY, double maxX, double maxY) {
 	}
 
 	/**
@@ -123,13 +131,13 @@ public final class OsmWater {
 	 * false when the map has no tile or could not be fetched.
 	 */
 	public record Shapes(List<Area> areas, List<Line> lines, boolean known, List<Way> ways, List<Building> buildings, List<Poi> pois,
-		List<Land> landuse, List<Place> places, List<Street> streets, List<Part> parts, List<Land> parks, List<Way> tunnels) {
+		List<Land> landuse, List<Place> places, List<Street> streets, List<Part> parts, List<Land> parks, List<Way> tunnels, List<BridgeArea> bridges) {
 		/** The map has no such tile: water comes from elevation, and that is final. */
 		public static final Shapes UNKNOWN = new Shapes(List.of(), List.of(), false, List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(),
-			List.of(), List.of());
+			List.of(), List.of(), List.of());
 		/** The tile could not be downloaded (compared by identity): water comes from elevation for now. */
 		public static final Shapes FAILED = new Shapes(List.of(), List.of(), false, List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(),
-			List.of(), List.of());
+			List.of(), List.of(), List.of());
 
 		public boolean failed() {
 			return this == FAILED;
@@ -375,6 +383,7 @@ public final class OsmWater {
 		List<Part> raised = new ArrayList<>();
 		List<Land> parks = new ArrayList<>();
 		List<Way> tunnels = new ArrayList<>();
+		List<BridgeArea> bridgeAreas = new ArrayList<>();
 		// The tile's middle, for what depends on the country: road widths and markings.
 		double centreLon = (tileX + 0.5) / (1 << ZOOM) * 360 - 180;
 		double centreLat = Math.toDegrees(Math.atan(Math.sinh(Math.PI * (1 - 2 * (tileY + 0.5) / (1 << ZOOM)))));
@@ -523,10 +532,29 @@ public final class OsmWater {
 								minY = Math.min(minY, part[i + 1]);
 								maxY = Math.max(maxY, part[i + 1]);
 							}
-							(tunnel ? tunnels : ways).add(new Way(part, width, kind, bridge, minX, minY, maxX, maxY, tileX, tileY, markings, surface, sides));
+							byte layer = (byte) (Double.isNaN(f.number("layer")) ? 0 : f.number("layer"));
+							(tunnel ? tunnels : ways).add(new Way(part, width, kind, bridge, minX, minY, maxX, maxY, tileX, tileY, markings, surface, sides, layer));
 						}
 					}
 				}
+			} else if (f.layer().equals("transportation") && f.type() == VectorTile.POLYGON && "bridge".equals(cls)) {
+				// Each outer ring and the holes after it (outer rings wind one way, holes the other), cut to the tile itself: the
+				// map draws a little way into the next tile, which has its own piece.
+				int layer = Double.isNaN(f.number("layer")) ? 0 : (int) f.number("layer");
+				double x0 = tileX * samplesPerTile - 0.5;
+				double y0 = tileY * samplesPerTile - 0.5;
+				List<double[]> current = null;
+				for (double[] ring : parts) {
+					double[] cut = clip(ring, x0, y0, x0 + samplesPerTile, y0 + samplesPerTile);
+					if (current == null || signedArea(ring) > 0) {
+						addBridgeArea(bridgeAreas, current, layer);
+						current = new ArrayList<>();
+					}
+					if (cut.length >= 6) {
+						current.add(cut);
+					}
+				}
+				addBridgeArea(bridgeAreas, current, layer);
 			} else if (f.layer().equals("waterway") && f.type() == VectorTile.LINE) {
 				double width = switch (cls == null ? "" : cls) {
 					case "river" -> 12.0;
@@ -543,7 +571,55 @@ public final class OsmWater {
 				}
 			}
 		}
-		return new Shapes(areas, lines, true, ways, buildings, pois, landuse, places, streets, raised, parks, tunnels);
+		return new Shapes(areas, lines, true, ways, buildings, pois, landuse, places, streets, raised, parks, tunnels, bridgeAreas);
+	}
+
+	private static void addBridgeArea(List<BridgeArea> out, List<double[]> rings, int layer) {
+		if (rings == null || rings.isEmpty()) {
+			return;
+		}
+		double[] box = {Double.MAX_VALUE, Double.MAX_VALUE, -Double.MAX_VALUE, -Double.MAX_VALUE};
+		for (int i = 0; i < rings.get(0).length; i += 2) {
+			box[0] = Math.min(box[0], rings.get(0)[i]);
+			box[1] = Math.min(box[1], rings.get(0)[i + 1]);
+			box[2] = Math.max(box[2], rings.get(0)[i]);
+			box[3] = Math.max(box[3], rings.get(0)[i + 1]);
+		}
+		out.add(new BridgeArea(List.copyOf(rings), layer, box[0], box[1], box[2], box[3]));
+	}
+
+	/** A ring (interleaved x, y) cut to a box, edge by edge (Sutherland-Hodgman); empty where none of it is inside. */
+	static double[] clip(double[] ring, double x0, double y0, double x1, double y1) {
+		double[] pts = ring;
+		double[][] edges = {{0, x0, 1}, {0, x1, -1}, {1, y0, 1}, {1, y1, -1}}; // axis, value, side kept (1: >=, -1: <=)
+		for (double[] e : edges) {
+			int axis = (int) e[0];
+			List<double[]> out = new ArrayList<>();
+			int n = pts.length / 2;
+			for (int i = 0; i < n; i++) {
+				double ax = pts[2 * ((i + n - 1) % n)];
+				double ay = pts[2 * ((i + n - 1) % n) + 1];
+				double bx = pts[2 * i];
+				double by = pts[2 * i + 1];
+				double av = (axis == 0 ? ax : ay) - e[1];
+				double bv = (axis == 0 ? bx : by) - e[1];
+				boolean aIn = av * e[2] >= 0;
+				boolean bIn = bv * e[2] >= 0;
+				if (aIn != bIn) {
+					double t = av / (av - bv);
+					out.add(new double[] {ax + (bx - ax) * t, ay + (by - ay) * t});
+				}
+				if (bIn) {
+					out.add(new double[] {bx, by});
+				}
+			}
+			pts = new double[out.size() * 2];
+			for (int i = 0; i < out.size(); i++) {
+				pts[2 * i] = out.get(i)[0];
+				pts[2 * i + 1] = out.get(i)[1];
+			}
+		}
+		return pts;
 	}
 
 	/** Cities, towns, villages and their districts; not islands, countries, states or lone farms. */

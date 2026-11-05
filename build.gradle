@@ -122,6 +122,13 @@ dependencies {
 
 	// Saro's Road Blocks (a dependency, never shipped): asphalt and road markings. Its exact 5.12 build for Fabric 26.1.
 	runtimeOnly "maven.modrinth:saros-road-blocks:yUevnPQt"
+	// Macaw's Fences and Walls (sketchmacaw; a dependency, never shipped): bridges' railings. Diagonal Fences (Fuzs) joins them
+	// diagonally along a deck's edge, with the libraries it needs. Their exact builds for Fabric 26.1 (the libraries' newest
+	// that run on this Fabric API).
+	runtimeOnly "maven.modrinth:macaws-fences-and-walls:oWA108EY"
+	runtimeOnly "maven.modrinth:diagonal-fences:UUuyVvvj"
+	runtimeOnly "maven.modrinth:puzzles-lib:hpDvq0QC"
+	runtimeOnly "maven.modrinth:forge-config-api-port:mwAOaKnn"
 }
 
 // Keep the clean client free of optional mods.
