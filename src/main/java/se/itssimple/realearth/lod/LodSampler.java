@@ -266,7 +266,7 @@ public final class LodSampler {
 			return rise > 1.0 ? "minecraft:stone" : "minecraft:snow_block";
 		}
 		boolean sandy = land == OsmWater.BEACH || land == OsmWater.SAND || land == OsmWater.DUNE;
-		boolean dunes = cover == WorldCover.BARE && Koppen.hotArid(climate) || sandy;
+		boolean dunes = sandy;
 		if (rise > 1.0 && (Koppen.arid(climate) || biome == Biomes.BADLANDS) && !dunes) {
 			return se.itssimple.realearth.world.Strata.BANDS;
 		}
@@ -301,7 +301,8 @@ public final class LodSampler {
 			case WorldCover.BUILT -> Koppen.desert(climate) ? "minecraft:sand" : Koppen.arid(climate) ? "minecraft:coarse_dirt" : "minecraft:grass_block";
 			case WorldCover.WETLAND, WorldCover.MANGROVES -> "minecraft:mud";
 			case WorldCover.MOSS -> "minecraft:moss_block";
-			case WorldCover.BARE -> Koppen.hotArid(climate) || Koppen.tropical(climate) ? "minecraft:sand" : "minecraft:gravel";
+			// Stony desert where the map draws no sand (sandy, above, is the sand seas).
+			case WorldCover.BARE -> Koppen.hotArid(climate) || Koppen.tropical(climate) ? "minecraft:coarse_dirt" : "minecraft:gravel";
 			default -> {
 				if (biome == Biomes.DESERT) {
 					yield Koppen.hotArid(climate) ? "minecraft:sand" : "minecraft:gravel";

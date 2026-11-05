@@ -903,7 +903,8 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 
 		// Cliffs and steep slopes in dry country: banded terracotta, deep enough to cover the exposed
 		// face down to the neighbouring column. Sand seas keep their sandstone.
-		boolean dunes = cover == WorldCover.BARE && Koppen.hotArid(climate) || sandy;
+		// Only the map's sand is dunes; a stony desert's escarpments are banded rock.
+		boolean dunes = sandy;
 		// Measured across the column (left neighbour to right), so a single terrace step on flat ground
 		// doesn't count but a 45-degree canyon wall does.
 		int across = Math.max(Math.abs(t.topSolidY[ChunkTerrain.index(x + 1, z)] - t.topSolidY[ChunkTerrain.index(x - 1, z)]),
@@ -980,7 +981,11 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 			}
 			case WorldCover.BARE -> {
 				if (hotDry || biome == Biomes.DESERT && Koppen.hotArid(climate)) {
-					return new Column(top, waterTop, block(Blocks.SAND), block(Blocks.SAND), 4, block(Blocks.SANDSTONE), shore, null);
+					// Stony desert, reg and hamada: the map draws the sand seas (sandy, above), and the rest is gravel, packed
+					// earth, rock and a little drift sand.
+					BlockState stony = roll < 0.35 ? block(Blocks.GRAVEL) : roll < 0.6 ? block(Blocks.COARSE_DIRT)
+						: roll < 0.8 ? block(Blocks.SAND) : block(Blocks.SANDSTONE);
+					return new Column(top, waterTop, stony, block(Blocks.COARSE_DIRT), 2, block(Blocks.SANDSTONE), shore, null);
 				}
 				if (Koppen.arid(climate)) {
 					// Cold deserts: red sand and stony ground.

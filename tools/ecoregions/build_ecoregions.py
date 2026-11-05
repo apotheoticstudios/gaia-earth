@@ -32,9 +32,21 @@ COAST_CELLS = 3
 SUBS = {
     # The redwoods: the coast of northern California, the tallest forest on Earth.
     'redwood': {359},
+    # Kauri forest: Northland's, the kauri among podocarps.
+    'kauri': {173},
+    # Araucaria forest: southern Brazil's Parana pine highlands.
+    'araucaria': {440},
+    # Campinarana: the Rio Negro's stunted forest on white sand.
+    'campinarana': {498},
+    # Lichen woodland: open spruce over lichen, the northern Canadian Shield's taiga.
+    'lichen': {379, 374, 381, 383},
+    # Gibber plain: Australia's stony desert of polished pebbles.
+    'gibber': {215},
+    # Reed marsh: the Tigris and Euphrates' freshwater marshes.
+    'reed': {747},
     # Temperate rainforests -- the Pacific coast from Alaska to Oregon, Norway's coast, southern Chile, New Zealand,
     # Tasmania's west -- wet all year, mossy, tall.
-    'rainforest': {349, 351, 360, 365, 708, 561, 563, 167, 169, 170, 171, 172, 173, 174, 175, 179, 180},
+    'rainforest': {349, 351, 360, 365, 708, 561, 563, 167, 169, 170, 171, 172, 174, 175, 179, 180},
     # Hemiboreal forests: where temperate mixed forest meets the taiga -- southern Sweden and Finland, the Baltic states,
     # western Siberia's southern edge, Canada's forest-boreal transition -- mostly pine and spruce, with birch and oak.
     'hemiboreal': {679, 687, 333},
@@ -75,9 +87,9 @@ SUBS = {
     # Puna: the dry high grassland of the central Andes.
     'puna': {587, 588, 589},
     # Salt marshes, saline meadows and salt pans.
-    'salt': {69, 70, 73, 745, 742, 748, 312, 747},
-    # Polar desert: the bare high Arctic.
-    'polar': {777, 778, 783},
+    'salt': {69, 70, 73, 745, 742, 748, 312},
+    # Polar desert: the bare high Arctic, the Canadian High Arctic's polar semi-desert.
+    'polar': {777, 778, 783, 412},
     # Beech forest: Europe's and Japan's beechwoods -- the English lowlands, the Apennines, western Europe, the Dinarides,
     # the Black Sea's and the Caspian's shores, Japan's mountains.
     'beech': {663, 644, 686, 671, 683, 665, 649, 660},

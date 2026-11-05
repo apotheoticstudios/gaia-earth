@@ -67,7 +67,7 @@ Things to know:
 | B9 | Dry Evergreen Forest | East Deccan, Southeast Indochina and Sri Lanka dry evergreen forests (293, 299, 301) | ecoregion |
 | B10 | Atlantic Oak Forest, Cork Oak Forest | Northwest Iberian montane forests (800); the Maghreb's woodlands and forests (798) where wooded | ecoregion |
 
-## Round 2 (researched 2026-11-06)
+## Round 2 (researched 2026-11-06; C1-C11 done the same day, 135 biomes)
 
 By land area, the deserts are the biggest gap: 11.2M km2 of desert ecoregions have no landscape of their own, and
 their bare ground still takes vanilla's biome. Tropical moist forest (15.9M km2) and boreal forest (9.5M km2) are

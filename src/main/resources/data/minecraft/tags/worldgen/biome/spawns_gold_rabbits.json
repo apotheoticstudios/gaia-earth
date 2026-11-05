@@ -3,7 +3,10 @@
   "values": [
     "gaia-earth:desert_steppe",
     "gaia-earth:fog_desert",
+    "gaia-earth:gibber_plain",
     "gaia-earth:mojave_scrub",
-    "gaia-earth:saltbush_shrubland"
+    "gaia-earth:saltbush_shrubland",
+    "gaia-earth:sand_sea",
+    "gaia-earth:stony_desert"
   ]
 }

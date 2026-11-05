@@ -117,11 +117,11 @@ public final class BiomePicker {
 			case WorldCover.GRASS, WorldCover.MOSS -> grass(climate, e, treeline);
 			case WorldCover.CROPS -> Koppen.temperate(climate) && patch > 0.6 ? Biomes.SUNFLOWER_PLAINS : Biomes.PLAINS;
 			case WorldCover.BUILT -> builtUp(climate);
-			case WorldCover.BARE -> bare(climate, e, treeline, variety);
+			case WorldCover.BARE -> bare(climate, e, treeline, latitude, longitude);
 			case WorldCover.WATER -> Koppen.polar(climate) ? Biomes.FROZEN_RIVER : Biomes.RIVER;
 			case WorldCover.WETLAND -> Biomes.SWAMP;
 			case WorldCover.MANGROVES -> Biomes.MANGROVE_SWAMP;
-			default -> climateOnly(climate, latitude, e, treeline, variety, patch);
+			default -> climateOnly(climate, latitude, longitude, e, treeline, variety, patch);
 		};
 	}
 
@@ -206,12 +206,15 @@ public final class BiomePicker {
 		return e > treeline ? Biomes.MEADOW : Biomes.PLAINS;
 	}
 
-	private static ResourceKey<Biome> bare(int c, double e, double treeline, double variety) {
-		if (Koppen.tropical(c) || c == 4 || c == 6) {
-			return variety > 0.55 ? Biomes.BADLANDS : Biomes.DESERT;
-		}
-		if (c == 5 || c == 7) {
-			return Biomes.DESERT;
+	/** Real badlands country, by ecoregion: the Colorado Plateau's and the Wyoming Basin's (the Painted Desert among them). */
+	private static final java.util.Set<Integer> BADLANDS_ECOREGIONS = java.util.Set.of(429, 438);
+
+	private static ResourceKey<Biome> bare(int c, double e, double treeline, double latitude, double longitude) {
+		if (Koppen.tropical(c) || Koppen.arid(c)) {
+			// Badlands' banded red rock where it really is; the Sahara's and Arabia's bare ground is sand or stony desert.
+			se.itssimple.realearth.climate.Ecoregions map = Koppen.arid(c) ? se.itssimple.realearth.climate.Ecoregions.get() : null;
+			se.itssimple.realearth.climate.Ecoregions.Region region = map == null ? null : map.at(latitude, longitude);
+			return region != null && BADLANDS_ECOREGIONS.contains(region.ecoId()) ? Biomes.BADLANDS : Biomes.DESERT;
 		}
 		if (Koppen.polar(c)) {
 			return Biomes.SNOWY_PLAINS;
@@ -220,12 +223,12 @@ public final class BiomePicker {
 	}
 
 	/** No land cover here: let the climate's typical vegetation stand in. */
-	private static ResourceKey<Biome> climateOnly(int c, double latitude, double e, double treeline, double variety, double patch) {
+	private static ResourceKey<Biome> climateOnly(int c, double latitude, double longitude, double e, double treeline, double variety, double patch) {
 		if (e > treeline) {
 			return Koppen.polar(c) ? Biomes.SNOWY_PLAINS : Biomes.MEADOW;
 		}
 		if (Koppen.desert(c)) {
-			return bare(c, e, treeline, variety);
+			return bare(c, e, treeline, latitude, longitude);
 		}
 		if (Koppen.arid(c)) {
 			return grass(c, e, treeline);

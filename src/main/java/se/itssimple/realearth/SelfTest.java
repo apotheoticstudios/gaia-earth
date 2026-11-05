@@ -3167,7 +3167,7 @@ final class SelfTest {
 				new Place("Monteverde", 10.30, -84.80, 1600, net.minecraft.world.level.biome.Biomes.JUNGLE, trees,
 					se.itssimple.realearth.world.EarthBiomes.CLOUD_FOREST),
 				new Place("the Araucaria highlands", -25.3, -51.3, 1000, net.minecraft.world.level.biome.Biomes.FOREST, trees,
-					se.itssimple.realearth.world.EarthBiomes.LAUREL_FOREST),
+					se.itssimple.realearth.world.EarthBiomes.ARAUCARIA_FOREST),
 				new Place("the Blue Mountains", -33.7, 150.3, 800, net.minecraft.world.level.biome.Biomes.FOREST, trees,
 					se.itssimple.realearth.world.EarthBiomes.EUCALYPT_FOREST),
 				new Place("Tyresta", 59.18, 18.30, 50, net.minecraft.world.level.biome.Biomes.TAIGA, trees,
@@ -3397,7 +3397,27 @@ final class SelfTest {
 				new Place("Borneo's lowland forest at 1,200 m", 4.95, 117.86, 1200, net.minecraft.world.level.biome.Biomes.JUNGLE, trees,
 					se.itssimple.realearth.world.EarthBiomes.TROPICAL_RAINFOREST),
 				new Place("the Alps above the treeline", 46.57, 7.97, 2300, net.minecraft.world.level.biome.Biomes.MEADOW, grass,
-					net.minecraft.world.level.biome.Biomes.MEADOW),
+					se.itssimple.realearth.world.EarthBiomes.ALPINE_MEADOW),
+				new Place("Labrador's lichen woodland", 54.5, -66.0, 500, net.minecraft.world.level.biome.Biomes.TAIGA, trees,
+					se.itssimple.realearth.world.EarthBiomes.LICHEN_WOODLAND),
+				new Place("the Low Arctic's shrub tundra", 63.1, -100.0, 150, net.minecraft.world.level.biome.Biomes.SNOWY_PLAINS, se.itssimple.realearth.landcover.WorldCover.SHRUBS,
+					se.itssimple.realearth.world.EarthBiomes.SHRUB_TUNDRA),
+				new Place("the Canadian High Arctic", 73.3, -100.0, 100, net.minecraft.world.level.biome.Biomes.SNOWY_PLAINS, se.itssimple.realearth.landcover.WorldCover.MOSS,
+					se.itssimple.realearth.world.EarthBiomes.POLAR_DESERT),
+				new Place("Abisko's fjell", 68.3, 18.6, 1100, net.minecraft.world.level.biome.Biomes.MEADOW, grass,
+					se.itssimple.realearth.world.EarthBiomes.FJELL),
+				new Place("Mesa Verde's pinyon and juniper", 37.16, -108.48, 2100, net.minecraft.world.level.biome.Biomes.TAIGA, trees,
+					se.itssimple.realearth.world.EarthBiomes.PINYON_JUNIPER_WOODLAND),
+				new Place("the Altiplano's Polylepis", -17.0, -68.5, 4000, net.minecraft.world.level.biome.Biomes.FOREST, trees,
+					se.itssimple.realearth.world.EarthBiomes.POLYLEPIS_WOODLAND),
+				new Place("the Mesopotamian marshes", 31.1, 47.2, 2, net.minecraft.world.level.biome.Biomes.SWAMP, se.itssimple.realearth.landcover.WorldCover.WETLAND,
+					se.itssimple.realearth.world.EarthBiomes.REED_MARSH),
+				new Place("Waipoua's kauri", -35.5, 173.65, 300, net.minecraft.world.level.biome.Biomes.FOREST, trees,
+					se.itssimple.realearth.world.EarthBiomes.KAURI_FOREST),
+				new Place("the Rio Negro's campinarana", 0.3, -62.9, 80, net.minecraft.world.level.biome.Biomes.JUNGLE, trees,
+					se.itssimple.realearth.world.EarthBiomes.CAMPINARANA),
+				new Place("Tasmania's buttongrass", -42.0, 146.8, 900, net.minecraft.world.level.biome.Biomes.PLAINS, se.itssimple.realearth.landcover.WorldCover.SHRUBS,
+					se.itssimple.realearth.world.EarthBiomes.BUTTONGRASS_MOORLAND),
 				new Place("Paris (town)", 48.86, 2.35, 35, net.minecraft.world.level.biome.Biomes.PLAINS,
 					se.itssimple.realearth.landcover.WorldCover.BUILT, net.minecraft.world.level.biome.Biomes.PLAINS),
 				new Place("the Beauce (fields)", 48.25, 1.75, 140, net.minecraft.world.level.biome.Biomes.PLAINS,
@@ -3421,7 +3441,28 @@ final class SelfTest {
 					"Holland's dunes are sand dunes");
 				check(at.apply(new double[] {26.0, 3.0, 400}, new Object[] {net.minecraft.world.level.biome.Biomes.DESERT,
 					se.itssimple.realearth.landcover.WorldCover.BARE, se.itssimple.realearth.osm.OsmWater.SAND, false})
-					== net.minecraft.world.level.biome.Biomes.DESERT, "the Sahara's sand is desert, not dunes");
+					== se.itssimple.realearth.world.EarthBiomes.SAND_SEA, "the Sahara's sand is a sand sea, not dunes");
+				check(at.apply(new double[] {30.5, 7.5, 200}, new Object[] {net.minecraft.world.level.biome.Biomes.DESERT,
+					se.itssimple.realearth.landcover.WorldCover.BARE, se.itssimple.realearth.osm.OsmWater.SAND, false})
+					== se.itssimple.realearth.world.EarthBiomes.SAND_SEA, "the Grand Erg Oriental is a sand sea");
+				check(at.apply(new double[] {23.5, 0.5, 400}, new Object[] {net.minecraft.world.level.biome.Biomes.DESERT,
+					se.itssimple.realearth.landcover.WorldCover.BARE, none, false})
+					== se.itssimple.realearth.world.EarthBiomes.STONY_DESERT, "the Tanezrouft is stony desert");
+				check(at.apply(new double[] {-29.0, 138.7, 50}, new Object[] {net.minecraft.world.level.biome.Biomes.DESERT,
+					se.itssimple.realearth.landcover.WorldCover.BARE, none, false})
+					== se.itssimple.realearth.world.EarthBiomes.GIBBER_PLAIN, "the Sturt Stony Desert is gibber plain");
+				// Badlands where they are real, and nowhere by chance: none across the Sahara.
+				int bare = se.itssimple.realearth.landcover.WorldCover.BARE;
+				check(BiomePicker.pick(35.9, -110.3, 1700, false, false, 0, koppen.classAt(35.9, -110.3), bare)
+					== net.minecraft.world.level.biome.Biomes.BADLANDS, "the Painted Desert's bare ground is badlands");
+				int saharaBadlands = 0;
+				for (double lat = 20; lat <= 30; lat += 2.5) {
+					for (double lon = -5; lon <= 25; lon += 5) {
+						saharaBadlands += BiomePicker.pick(lat, lon, 400, false, false, 0, koppen.classAt(lat, lon), bare)
+							== net.minecraft.world.level.biome.Biomes.BADLANDS ? 1 : 0;
+					}
+				}
+				check(saharaBadlands == 0, "the Sahara has no badlands (%d of 35 places)", saharaBadlands);
 				check(at.apply(new double[] {11.0, -2.0, 300}, new Object[] {net.minecraft.world.level.biome.Biomes.SAVANNA, trees, none, true})
 					== se.itssimple.realearth.world.EarthBiomes.GALLERY_FOREST, "the West Sudanian savanna's riverside woods are gallery forest");
 				check(at.apply(new double[] {11.0, -2.0, 300}, new Object[] {net.minecraft.world.level.biome.Biomes.SAVANNA, grass, none, true})
@@ -3483,6 +3524,33 @@ final class SelfTest {
 			}
 			log("Flinders Beach's biome cells: %s", cells);
 			check(beach > 0, "Flinders Beach is beach in the world (%d of 144 biome cells)", beach);
+			// The Sahara's ground: sand in the Grand Erg Oriental's sand sea, stones in the Tanezrouft's reg.
+			for (double[] spot : new double[][] {{30.5, 7.5, 1}, {23.5, 0.5, 0}}) {
+				int ex = (int) field.projection().blockX(spot[0], spot[1]) >> 4;
+				int ez = (int) field.projection().blockZ(spot[0]) >> 4;
+				int sand = 0;
+				int stony = 0;
+				int dry = 0;
+				for (int cx = ex - 1; cx <= ex + 1; cx++) {
+					for (int cz = ez - 1; cz <= ez + 1; cz++) {
+						LevelChunk lc = earth.getChunk(cx, cz);
+						ChunkTerrain c = field.chunkIfReady(cx, cz);
+						for (int k16 = 0; c != null && k16 < 256; k16++) {
+							int k = ChunkTerrain.index(k16 & 15, k16 >> 4);
+							if (c.waterTopY[k] != Integer.MIN_VALUE) {
+								continue;
+							}
+							BlockState top = lc.getBlockState(new BlockPos(cx * 16 + (k16 & 15), c.topSolidY[k], cz * 16 + (k16 >> 4)));
+							dry++;
+							sand += top.is(Blocks.SAND) ? 1 : 0;
+							stony += top.is(Blocks.GRAVEL) || top.is(Blocks.COARSE_DIRT) || top.is(Blocks.SANDSTONE) ? 1 : 0;
+						}
+					}
+				}
+				log("%.1f, %.1f: %d sand, %d stony of %d dry columns", spot[0], spot[1], sand, stony, dry);
+				check(spot[2] == 1 ? sand >= dry * 0.8 : stony >= dry * 0.6, "the %s's ground is %s (%d sand, %d stony of %d)",
+					spot[2] == 1 ? "Grand Erg Oriental" : "Tanezrouft", spot[2] == 1 ? "sand" : "stony", sand, stony, dry);
+			}
 			int sx = (int) field.projection().blockX(48.8530, 2.3499) >> 4;
 			int sz = (int) field.projection().blockZ(48.8530) >> 4;
 			earth.getChunk(sx, sz);

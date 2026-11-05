@@ -4,7 +4,9 @@
     "gaia-earth:alpine_desert",
     "gaia-earth:alpine_steppe",
     "gaia-earth:alpine_tundra",
+    "gaia-earth:fjell",
     "gaia-earth:polar_desert",
+    "gaia-earth:shrub_tundra",
     "gaia-earth:tundra",
     "gaia-earth:wet_tundra"
   ]

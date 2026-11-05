@@ -146,5 +146,17 @@
   "biome.gaia-earth.alpine_meadow": "Alpine Meadow",
   "biome.gaia-earth.oasis": "Oasis",
   "biome.gaia-earth.reed_marsh": "Reed Marsh",
-  "biome.gaia-earth.floodplain_forest": "Floodplain Forest"
+  "biome.gaia-earth.floodplain_forest": "Floodplain Forest",
+  "biome.gaia-earth.sand_sea": "Sand Sea",
+  "biome.gaia-earth.stony_desert": "Stony Desert",
+  "biome.gaia-earth.gibber_plain": "Gibber Plain",
+  "biome.gaia-earth.lichen_woodland": "Lichen Woodland",
+  "biome.gaia-earth.shrub_tundra": "Shrub Tundra",
+  "biome.gaia-earth.fjell": "Fjell",
+  "biome.gaia-earth.pinyon_juniper_woodland": "Pinyon-Juniper Woodland",
+  "biome.gaia-earth.polylepis_woodland": "Polylepis Woodland",
+  "biome.gaia-earth.kauri_forest": "Kauri Forest",
+  "biome.gaia-earth.araucaria_forest": "Araucaria Forest",
+  "biome.gaia-earth.campinarana": "Campinarana",
+  "biome.gaia-earth.buttongrass_moorland": "Buttongrass Moorland"
 }

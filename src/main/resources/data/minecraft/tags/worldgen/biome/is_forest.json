@@ -1,10 +1,12 @@
 {
   "replace": false,
   "values": [
+    "gaia-earth:araucaria_forest",
     "gaia-earth:beech_forest",
     "gaia-earth:eucalypt_forest",
     "gaia-earth:floodplain_forest",
     "gaia-earth:himalayan_broadleaf_forest",
+    "gaia-earth:kauri_forest",
     "gaia-earth:laurel_forest",
     "gaia-earth:mediterranean_woodland",
     "gaia-earth:mixed_evergreen_forest",
