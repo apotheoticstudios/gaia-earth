@@ -200,6 +200,10 @@ SPECIES = {
                           leaves={"pale_oak": 1}),
     "leucadendron_argenteum": dict(CROWN, h=(5, 10), bole=0.35, width=0.5, shape="ellipsoid", crook=0.2, clump=(2, 1.8),
                                    spacing=0.9, bark={"stripped_pale_oak": 1, "pale_oak": 1}, leaves={"pale_oak": 1}),
+    # The South Atlantic's and Indian Ocean's tussock islands: Tristan da Cunha, Gough, Amsterdam Island
+    "phylica_arborea": dict(CROWN, h=(3, 6), stems=(1, 3), lean=0.3, crook=0.6, bole=0.2, width=1.0, shape="dome",
+                            limbs=(2, 4), clump=(2, 1.5), spacing=0.9, stout=0.05, bark={"dark_oak": 1, "spruce": 1},
+                            leaves={"spruce": 1}),
     "portulacaria_afra": dict(CROWN, h=(2, 5), stems=(2, 4), lean=0.15, crook=0.5, bole=0.15, width=1.1, shape="dome",
                               limbs=(3, 5), clump=(2, 1.6), spacing=0.8, stout=0.03, bark={"mangrove": 1}, leaves={"jungle": 1}),
 }

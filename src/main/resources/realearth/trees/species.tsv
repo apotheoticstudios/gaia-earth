@@ -208,7 +208,8 @@ carpinus_betulus,commonhornbeam	oak,dark_oak	Cfb,Dfb,Cfa	low,mid	40..58	-5..40	3
 prunus_avium,wildcherry	oak	Cfb,Dfb	low	40..60	-10..40	1	15..25
 acer_campestre,common_maple_2_m,common_maple_2_s,common_maple_m,common_maple_s	oak	Cfb,Dfb,Cfa	low	40..58	-10..40	2	10..20
 populus_alba,white_poplar_m,white_poplar_s	swamp,oak	Cfb,Cs,Cfa	low	36..52	-10..40	1	20..30
-cedrus_atlantica,atlas_cedar_m,atlas_cedar_s,cedrus_libani	spruce,oak	Cs,Csb,BSk	low,mid,high	31..36.5	-7..8	4	30..40
+cedrus_atlantica,atlas_cedar_m,atlas_cedar_s,cedrus_libani	spruce,oak	Cs,Csb,BSk	mid,high	31..36.5	-7..8	4	30..40
+cedrus_atlantica	spruce,oak	Cs,Csb,BSk	low	31.5..35.3	-5.8..-2	4	30..40
 pinus_banksiana,jack_pine_s	spruce	Dfc,Dfb	*	44..62	-125..-60	4	15..25
 pinus_banksiana	oak,dark_oak,birch	Dfb,Dfc	*	47..62	-125..-60	2	15..25
 picea_rubens,red_spruce_l,red_spruce_m,red_spruce_s	spruce,dark_oak	Dfb,Cfb,Dfa	mid,high	35..48	-85..-60	4	20..35
@@ -686,3 +687,5 @@ portulacaria_afra	acacia,oak	BSh,BSk,Cfb,Csb	low	-35..-31	20..31	6	2..5
 euphorbia_ingens,carnegiea_gigantea	acacia	BSh,Aw,Cwa,Cwb,BSk	low,mid	-34..-5	20..40	2	5..10
 carnegiea_gigantea	acacia,spruce	BWh,BSh	low	26..34.5	-115..-109	4	8..15
 euterpe_edulis,euterpe_oleracea	jungle,swamp	Af,Am,Cfa,Cfb	low,mid	-30..-5	-55..-34	4	10..20
+phylica_arborea	oak,birch,spruce	Cfb,Cfc	*	-41..-37	-13..-9	5	3..6
+phylica_arborea	oak,birch,spruce	Cfb,Cfc	*	-39.5..-37.5	76.5..78.5	5	3..6
