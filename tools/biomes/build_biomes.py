@@ -108,11 +108,18 @@ BIOMES = [
     ('tepui', 'sparse_jungle', '#7a9a50', '#4f7a3a', 'Tepui'),
     ('heath_forest', 'sparse_jungle', '#6f9a40', '#4f8a30', 'Heath Forest'),
     ('wet_tundra', 'snowy_plains', '#8fa06a', '#6f8a56', 'Wet Tundra'),
+    ('brigalow_scrub', 'savanna', '#a9a862', '#7f9070', 'Brigalow Scrub'),
+    ('tropical_alpine_grassland', 'meadow', '#8a9e60', '#5f7f4a', 'Tropical Alpine Grassland'),
+    ('sawgrass_marsh', 'swamp', '#8a9a50', '#5f8a3a', 'Sawgrass Marsh'),
+    ('papyrus_swamp', 'swamp', '#6aa040', '#4f8a32', 'Papyrus Swamp'),
+    ('wet_meadow', 'plains', '#7fb055', '#5f9a40', 'Wet Meadow'),
+    ('palouse_prairie', 'plains', '#b0b468', '#7f9a4c', 'Palouse Prairie'),
+    ('dark_taiga', 'taiga', '#6f8f50', '#3f6a40', 'Dark Taiga'),
 ]
 # The flooded grasslands' water is clear (the Pantanal, the Okavango), not a swamp's murk; a bog's is brown with
 # peat, a tropical swamp forest's and a cypress swamp's dark with tannin, a salt marsh's the grey-green of a tidal creek.
 WATER = {'flooded_grassland': '#4a7f9a', 'peat_bog': '#5a5a3c', 'swamp_forest': '#4d4a2e', 'salt_marsh': '#4a7a8a',
-         'cypress_swamp': '#4a5a38'}
+         'cypress_swamp': '#4a5a38', 'sawgrass_marsh': '#5a7a6a', 'papyrus_swamp': '#4a6a4a'}
 BIOME_DIR = 'data/minecraft/worldgen/biome/'
 TAG_DIR = 'data/minecraft/tags/worldgen/biome/'
 

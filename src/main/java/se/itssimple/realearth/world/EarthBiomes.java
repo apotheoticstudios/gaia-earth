@@ -159,6 +159,13 @@ public final class EarthBiomes {
 	public static final ResourceKey<Biome> TEPUI = add("tepui", "jungle:60 oak:40");
 	public static final ResourceKey<Biome> HEATH_FOREST = add("heath_forest", "jungle:70 spruce:30");
 	public static final ResourceKey<Biome> WET_TUNDRA = add("wet_tundra", "birch:70 spruce:30");
+	public static final ResourceKey<Biome> BRIGALOW_SCRUB = add("brigalow_scrub", "acacia:80 oak:20");
+	public static final ResourceKey<Biome> TROPICAL_ALPINE_GRASSLAND = add("tropical_alpine_grassland", "spruce:50 oak:30 birch:20");
+	public static final ResourceKey<Biome> SAWGRASS_MARSH = add("sawgrass_marsh", "swamp:60 spruce:40");
+	public static final ResourceKey<Biome> PAPYRUS_SWAMP = add("papyrus_swamp", "swamp:70 jungle:30");
+	public static final ResourceKey<Biome> WET_MEADOW = add("wet_meadow", "birch:50 oak:50");
+	public static final ResourceKey<Biome> PALOUSE_PRAIRIE = add("palouse_prairie", "oak:40 spruce:40 birch:20");
+	public static final ResourceKey<Biome> DARK_TAIGA = add("dark_taiga", "spruce:95 birch:5");
 
 	static {
 		SOUTH.put(TEMPERATE_RAINFOREST, Mix.of("spruce:35 dark_oak:35 oak:30"));
@@ -218,7 +225,7 @@ public final class EarthBiomes {
 		// a low temperate coast and in the salt flats' ecoregions, the flooded grasslands' own; else vanilla's swamp.
 		if (base == Biomes.SWAMP) {
 			if (biome == Ecoregions.FLOODED_GRASSLAND) {
-				return sub.equals("salt") ? SALT_MARSH : FLOODED_GRASSLAND;
+				return flooded(sub);
 			}
 			if (biome == Ecoregions.BOREAL_FOREST || biome == Ecoregions.TUNDRA || Set.of("hemiboreal", "moorland", "larch").contains(sub)) {
 				return PEAT_BOG;
@@ -278,10 +285,11 @@ public final class EarthBiomes {
 				case "rainforest" -> subalpine ? SUBALPINE_FOREST : TEMPERATE_RAINFOREST;
 				case "med_conifer" -> subalpine ? SUBALPINE_FOREST : MEDITERRANEAN_CONIFER_FOREST;
 				case "ponderosa" -> subalpine ? SUBALPINE_FOREST : PONDEROSA_PINE_FOREST;
+				case "dark_taiga" -> subalpine ? SUBALPINE_FOREST : DARK_TAIGA;
 				default -> moor ? MOORLAND : heath ? HEATHLAND : subalpine ? SUBALPINE_FOREST : TEMPERATE_CONIFER_FOREST;
 			};
 			case Ecoregions.BOREAL_FOREST -> sub.equals("larch") ? LARCH_TAIGA : sub.equals("mountain_birch") ? MOUNTAIN_BIRCH_FOREST
-				: moor ? MOORLAND : BOREAL_FOREST;
+				: sub.equals("dark_taiga") ? DARK_TAIGA : moor ? MOORLAND : BOREAL_FOREST;
 			case Ecoregions.TROPICAL_GRASSLAND -> switch (sub) {
 				case "eucalypt" -> EUCALYPT_SAVANNA;
 				case "miombo" -> MIOMBO_WOODLAND;
@@ -298,6 +306,7 @@ public final class EarthBiomes {
 				case "highveld" -> HIGHVELD_GRASSLAND;
 				case "mitchell" -> MITCHELL_GRASS_DOWNS;
 				case "terai" -> TERAI_GRASSLAND;
+				case "brigalow" -> BRIGALOW_SCRUB;
 				default -> TROPICAL_SAVANNA;
 			};
 			case Ecoregions.TEMPERATE_GRASSLAND -> switch (sub) {
@@ -315,9 +324,10 @@ public final class EarthBiomes {
 				case "desert_steppe" -> DESERT_STEPPE;
 				case "xeric_woodland" -> XERIC_WOODLAND;
 				case "monte" -> MONTE_SCRUB;
+				case "palouse" -> PALOUSE_PRAIRIE;
 				default -> moor ? MOORLAND : TEMPERATE_STEPPE;
 			};
-			case Ecoregions.FLOODED_GRASSLAND -> sub.equals("salt") ? SALT_MARSH : FLOODED_GRASSLAND;
+			case Ecoregions.FLOODED_GRASSLAND -> flooded(sub);
 			case Ecoregions.MONTANE_GRASSLAND -> switch (sub) {
 				case "paramo" -> PARAMO;
 				case "puna" -> PUNA;
@@ -331,6 +341,7 @@ public final class EarthBiomes {
 				case "alpine_desert" -> ALPINE_DESERT;
 				case "afromontane" -> AFROMONTANE_GRASSLAND;
 				case "snow_gum" -> SNOW_GUM_WOODLAND;
+				case "tropical_alpine" -> TROPICAL_ALPINE_GRASSLAND;
 				default -> MONTANE_GRASSLAND;
 			};
 			// Tundra with trees is forest-tundra: the stunted spruce, larch and birch at the edge of the taiga.
@@ -369,6 +380,17 @@ public final class EarthBiomes {
 				default -> XERIC_SHRUBLAND;
 			};
 			default -> base; // mangroves (the land cover has its own), rock and ice
+		};
+	}
+
+	/** A flooded grassland's ecoregion's own: salt flats, the Everglades' sawgrass, the Sudd's papyrus, East Asia's wet meadows. */
+	private static ResourceKey<Biome> flooded(String sub) {
+		return switch (sub) {
+			case "salt" -> SALT_MARSH;
+			case "sawgrass" -> SAWGRASS_MARSH;
+			case "papyrus" -> PAPYRUS_SWAMP;
+			case "wet_meadow" -> WET_MEADOW;
+			default -> FLOODED_GRASSLAND;
 		};
 	}
 

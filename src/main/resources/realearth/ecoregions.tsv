@@ -18,12 +18,12 @@ row	eco_id	biome	sub	realm	name
 17	328	4	-	Nearctic	Allegheny Highlands forests
 18	689	5	-	Palearctic	Alps conifer and mixed forests
 19	749	10	alpine_tundra	Palearctic	Altai alpine meadow and tundra
-20	690	5	-	Palearctic	Altai montane forest and forest steppe
+20	690	5	dark_taiga	Palearctic	Altai montane forest and forest steppe
 21	724	8	desert_steppe	Palearctic	Altai steppe and semi-desert
 22	439	1	atlantic	Neotropic	Alto Paraná Atlantic forests
 23	611	14	-	Neotropic	Amazon-Orinoco-Southern Caribbean mangroves
 24	67	8	-	Afrotropic	Amsterdam-Saint Paul Islands temperate grasslands
-25	741	9	-	Palearctic	Amur meadow steppe
+25	741	9	wet_meadow	Palearctic	Amur meadow steppe
 26	786	12	med_conifer	Palearctic	Anatolian conifer and deciduous mixed forests
 27	218	1	-	Indomalayan	Andaman Islands rain forests
 28	77	10	afromontane	Afrotropic	Angolan montane forest-grassland
@@ -79,7 +79,7 @@ row	eco_id	biome	sub	realm	name
 78	219	1	-	Indomalayan	Borneo lowland rain forests
 79	221	1	swamp	Indomalayan	Borneo peat swamp forests
 80	222	1	-	Indomalayan	Brahmaputra Valley semi-evergreen forests
-81	182	7	eucalypt	Australasia	Brigalow tropical savanna
+81	182	7	brigalow	Australasia	Brigalow tropical savanna
 82	349	5	rainforest	Nearctic	British Columbia coastal conifer forests
 83	411	11	alpine_tundra	Nearctic	Brooks-British Range tundra
 84	138	1	-	Australasia	Buru rain forests
@@ -145,7 +145,7 @@ row	eco_id	biome	sub	realm	name
 144	820	13	-	Palearctic	Central Persian desert basins
 145	619	1	-	Oceania	Central Polynesian tropical moist forests
 146	139	1	-	Australasia	Central Range Papuan montane rain forests
-147	195	10	-	Australasia	Papuan Central Range sub-alpine grasslands
+147	195	10	tropical_alpine	Australasia	Papuan Central Range sub-alpine grasslands
 148	208	13	spinifex	Australasia	Central Ranges xeric scrub
 149	118	11	-	Antarctica	Central South Antarctic Peninsula tundra
 150	388	8	prairie	Nearctic	Central Tallgrass prairie
@@ -258,7 +258,7 @@ row	eco_id	biome	sub	realm	name
 257	80	10	paramo	Afrotropic	Ethiopian montane moorlands
 258	70	9	salt	Afrotropic	Etosha Pan halophytics
 259	665	4	beech	Palearctic	Euxine-Colchic broadleaf forests
-260	581	9	-	Neotropic	Everglades flooded grasslands
+260	581	9	sawgrass	Neotropic	Everglades flooded grasslands
 261	199	12	mallee	Australasia	Eyre and York mallee
 262	729	8	moorland	Palearctic	Faroe Islands boreal grasslands
 263	462	1	-	Neotropic	Fernando de Noronha-Atol das Rocas moist forests
@@ -465,7 +465,7 @@ row	eco_id	biome	sub	realm	name
 464	395	8	mixed_grass	Nearctic	Nebraska Sand Hills mixed grasslands
 465	484	1	-	Neotropic	Negro-Branco moist forests
 466	170	4	rainforest	Australasia	Nelson Coast temperate forests
-467	743	9	-	Palearctic	Nenjiang River grassland
+467	743	9	wet_meadow	Palearctic	Nenjiang River grassland
 468	144	1	-	Australasia	New Britain-New Ireland lowland rain forests
 469	145	1	-	Australasia	New Britain-New Ireland montane rain forests
 470	164	2	-	Australasia	New Caledonia dry forests
@@ -535,7 +535,7 @@ row	eco_id	biome	sub	realm	name
 534	626	1	-	Oceania	Ogasawara subtropical moist forests
 535	419	11	alpine_tundra	Nearctic	Ogilvie-MacKenzie alpine tundra
 536	362	5	ponderosa	Nearctic	Okanogan dry forests
-537	715	6	-	Palearctic	Okhotsk-Manchurian taiga
+537	715	6	dark_taiga	Palearctic	Okhotsk-Manchurian taiga
 538	761	10	desert_steppe	Palearctic	Ordos Plateau steppe
 539	488	1	swamp	Neotropic	Orinoco Delta swamp forests
 540	583	9	-	Neotropic	Orinoco wetlands
@@ -545,7 +545,7 @@ row	eco_id	biome	sub	realm	name
 544	420	11	-	Nearctic	Pacific Coastal Mountain icefields and tundra
 545	627	1	-	Oceania	Palau tropical moist forests
 546	262	1	-	Indomalayan	Palawan rain forests
-547	398	8	-	Nearctic	Palouse prairie
+547	398	8	palouse	Nearctic	Palouse prairie
 548	762	10	alpine_desert	Palearctic	Pamir alpine desert and tundra
 549	541	2	-	Neotropic	Panamanian dry forests
 550	674	4	-	Palearctic	Pannonian mixed forests
@@ -597,7 +597,7 @@ row	eco_id	biome	sub	realm	name
 596	86	10	paramo	Afrotropic	Rwenzori-Virunga montane moorlands
 597	745	9	salt	Palearctic	Saharan halophytics
 598	53	7	sahel	Afrotropic	Sahelian Acacia savanna
-599	716	6	-	Palearctic	Sakhalin Island taiga
+599	716	6	dark_taiga	Palearctic	Sakhalin Island taiga
 600	629	1	-	Oceania	Samoan tropical moist forests
 601	562	4	-	Neotropic	San Félix-San Ambrosio Islands temperate forests
 602	607	13	cactus	Neotropic	San Lucan xeric scrub
@@ -608,7 +608,7 @@ row	eco_id	biome	sub	realm	name
 607	679	4	hemiboreal	Palearctic	Sarmatic mixed forests
 608	764	10	alpine_tundra	Palearctic	Sayan alpine meadows and tundra
 609	736	8	-	Palearctic	Sayan Intermontane steppe
-610	707	5	-	Palearctic	Sayan montane conifer forests
+610	707	5	dark_taiga	Palearctic	Sayan montane conifer forests
 611	717	6	-	Palearctic	Scandinavian and Russian taiga
 612	708	5	rainforest	Palearctic	Scandinavian coastal conifer forests
 613	780	11	mountain_birch	Palearctic	Scandinavian Montane Birch forest and grasslands
@@ -696,8 +696,8 @@ row	eco_id	biome	sub	realm	name
 695	275	1	-	Indomalayan	Sri Lanka montane rain forests
 696	609	13	-	Neotropic	St. Peter and St. Paul Rocks
 697	110	13	karoo	Afrotropic	Succulent Karoo xeric shrublands
-698	74	9	-	Afrotropic	Sudd flooded grasslands
-699	746	9	-	Palearctic	Suiphun-Khanka meadows and forest meadows
+698	74	9	papyrus	Afrotropic	Sudd flooded grasslands
+699	746	9	wet_meadow	Palearctic	Suiphun-Khanka meadows and forest meadows
 700	766	10	-	Palearctic	Sulaiman Range alpine meadows
 701	157	1	-	Australasia	Sulawesi montane rain forests
 702	276	1	-	Indomalayan	Sulu Archipelago rain forests
@@ -758,7 +758,7 @@ row	eco_id	biome	sub	realm	name
 757	512	1	-	Neotropic	Ucayali moist forests
 758	287	1	monsoon	Indomalayan	Upper Gangetic Plains moist deciduous forests
 759	343	4	oak_savanna	Nearctic	Upper Midwest US forest-savanna transition
-760	719	6	-	Palearctic	Urals montane forest and taiga
+760	719	6	dark_taiga	Palearctic	Urals montane forest and taiga
 761	574	7	pampas	Neotropic	Uruguayan savanna
 762	685	4	-	Palearctic	Ussuri broadleaf and mixed forests
 763	563	4	rainforest	Neotropic	Valdivian temperate forests
@@ -845,4 +845,4 @@ row	eco_id	biome	sub	realm	name
 844	8	1	-	Afrotropic	East African montane forests
 845	9	1	-	Afrotropic	Eastern Arc forests
 846	220	1	-	Indomalayan	Borneo montane rain forests
-847	313	10	-	Indomalayan	Kinabalu montane alpine meadows
+847	313	10	tropical_alpine	Indomalayan	Kinabalu montane alpine meadows

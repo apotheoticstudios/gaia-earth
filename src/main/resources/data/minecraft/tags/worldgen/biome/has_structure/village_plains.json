@@ -16,6 +16,7 @@
     "gaia-earth:moorland",
     "gaia-earth:oak_savanna",
     "gaia-earth:oak_woodland",
+    "gaia-earth:palouse_prairie",
     "gaia-earth:pampas",
     "gaia-earth:paramo",
     "gaia-earth:patagonian_steppe",
@@ -27,6 +28,8 @@
     "gaia-earth:tallgrass_prairie",
     "gaia-earth:temperate_steppe",
     "gaia-earth:terai_grassland",
-    "gaia-earth:tussock_grassland"
+    "gaia-earth:tropical_alpine_grassland",
+    "gaia-earth:tussock_grassland",
+    "gaia-earth:wet_meadow"
   ]
 }

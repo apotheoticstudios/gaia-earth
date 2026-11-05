@@ -111,5 +111,12 @@
   "biome.gaia-earth.atlantic_forest": "Atlantic Forest",
   "biome.gaia-earth.tepui": "Tepui",
   "biome.gaia-earth.heath_forest": "Heath Forest",
-  "biome.gaia-earth.wet_tundra": "Wet Tundra"
+  "biome.gaia-earth.wet_tundra": "Wet Tundra",
+  "biome.gaia-earth.brigalow_scrub": "Brigalow Scrub",
+  "biome.gaia-earth.tropical_alpine_grassland": "Tropical Alpine Grassland",
+  "biome.gaia-earth.sawgrass_marsh": "Sawgrass Marsh",
+  "biome.gaia-earth.papyrus_swamp": "Papyrus Swamp",
+  "biome.gaia-earth.wet_meadow": "Wet Meadow",
+  "biome.gaia-earth.palouse_prairie": "Palouse Prairie",
+  "biome.gaia-earth.dark_taiga": "Dark Taiga"
 }

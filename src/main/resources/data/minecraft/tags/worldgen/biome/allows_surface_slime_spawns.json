@@ -3,8 +3,10 @@
   "values": [
     "gaia-earth:cypress_swamp",
     "gaia-earth:flooded_grassland",
+    "gaia-earth:papyrus_swamp",
     "gaia-earth:peat_bog",
     "gaia-earth:salt_marsh",
+    "gaia-earth:sawgrass_marsh",
     "gaia-earth:swamp_forest"
   ]
 }

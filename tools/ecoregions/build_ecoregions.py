@@ -159,6 +159,20 @@ SUBS = {
     'heath_forest': {281},
     # Wet tundra: the Arctic's flat coastal tundra of sedge, moss and thaw lakes.
     'wet_tundra': {407, 784, 775, 781, 414},
+    # Brigalow: Queensland's acacia scrub.
+    'brigalow': {182},
+    # Tropical alpine grassland: New Guinea's and Kinabalu's grass and heath above the forest.
+    'tropical_alpine': {195, 313},
+    # Sawgrass marsh: the Everglades.
+    'sawgrass': {581},
+    # Papyrus swamp: the Sudd.
+    'papyrus': {74},
+    # Wet meadow: the Amur's, the Nenjiang's and Lake Khanka's meadows.
+    'wet_meadow': {741, 743, 746},
+    # Palouse prairie: the bunchgrass hills of the inland Northwest.
+    'palouse': {398},
+    # Dark taiga: the fir, spruce and Siberian pine of the Russian Far East, Sakhalin, the Urals, the Sayan and the Altai.
+    'dark_taiga': {715, 716, 719, 707, 690},
 }
 # Laurel forests (laurisilva): warm-temperate evergreen broadleaf, in East Asia and on the Atlantic islands; the
 # temperate broadleaf ecoregions named "evergreen", and the Azores'.
