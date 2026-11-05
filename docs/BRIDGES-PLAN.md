@@ -131,8 +131,10 @@ Not yet:
 - Which end a drawbridge is hinged at (in none of the data): its end nearer the run's start. Its portal stands on the
   leaf's first metre and a half, not on the abutment behind, and its beams don't reach back past it.
 - A bascule's counterweight and pit, a lift bridge's towers, a swing bridge's pivot: their leaves only.
-- The world's canal water in Delft stands about 0.8 m above Delfland's boezem level (0.38 m against NAP -0.43 m), so
-  a canal bridge looks lower over the water in the game than it is.
+- Canal water at its real level only where a water level overlay gives one (water surface version 4,
+  `tools/overlay/water_levels_nl.py`): central Delft's canals stand at Delfland's boezem level, NAP -0.43 m (632 of 632
+  columns checked). Elsewhere water stands where the elevation puts it (in Delft that was about 0.8 m too high), and
+  the bridge code's own water lookups still read that.
 - Trusses' top bracing and portals (AHN reads bracing between the IJsselspoorbrug's top chords), and verticals where a
   Warren truss has them: the data names none.
 - A bridge reaching more than 24 map tiles past a chunk's own (30 km or so) is cut where the chunk stops reading
