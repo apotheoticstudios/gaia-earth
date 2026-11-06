@@ -5259,6 +5259,10 @@ final class SelfTest {
 			check(!overworld.getBlockState(base.above(2)).is(RealEarth.PORTAL), "portal collapses when its frame is broken");
 			overworld.setBlock(base.east(-1).above(1), Blocks.LAPIS_BLOCK.defaultBlockState(), Block.UPDATE_ALL);
 			PortalFrame.find(overworld, base).ifPresent(r -> PortalFrame.light(overworld, r));
+			if (RealEarth.earthIsOverworld(server)) {
+				// The Earth world type: the Overworld is Earth and portals lead nowhere (checked in Dry country), so no trip.
+				return;
+			}
 
 			Entity traveller = EntityType.ARMOR_STAND.create(overworld, EntitySpawnReason.COMMAND);
 			traveller.setPos(base.getX() + 1.0, base.getY(), base.getZ() + 0.5);
