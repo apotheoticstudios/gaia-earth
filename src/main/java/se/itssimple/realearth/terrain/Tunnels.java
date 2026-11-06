@@ -495,7 +495,7 @@ public final class Tunnels {
 					continue;
 				}
 				double floorMeters = run.floorAt(near[0]);
-				int floorY = (int) Math.round(field.toY(floorMeters, t.latitude[k])) - 1;
+				int floorY = (int) Math.round(field.toY(floorMeters, t.latitude[k], t.longitude[k])) - 1;
 				boolean bore = d <= half + 1;
 				if (!bore && t.tunnel[k] != 0) {
 					continue;

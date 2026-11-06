@@ -325,7 +325,7 @@ final class Buildings {
 			int climate = koppen == null ? 0 : koppen.classAt(lat, lon);
 			long id = BuildingPlan.idOf(c.tileX(), c.tileY(), c.building());
 			Use use = classify(field, c, centre, area);
-			BuildingPlan plan = BuildingPlan.of(id, c.blockRings(), floor, lat, heightMeters(details, c), c.building().colour(), detail(details, c),
+			BuildingPlan plan = BuildingPlan.of(id, c.blockRings(), floor, lat, lon, heightMeters(details, c), c.building().colour(), detail(details, c),
 				raised(field, c, details), area, field, style(climate),
 				doors(c, lat), storeyMeters, maxFloors, use.use(), use.hall(), use.shops(), c.tileX(), c.tileY());
 			if (!t.degraded) {

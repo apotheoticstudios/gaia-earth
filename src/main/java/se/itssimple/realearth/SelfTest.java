@@ -132,11 +132,42 @@ final class SelfTest {
 			TerrainField field = RealEarth.terrain();
 			VerticalScale scale = field.scale();
 
-			check(Math.abs(scale.toY(0) - VerticalScale.SEA_LEVEL_Y) < 1e-9, "sea level maps to Y %d", VerticalScale.SEA_LEVEL_Y);
-			check(Math.abs(scale.toY(1000) - (VerticalScale.SEA_LEVEL_Y + 1000)) < 1e-9, "1000 m maps to sea level + 1000 blocks");
-			check(scale.toY(8849) <= VerticalScale.MAX_Y && scale.toY(8849) > VerticalScale.MAX_Y - 20, "Everest fits under the build limit: Y %.1f", scale.toY(8849));
-			check(scale.toY(-10994) >= VerticalScale.MIN_Y, "Challenger Deep fits above the floor: Y %.1f", scale.toY(-10994));
-			check(Math.abs(scale.toElevation(scale.toY(4000)) - 4000) < 0.01, "vertical scale round-trips at 4000 m");
+			int seaY = RealEarth.earthLevel(server).getSeaLevel();
+			check(scale.layout() == VerticalScale.LAYOUT && seaY == VerticalScale.SEA_LEVEL_Y,
+				"a new world has layout %d, its sea at Y %d (sea level %d)", scale.layout(), VerticalScale.SEA_LEVEL_Y, seaY);
+			{
+				// Older worlds' layout, unchanged: true to scale between the knees, eased beyond them.
+				VerticalScale old = new VerticalScale(2800, -600);
+				check(Math.abs(old.toY(0) - VerticalScale.LEGACY_SEA_LEVEL_Y) < 1e-9 && Math.abs(old.toY(1000) - (VerticalScale.LEGACY_SEA_LEVEL_Y + 1000)) < 1e-9,
+					"layout 0: sea level at Y %d, 1000 m 1000 blocks above it", VerticalScale.LEGACY_SEA_LEVEL_Y);
+				check(old.toY(8849) <= VerticalScale.MAX_Y && old.toY(8849) > VerticalScale.MAX_Y - 20, "layout 0: Everest fits under the build limit: Y %.1f", old.toY(8849));
+				check(old.toY(-10994) >= VerticalScale.MIN_Y, "layout 0: Challenger Deep fits above the floor: Y %.1f", old.toY(-10994));
+				check(Math.abs(old.toElevation(old.toY(4000)) - 4000) < 0.01, "layout 0: round-trips at 4000 m");
+			}
+			{
+				// This world's: land true to scale, a range too tall to fit scaled down whole, its highest ground just under the limit.
+				Projection p = field.projection();
+				check(Math.abs(field.toY(0, 59.33, 18.07) - VerticalScale.SEA_LEVEL_Y) < 1e-9 && Math.abs(field.toY(1000, 59.33, 18.07) - (VerticalScale.SEA_LEVEL_Y + 1000)) < 0.05,
+					"sea level at Y %d; 1000 m 1000 blocks above it in Stockholm", VerticalScale.SEA_LEVEL_Y);
+				double blanc = field.verticalPerMeter(45.8326, 6.8652) / p.blocksPerMeter(45.8326);
+				check(blanc == 1.0, "Mont Blanc fits true to scale here (x%.3f, Y %.0f)", blanc, field.toY(4806, 45.8326, 6.8652));
+				for (double[] q : List.of(new double[] {8849, 27.9881, 86.9250}, new double[] {8611, 35.8808, 76.5155}, new double[] {6190, 63.0692, -151.0070},
+					new double[] {6961, -32.6532, -70.0109}, new double[] {4892, -78.5254, -85.6171})) {
+					double y = field.toY(q[0], q[1], q[2]);
+					double factor = field.verticalPerMeter(q[1], q[2]) / p.blocksPerMeter(q[1]);
+					check(y <= VerticalScale.MAX_Y - 2 && y > VerticalScale.MAX_Y - 500 && factor < 1,
+						"%.0f m at %.2f, %.2f scaled x%.3f to fit, its top at Y %.0f", q[0], q[1], q[2], factor, y);
+				}
+				// Everest and Lhotse, 3 km apart, share the range's factor: the range keeps its shape.
+				double everest = field.verticalPerMeter(27.9881, 86.9250);
+				double lhotse = field.verticalPerMeter(27.9617, 86.9333);
+				check(Math.abs(everest / lhotse - 1) < 0.002, "Everest and Lhotse scaled alike (x%.4f, x%.4f)", everest / p.blocksPerMeter(27.9881), lhotse / p.blocksPerMeter(27.9617));
+				check(field.toY(-10994, 11.35, 142.2) >= VerticalScale.MIN_Y + 6 && field.toY(-10994, 11.35, 142.2) < field.toY(-4000, 11.35, 142.2)
+					&& field.toY(-4000, 11.35, 142.2) < field.toY(-50, 11.35, 142.2),
+					"seabed eased above the floor, deeper still lower: Challenger Deep Y %.1f, 4 km Y %.1f", field.toY(-10994, 11.35, 142.2), field.toY(-4000, 11.35, 142.2));
+				check(Math.abs(field.toElevation(field.toY(6000, 27.99, 86.93), 27.99, 86.93) - 6000) < 0.01
+					&& Math.abs(field.toElevation(field.toY(-3000, 11.35, 142.2), 11.35, 142.2) + 3000) < 0.01, "heights round-trip, scaled or eased");
+			}
 			{
 				// A building's height: OpenFreeMap's 5 m stand-in, where nothing is mapped, gives way to Overture's.
 				var overture = new se.itssimple.realearth.osm.OsmDetail.Shape(List.of(), false, se.itssimple.realearth.osm.OsmDetail.Roof.NONE,
@@ -300,17 +331,17 @@ final class SelfTest {
 				check(coast < inland - 200, "snowline lower on Norway's wet coast (%.0f m) than inland in Jotunheimen (%.0f m)", coast, inland);
 
 				// Snow and ice follow it on any map, by real elevation (BiomeTemperatureMixin).
-				VerticalScale vs = new VerticalScale(2800, -600);
+				for (VerticalScale vs : List.of(new VerticalScale(2800, -600), new VerticalScale(VerticalScale.LAYOUT, 2800, -600))) {
 				List<Projection> maps = List.of(new Projection.WebMercator(59.3293), new Projection.WebMercator(0.0), new Projection.Sinusoidal(59.3293, 18.0686));
 				java.util.function.BiFunction<Projection, double[], Float> at = (p, q) -> {
-					double y = vs.toY(q[2] * p.blocksPerMeter(q[0]));
+					double y = vs.toY(q[2] * vs.blocksPerMeter(q[0], q[1], p.blocksPerMeter(q[0])));
 					BlockPos pos = BlockPos.containing(p.blockX(q[0], q[1]), y, p.blockZ(q[0]));
 					return new ClimateLink.Shape(p, vs).temperature((float) q[3], pos);
 				};
 				// The Grand Canyon's South Rim: pine forest (taiga, 0.25) at 2,100 m with no lasting snow, on every map.
 				for (Projection p : maps) {
 					float t = at.apply(p, new double[] {36.06, -112.11, 2100, 0.25});
-					check(t >= 0.15F, "%s: rain, not snow, in the forest on the South Rim (%.3f)", p.id(), t);
+					check(t >= 0.15F, "%s, layout %d: rain, not snow, in the forest on the South Rim (%.3f)", p.id(), vs.layout(), t);
 				}
 				// The same real elevation is as cold on every map, also where heights are eased (Kilimanjaro, 5,000 m),
 				// to within the height of one block there: eased blocks span up to ~20 m.
@@ -322,11 +353,20 @@ final class SelfTest {
 						float t = at.apply(p, q);
 						lo = Math.min(lo, t);
 						hi = Math.max(hi, t);
-						double y = Math.floor(vs.toY(q[2] * p.blocksPerMeter(q[0])));
-						block = Math.max(block, (vs.toElevation(y + 1) - vs.toElevation(y)) / p.blocksPerMeter(q[0]));
+						double vertical = vs.blocksPerMeter(q[0], q[1], p.blocksPerMeter(q[0]));
+						double y = Math.floor(vs.toY(q[2] * vertical));
+						block = Math.max(block, (vs.toElevation(y + 1) - vs.toElevation(y)) / vertical);
 					}
-					check(hi - lo <= block * 0.25 * 0.05 / 40 + 1e-4, "%.0f m at %.2f, %.2f is as cold on every map (%.4f to %.4f; a block is %.1f m)",
-						q[2], q[0], q[1], lo, hi, block);
+					check(hi - lo <= block * 0.25 * 0.05 / 40 + 1e-4, "layout %d: %.0f m at %.2f, %.2f is as cold on every map (%.4f to %.4f; a block is %.1f m)",
+						vs.layout(), q[2], q[0], q[1], lo, hi, block);
+				}
+				if (vs.layout() == 0) {
+					// No step where the vertical scale starts to ease (2,800 m on a one-metre map).
+					Projection one = maps.get(2);
+					float below = at.apply(one, new double[] {28.0, 86.9, 2799.5, 0.5});
+					float above = at.apply(one, new double[] {28.0, 86.9, 2800.5, 0.5});
+					check(Math.abs(below - above) < 0.001F, "no step in temperature at the vertical scale's knee (%.4f, %.4f)", below, above);
+				}
 				}
 				// Snow just above the snowline whatever the biome, rain well below it.
 				double line = BiomePicker.snowlineMeters(46.0, 8.0);
@@ -341,11 +381,6 @@ final class SelfTest {
 				double iceCap = BiomePicker.snowlineMeters(-80.0, 0.0);
 				check(BiomePicker.heightTemperature(0.8F, iceCap - 1000, -80.0, 0.0) < 0.15F,
 					"Antarctica's ice-cap climate keeps its snow 1,000 m below the snowline (%.0f m)", iceCap);
-				// No step where the vertical scale starts to ease (2,800 m on a one-metre map).
-				Projection one = maps.get(2);
-				float below = at.apply(one, new double[] {28.0, 86.9, 2799.5, 0.5});
-				float above = at.apply(one, new double[] {28.0, 86.9, 2800.5, 0.5});
-				check(Math.abs(below - above) < 0.001F, "no step in temperature at the vertical scale's knee (%.4f, %.4f)", below, above);
 			}
 
 			List<Place> places = List.of(
@@ -450,8 +485,8 @@ final class SelfTest {
 					maxTop = Math.max(maxTop, c.groundTop());
 				}
 				log("LOD patch 64x64 x 256 m around Kebnekaise in %d ms: highest %.0f m, %d forested, surfaces %s", ms,
-					field.toElevation(maxTop, 67.9), trees, surfaces);
-				check(field.toElevation(maxTop, 67.9) > 1500 && surfaces.containsKey("snow_block") && trees > 0,
+					field.toElevation(maxTop, 67.9, 18.55), trees, surfaces);
+				check(field.toElevation(maxTop, 67.9, 18.55) > 1500 && surfaces.containsKey("snow_block") && trees > 0,
 					"LOD patch has mountains, snow and forest");
 			}
 
@@ -2284,7 +2319,7 @@ final class SelfTest {
 					double spacing = Mercator.sampleSpacingMeters(lat);
 					double truth = data.heights().stream().filter(o -> Math.hypot(o[0] - h[0], o[1] - h[1]) * spacing <= 3).mapToDouble(o -> o[2]).min()
 						.orElse(h[2]);
-					double diff = top - field.toY(truth, lat);
+					double diff = top - field.toY(truth, lat, lon);
 					measured++;
 					close += Math.abs(diff) <= 1 ? 1 : 0;
 					off.merge((int) Math.round(diff), 1, Integer::sum);
@@ -2339,6 +2374,7 @@ final class SelfTest {
 					double ux = (line[line.length - 2] - ax) / far;
 					double uy = (line[line.length - 1] - ay) / far;
 					double lat = Mercator.latitudeOfSampleY(ay);
+					double lon = (ax + 0.5) / Mercator.SAMPLES_PER_AXIS * 360.0 - 180.0;
 					double spacing = Mercator.sampleSpacingMeters(lat);
 					double perMeter = field.projection().blocksPerMeter(lat);
 					int x0 = Integer.MAX_VALUE;
@@ -2397,8 +2433,8 @@ final class SelfTest {
 					clear.sort(null);
 					water.sort(null);
 					// The leaf's underside (its slab's bottom face), metres above NAP, over the boezem level.
-					double perY = field.toY(1, lat) - field.toY(0, lat);
-					double clearance = clear.isEmpty() ? Double.NaN : (clear.get(clear.size() / 2) - field.toY(0, lat)) / perY + 0.43;
+					double perY = field.toY(1, lat, lon) - field.toY(0, lat, lon);
+					double clearance = clear.isEmpty() ? Double.NaN : (clear.get(clear.size() / 2) - field.toY(0, lat, lon)) / perY + 0.43;
 					log("the Koepoortbrug: %.1f m of open water under its leaf; its underside %.1f m over the boezem level (middle of %d columns), the world's "
 						+ "canal there at %.2f m; %d upright and %d beam columns overhead", leaf, clearance, clear.size(), water.isEmpty() ? Float.NaN : water.get(water.size() / 2),
 						uprights, beams);
@@ -2445,7 +2481,7 @@ final class SelfTest {
 							}
 							canal++;
 							meters.add(c.waterMeters[k]);
-							level += c.waterTopY[k] == (int) Math.round(field.toY(-0.43, c.latitude[k])) - 1 ? 1 : 0;
+							level += c.waterTopY[k] == (int) Math.round(field.toY(-0.43, c.latitude[k], c.longitude[k])) - 1 ? 1 : 0;
 						}
 					}
 				}
@@ -2744,7 +2780,7 @@ final class SelfTest {
 								.orElse(Double.NaN);
 							if (!Double.isNaN(truth)) {
 								int built = lowest - c.waterTopY[k] - 1;
-								int measured = (int) Math.round(field.toY(truth, c.latitude[k])) - 3 - c.waterTopY[k];
+								int measured = (int) Math.round(field.toY(truth, c.latitude[k], c.longitude[k])) - 3 - c.waterTopY[k];
 								overWater++;
 								clear += Math.abs(built - measured) <= 1 ? 1 : 0;
 								off.merge(built - measured, 1, Integer::sum);
@@ -4134,8 +4170,8 @@ final class SelfTest {
 				var back = se.itssimple.realearth.api.RealEarthApi.latLon(earth, column.x(), column.z()).orElseThrow();
 				check(Math.abs(back.latitude() - 59.3293) < 1e-6 && Math.abs(back.longitude() - 18.0686) < 1e-6,
 					"the API: lat/lon to block and back (%.7f, %.7f)", back.latitude(), back.longitude());
-				double y = se.itssimple.realearth.api.RealEarthApi.yOf(earth, 25, column.z()).orElseThrow();
-				double m = se.itssimple.realearth.api.RealEarthApi.elevationMeters(earth, y, column.z()).orElseThrow();
+				double y = se.itssimple.realearth.api.RealEarthApi.yOf(earth, 25, column.x(), column.z()).orElseThrow();
+				double m = se.itssimple.realearth.api.RealEarthApi.elevationMeters(earth, column.x(), y, column.z()).orElseThrow();
 				check(Math.abs(m - 25) < 1e-6, "elevation to Y and back (25 m -> Y %.1f -> %.3f m)", y, m);
 				check(!se.itssimple.realearth.api.RealEarthApi.isEarth(server.overworld()) || RealEarth.earthIsOverworld(server),
 					"the API answers nothing outside the Earth");
@@ -4476,7 +4512,7 @@ final class SelfTest {
 						int x = cx * 16 + 8;
 						int z = cz * 16 + 8;
 						BlockPos top = new BlockPos(x, chunk.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, 8, 8) + 1, z);
-						BlockPos low = new BlockPos(x, VerticalScale.SEA_LEVEL_Y - 60, z);
+						BlockPos low = new BlockPos(x, earth.getSeaLevel() - 60, z);
 						for (long seed = 0; seed < 200; seed++) {
 							surface += net.minecraft.world.entity.monster.Slime.checkSlimeSpawnRules(net.minecraft.world.entity.EntityType.SLIME, earth,
 								net.minecraft.world.entity.EntitySpawnReason.NATURAL, top, net.minecraft.util.RandomSource.create(seed)) ? 1 : 0;
@@ -5132,7 +5168,7 @@ final class SelfTest {
 						lodMax = Math.max(lodMax, col.groundTop());
 					}
 					log("distant terrain over central Paris: highest column Y %d", lodMax);
-					check(lodMax < VerticalScale.SEA_LEVEL_Y + 300, "distant Paris has no towering columns (highest Y %d)", lodMax);
+					check(lodMax < RealEarth.terrain().scale().seaLevelY() + 300, "distant Paris has no towering columns (highest Y %d)", lodMax);
 				} catch (Exception e) {
 					check(false, "distant Paris: %s", e);
 				}
@@ -5179,9 +5215,9 @@ final class SelfTest {
 			int surface = RealEarth.surfaceY(earth, Heightmap.Types.WORLD_SURFACE, ox, oz);
 			int floor = RealEarth.surfaceY(earth, Heightmap.Types.OCEAN_FLOOR, ox, oz);
 			BlockState top = earth.getBlockState(new BlockPos(ox, floor - 1, oz));
-			check(surface > VerticalScale.SEA_LEVEL_Y - 200 && surface < VerticalScale.SEA_LEVEL_Y + 200,
+			check(surface > earth.getSeaLevel() - 200 && surface < earth.getSeaLevel() + 200,
 				"start surface Y %d (%.0f m), floor block %s, biome %s", surface,
-				RealEarth.terrain().toElevation(surface, RealEarth.terrain().projection().latitudeAt(oz)),
+				RealEarth.terrain().elevationOfBlock(ox, surface, oz),
 				top, earth.getBiome(new BlockPos(ox, surface, oz)).unwrapKey().map(k -> k.identifier().toString()).orElse("?"));
 			int deepSections = 0;
 			for (var section : chunk.getSections()) {
@@ -5196,7 +5232,7 @@ final class SelfTest {
 				Entity probe = EntityType.ARMOR_STAND.create(earth, EntitySpawnReason.COMMAND);
 				check(PortalTravel.destination(earth, probe, BlockPos.ZERO) == null, "Earth world type: portals lead nowhere");
 				BlockPos spawn = earth.getRespawnData().globalPos().pos();
-				check(spawn.getY() > VerticalScale.SEA_LEVEL_Y - 40, "Earth world type: spawn on the ground at Y %d", spawn.getY());
+				check(spawn.getY() > earth.getSeaLevel() - 40, "Earth world type: spawn on the ground at Y %d", spawn.getY());
 				check(Math.abs(spawn.getX() - ox) < 200 && Math.abs(spawn.getZ() - oz) < 200,
 					"Earth world type: spawn at the start point (%d, %d; start %d, %d)", spawn.getX(), spawn.getZ(), ox, oz);
 				return;
@@ -5241,7 +5277,7 @@ final class SelfTest {
 			}
 			BlockPos at = arrived.blockPosition();
 			check(earth.getBlockState(at).is(RealEarth.PORTAL), "a return portal stands at the arrival point");
-			double elevation = RealEarth.terrain().toElevation(at.getY(), RealEarth.terrain().projection().latitudeAt(at.getZ()));
+			double elevation = RealEarth.terrain().elevationOfBlock(at.getX(), at.getY(), at.getZ());
 			check(Math.abs(at.getX() - (base.getX() + RealEarth.terrain().startX())) < 40 && Math.abs(at.getZ() - (base.getZ() + RealEarth.terrain().startZ())) < 40,
 				"portal leads to the same distance from Earth's start point");
 			log("arrived %.0f m above sea level at X %d Z %d", elevation, at.getX(), at.getZ());

@@ -102,24 +102,37 @@ public final class RealEarthApi {
 	}
 
 	/**
-	 * Real elevation above sea level, in metres, of a block height at block Z. Heights are drawn to the
-	 * same scale as distances, except where the world settings squeeze high mountains or deep seas.
+	 * Real elevation above sea level, in metres, of a block height at block X, Z. Heights are drawn to the
+	 * same scale as distances, except around ranges too tall to fit (scaled down whole) and in deep seas.
 	 */
-	public static OptionalDouble elevationMeters(Level level, double y, double z) {
+	public static OptionalDouble elevationMeters(Level level, double x, double y, double z) {
 		TerrainField field = field(level);
 		if (field == null) {
 			return OptionalDouble.empty();
 		}
-		return OptionalDouble.of(field.toElevation(y, field.projection().latitudeAt(z)));
+		return OptionalDouble.of(field.elevationOfBlock(x, y, z));
 	}
 
-	/** The block height of a real elevation in metres, at block Z: the inverse of {@link #elevationMeters}. */
-	public static OptionalDouble yOf(Level level, double meters, double z) {
+	/** The block height of a real elevation in metres, at block X, Z: the inverse of {@link #elevationMeters}. */
+	public static OptionalDouble yOf(Level level, double meters, double x, double z) {
 		TerrainField field = field(level);
 		if (field == null) {
 			return OptionalDouble.empty();
 		}
-		return OptionalDouble.of(field.toY(meters, field.projection().latitudeAt(z)));
+		double lat = field.projection().latitudeAt(z);
+		return OptionalDouble.of(field.toY(meters, lat, field.projection().longitudeAt(x, lat)));
+	}
+
+	/** @deprecated Wrong around ranges scaled down to fit, in worlds made since; use the form with X. */
+	@Deprecated
+	public static OptionalDouble elevationMeters(Level level, double y, double z) {
+		return elevationMeters(level, 0, y, z);
+	}
+
+	/** @deprecated Wrong around ranges scaled down to fit, in worlds made since; use the form with X. */
+	@Deprecated
+	public static OptionalDouble yOf(Level level, double meters, double z) {
+		return yOf(level, meters, 0, z);
 	}
 
 	/** Real ground elevation in metres at a block column, where its terrain has been worked out. */

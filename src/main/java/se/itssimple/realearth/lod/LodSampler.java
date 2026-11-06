@@ -225,8 +225,8 @@ public final class LodSampler {
 		// The world's biome, for its colours and its forest's leaves; vanilla's still decides the ground.
 		ResourceKey<Biome> earth = EarthBiomes.of(biome, cover, climate, lat, lon, ground, sea || inland ? 0 : land, riparian);
 		String earthLeaves = EarthBiomes.leaves(earth, lat);
-		int groundTop = (int) Math.round(field.toY(ground, lat)) - 1;
-		int waterTop = Double.isNaN(water) ? Integer.MIN_VALUE : (int) Math.round(field.toY(water, lat)) - 1;
+		int groundTop = (int) Math.round(field.toY(ground, lat, lon)) - 1;
+		int waterTop = Double.isNaN(water) ? Integer.MIN_VALUE : (int) Math.round(field.toY(water, lat, lon)) - 1;
 		if (waterTop <= groundTop) {
 			waterTop = Integer.MIN_VALUE;
 		}

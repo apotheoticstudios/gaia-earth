@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 
 /**
  * Slimes spawn in slime chunks below Y 40 and in swamps between Y 50 and 70: heights fixed for vanilla's
- * sea level at 63. On Earth the sea is at Y -1200, so all the land is "below 40" and slimes came out
+ * sea level at 63. On Earth the sea is at Y -1800 (-1200 in older worlds), so all the land is "below 40" and slimes came out
  * on the surface of every slime chunk. Measured from the level's own sea level instead, the same as in
  * vanilla: slime chunks 23 blocks below the sea, swamps round it. Vanilla worlds are unchanged.
  */

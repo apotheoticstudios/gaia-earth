@@ -16,7 +16,7 @@ public final class LakeSurface {
 	public static int seaLevel(LevelAccessor level, BlockPos pos) {
 		int sea = level.getSeaLevel();
 		// Only Earth's own sea level is changed; vanilla worlds keep theirs.
-		if (sea != VerticalScale.SEA_LEVEL_Y || pos.getY() <= sea) {
+		if (!VerticalScale.isEarthSeaLevel(sea) || pos.getY() <= sea) {
 			return sea;
 		}
 		BlockPos.MutableBlockPos p = pos.mutable();

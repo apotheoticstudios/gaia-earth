@@ -18,26 +18,27 @@ import se.itssimple.realearth.RealEarth;
  * the server. Sent once, on joining; in single player the client reads the server's own.
  */
 public final class ClimateLink {
-	/** A projection by its id and its one or two parameters, and the vertical scale's two knees. */
-	public record Payload(String projection, double latitude, double longitude, double compressAbove, double compressBelow) implements CustomPacketPayload {
+	/** A projection by its id and its one or two parameters, and the vertical scale's layout and two knees. */
+	public record Payload(String projection, double latitude, double longitude, int layout, double compressAbove, double compressBelow) implements CustomPacketPayload {
 		public static final Type<Payload> TYPE = new Type<>(RealEarth.id("map_shape"));
 		public static final StreamCodec<RegistryFriendlyByteBuf, Payload> CODEC = StreamCodec.composite(
 			ByteBufCodecs.STRING_UTF8, Payload::projection,
 			ByteBufCodecs.DOUBLE, Payload::latitude,
 			ByteBufCodecs.DOUBLE, Payload::longitude,
+			ByteBufCodecs.VAR_INT, Payload::layout,
 			ByteBufCodecs.DOUBLE, Payload::compressAbove,
 			ByteBufCodecs.DOUBLE, Payload::compressBelow,
 			Payload::new);
 
-		static Payload of(Projection projection, double compressAbove, double compressBelow) {
+		static Payload of(Projection projection, int layout, double compressAbove, double compressBelow) {
 			return projection instanceof Projection.WebMercator m
-				? new Payload(m.id(), m.scaleLatitude(), 0.0, compressAbove, compressBelow)
-				: new Payload(projection.id(), projection.originLatitude(), projection.originLongitude(), compressAbove, compressBelow);
+				? new Payload(m.id(), m.scaleLatitude(), 0.0, layout, compressAbove, compressBelow)
+				: new Payload(projection.id(), projection.originLatitude(), projection.originLongitude(), layout, compressAbove, compressBelow);
 		}
 
 		Shape shape() {
 			Projection p = "sinusoidal".equals(projection) ? new Projection.Sinusoidal(latitude, longitude) : new Projection.WebMercator(latitude);
-			return new Shape(p, new VerticalScale(compressAbove, compressBelow));
+			return new Shape(p, new VerticalScale(layout, compressAbove, compressBelow));
 		}
 
 		@Override
@@ -51,8 +52,9 @@ public final class ClimateLink {
 		/** The temperature that decides snow and ice at a block, from its biome's own. */
 		public float temperature(float base, BlockPos pos) {
 			double lat = projection.latitudeAt(pos.getZ() + 0.5);
-			double meters = scale.toElevation(pos.getY()) / projection.blocksPerMeter(lat);
-			return BiomePicker.heightTemperature(base, meters, lat, projection.longitudeAt(pos.getX() + 0.5, lat));
+			double lon = projection.longitudeAt(pos.getX() + 0.5, lat);
+			double meters = scale.toElevation(pos.getY()) / scale.blocksPerMeter(lat, lon, projection.blocksPerMeter(lat));
+			return BiomePicker.heightTemperature(base, meters, lat, lon);
 		}
 	}
 
@@ -74,8 +76,8 @@ public final class ClimateLink {
 	}
 
 	/** The server's map, from its start until it stops. */
-	public static void serve(Projection projection, double compressAbove, double compressBelow) {
-		Payload p = Payload.of(projection, compressAbove, compressBelow);
+	public static void serve(Projection projection, int layout, double compressAbove, double compressBelow) {
+		Payload p = Payload.of(projection, layout, compressAbove, compressBelow);
 		server = p.shape();
 		served = p;
 	}

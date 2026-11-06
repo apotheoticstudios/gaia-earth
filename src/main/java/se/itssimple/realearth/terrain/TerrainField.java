@@ -117,16 +117,28 @@ public final class TerrainField implements AutoCloseable {
 	}
 
 	/**
-	 * Block Y of an elevation in metres at a latitude. Heights follow the projection's horizontal
-	 * scale, so terrain keeps its true proportions wherever the map is enlarged or shrunk.
+	 * Block Y of an elevation in metres at a place. Heights follow the projection's horizontal scale, so
+	 * terrain keeps its true proportions wherever the map is enlarged or shrunk, except around ranges too
+	 * tall to fit, scaled down whole (VerticalScale).
 	 */
-	public double toY(double meters, double latitude) {
-		return scale.toY(meters * projection.blocksPerMeter(latitude));
+	public double toY(double meters, double latitude, double longitude) {
+		return scale.toY(meters * verticalPerMeter(latitude, longitude));
 	}
 
-	/** Elevation in metres of a block Y at a latitude: the inverse of {@link #toY}. */
-	public double toElevation(double y, double latitude) {
-		return scale.toElevation(y) / projection.blocksPerMeter(latitude);
+	/** Elevation in metres of a block Y at a place: the inverse of {@link #toY}. */
+	public double toElevation(double y, double latitude, double longitude) {
+		return scale.toElevation(y) / verticalPerMeter(latitude, longitude);
+	}
+
+	/** Elevation in metres of a block position. */
+	public double elevationOfBlock(double x, double y, double z) {
+		double lat = projection.latitudeAt(z);
+		return toElevation(y, lat, projection.longitudeAt(x, lat));
+	}
+
+	/** Blocks per metre of height at a place. */
+	public double verticalPerMeter(double latitude, double longitude) {
+		return scale.blocksPerMeter(latitude, longitude, projection.blocksPerMeter(latitude));
 	}
 
 	public TileStore store() {
@@ -422,12 +434,13 @@ public final class TerrainField implements AutoCloseable {
 		if (!projection.onGlobe(midLat, projection.longitudeOffsetAt(nearX, midLat))
 			|| Math.abs(midLat) >= Mercator.MAX_LATITUDE) return CompletableFuture.completedFuture(MappedCurrents.EMPTY);
 		double reference = Mercator.sampleX(projection.longitudeAt(nearX, midLat));
-		double[] x = new double[256], y = new double[256], latitude = new double[256];
+		double[] x = new double[256], y = new double[256], latitude = new double[256], longitude = new double[256];
 		double minX = Double.POSITIVE_INFINITY, minY = Double.POSITIVE_INFINITY;
 		double maxX = Double.NEGATIVE_INFINITY, maxY = Double.NEGATIVE_INFINITY;
 		for (int i = 0; i < 256; i++) {
 			latitude[i] = projection.latitudeAt(chunkZ * 16 + (i >> 4) + 0.5);
-			x[i] = MappedCurrents.near(Mercator.sampleX(projection.longitudeAt(chunkX * 16 + (i & 15) + 0.5, latitude[i])), reference);
+			longitude[i] = projection.longitudeAt(chunkX * 16 + (i & 15) + 0.5, latitude[i]);
+			x[i] = MappedCurrents.near(Mercator.sampleX(longitude[i]), reference);
 			y[i] = Mercator.sampleY(latitude[i]);
 			minX = Math.min(minX, x[i]); maxX = Math.max(maxX, x[i]);
 			minY = Math.min(minY, y[i]); maxY = Math.max(maxY, y[i]);
@@ -470,8 +483,8 @@ public final class TerrainField implements AutoCloseable {
 					sample(tiles, x[i], y[i], sample);
 					if (Float.isNaN(sample[1])) angles[i] = CurrentAngle.NONE;
 					else {
-						surface[i] = (int) Math.round(toY(sample[1], latitude[i])) - 1;
-						int bed = (int) Math.round(toY(sample[0], latitude[i])) - 1;
+						surface[i] = (int) Math.round(toY(sample[1], latitude[i], longitude[i])) - 1;
+						int bed = (int) Math.round(toY(sample[0], latitude[i], longitude[i])) - 1;
 						depths[i] = (byte) Math.clamp(surface[i] - bed, 1, 16);
 						var direction = MappedCurrents.direction(directions.map()[i]);
 						double dx = direction.x * CURRENT_SLOPE_REACH;
@@ -1312,9 +1325,10 @@ public final class TerrainField implements AutoCloseable {
 			return;
 		}
 		double lat = t.latitude[k];
-		double y = toY(t.groundMeters[k], lat);
+		double lon = t.longitude[k];
+		double y = toY(t.groundMeters[k], lat, lon);
 		// Blocks climbed a block along the way.
-		double climb = t.grade[k] * (toY(t.groundMeters[k] + 0.5, lat) - toY(t.groundMeters[k] - 0.5, lat)) / projection.blocksPerMeter(lat);
+		double climb = t.grade[k] * (toY(t.groundMeters[k] + 0.5, lat, lon) - toY(t.groundMeters[k] - 0.5, lat, lon)) / projection.blocksPerMeter(lat);
 		double w = Math.min(0.5, climb * RAMP_BLOCKS / 2);
 		double floor = Math.floor(y);
 		double rise = w <= 0 ? (y - floor >= 0.5 ? 1 : 0) : Math.max(0, Math.min(1, (y - floor - 0.5 + w) / (2 * w)));
@@ -1342,9 +1356,9 @@ public final class TerrainField implements AutoCloseable {
 
 	/** Metres to blocks. The top solid block's upper face sits at the nearest whole Y to the ground. */
 	private void finishColumn(ChunkTerrain t, int k) {
-		int top = (int) Math.round(toY(t.groundMeters[k], t.latitude[k])) - 1;
+		int top = (int) Math.round(toY(t.groundMeters[k], t.latitude[k], t.longitude[k])) - 1;
 		if (!Float.isNaN(t.deckMeters[k])) {
-			double y = toY(t.deckMeters[k], t.latitude[k]);
+			double y = toY(t.deckMeters[k], t.latitude[k], t.longitude[k]);
 			int deck = (int) Math.round(y) - 1;
 			// A road deck climbs in sixteenths, as the ramps onto it do (smoothRoad).
 			int surface = (int) Math.round(y * 16);
@@ -1352,7 +1366,7 @@ public final class TerrainField implements AutoCloseable {
 			if (smooth) {
 				deck = Math.floorDiv(surface - 1, 16);
 			}
-			int below = Math.max(top, t.waterMeters[k] != t.waterMeters[k] ? top : (int) Math.round(toY(t.waterMeters[k], t.latitude[k])) - 1);
+			int below = Math.max(top, t.waterMeters[k] != t.waterMeters[k] ? top : (int) Math.round(toY(t.waterMeters[k], t.latitude[k], t.longitude[k])) - 1);
 			// A deck clears what is under it by at least two blocks, or it is no bridge; from road version 7 by one (a deck is
 			// laid where its overlay measures it, and canal bridges stand that low).
 			int clear = t.surveyedDeck[k] ? 0 : 2;
@@ -1361,13 +1375,13 @@ public final class TerrainField implements AutoCloseable {
 		}
 		t.topSolidY[k] = top;
 		if (!Float.isNaN(t.waterMeters[k])) {
-			int water = (int) Math.round(toY(t.waterMeters[k], t.latitude[k])) - 1;
+			int water = (int) Math.round(toY(t.waterMeters[k], t.latitude[k], t.longitude[k])) - 1;
 			// Where the map is shrunk, a metre of water is less than a block and could round away;
 			// mapped water always keeps at least one block.
 			if (water <= top) {
-				double perMeter = projection.blocksPerMeter(t.latitude[k]);
+				double perMeter = verticalPerMeter(t.latitude[k], t.longitude[k]);
 				t.groundMeters[k] = (float) Math.min(t.groundMeters[k], t.waterMeters[k] - 1.0 / perMeter);
-				top = Math.min(water - 1, (int) Math.round(toY(t.groundMeters[k], t.latitude[k])) - 1);
+				top = Math.min(water - 1, (int) Math.round(toY(t.groundMeters[k], t.latitude[k], t.longitude[k])) - 1);
 				t.topSolidY[k] = top;
 			}
 			t.waterTopY[k] = water;

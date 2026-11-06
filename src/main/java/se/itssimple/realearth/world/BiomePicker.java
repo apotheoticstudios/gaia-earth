@@ -5,6 +5,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.Biomes;
 import se.itssimple.realearth.climate.Koppen;
+import se.itssimple.realearth.climate.MetreGrid;
 import se.itssimple.realearth.climate.Snowline;
 import se.itssimple.realearth.landcover.WorldCover;
 
@@ -29,7 +30,7 @@ public final class BiomePicker {
 	 * central Alps, 1,500 m on Norway's west coast, 5,000 m and more in the tropics.
 	 */
 	public static double snowlineMeters(double latitude, double longitude) {
-		Snowline grid = Snowline.get();
+		MetreGrid grid = Snowline.get();
 		return grid != null ? grid.metersAt(latitude, longitude) : latitudeSnowlineMeters(latitude);
 	}
 

@@ -71,7 +71,7 @@ public final class Milestones {
 				}
 			}
 			if (player.onGround() && !player.isInWater()) {
-				double metres = field.scale().toElevation(player.getY());
+				double metres = field.toElevation(player.getY(), lat, lon);
 				if (metres >= THIN_AIR) {
 					award(player, "thin_air");
 				} else if (metres <= BELOW_SEA && earth.canSeeSky(player.blockPosition())) {

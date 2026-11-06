@@ -76,7 +76,7 @@ public final class HereLink {
 			double lon = field.projection().longitudeAt(player.getX(), lat);
 			String town = here == null ? (last == null ? "" : last.town()) : here.town() == null ? "" : here.town();
 			String district = here == null ? (last == null ? "" : last.district()) : here.district() == null ? "" : here.district();
-			now = new Payload(lat, lon, field.toElevation(player.getY(), lat), town, district);
+			now = new Payload(lat, lon, field.toElevation(player.getY(), lat, lon), town, district);
 		}
 		if (last != null && last.same(now)) {
 			return;

@@ -259,7 +259,7 @@ public final class EarthCommand {
 		Vec3 p = source.getPosition();
 		double lat = field.projection().latitudeAt(p.z);
 		double lon = field.projection().longitudeAt(p.x, lat);
-		double elevation = field.toElevation(p.y, lat);
+		double elevation = field.toElevation(p.y, lat, lon);
 		double metersPerBlock = 1.0 / field.projection().blocksPerMeter(lat);
 		String scale = Math.abs(metersPerBlock - 1.0) < 0.005 ? "" : String.format(Locale.ROOT, ", 1 block = %.2f m here", metersPerBlock);
 		var here = se.itssimple.realearth.world.Places.at(field, p.x, p.z);
@@ -369,7 +369,7 @@ public final class EarthCommand {
 				int y = RealEarth.surfaceY(earth, Heightmap.Types.MOTION_BLOCKING, open[0], open[1]);
 				player.teleportTo(earth, open[0] + 0.5, y, open[1] + 0.5, Set.of(), player.getYRot(), player.getXRot(), true);
 				double ground = field.groundMetersAt(open[0], open[1]);
-				double elevation = Double.isNaN(ground) ? field.toElevation(y, lat) : ground;
+				double elevation = Double.isNaN(ground) ? field.toElevation(y, lat, lon) : ground;
 				player.sendSystemMessage(Component.literal(String.format(Locale.ROOT, "Welcome to %.4f, %.4f, %.0f m above sea level. ", lat, lon, elevation))
 					.append(mapLink(lat, lon)));
 			}));

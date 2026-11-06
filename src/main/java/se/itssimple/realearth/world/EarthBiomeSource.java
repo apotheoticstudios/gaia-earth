@@ -140,7 +140,7 @@ public final class EarthBiomeSource extends BiomeSource {
 		se.itssimple.realearth.climate.Koppen koppen = se.itssimple.realearth.climate.Koppen.get();
 		int climate = koppen == null ? 0 : koppen.classAt(lat, lon);
 		ResourceKey<Biome> surface = EarthBiomes.of(BiomePicker.pick(lat, lon, elevation, sea, false, 0, climate, 0), 0, climate, lat, lon, elevation);
-		int depth = (int) Math.round(field.toY(elevation, lat)) - blockY;
+		int depth = (int) Math.round(field.toY(elevation, lat, lon)) - blockY;
 		return holder(underground(surface, GeoNoise.sample(lat, lon, 0.5, 21), depth));
 	}
 }

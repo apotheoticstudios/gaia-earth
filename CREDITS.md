@@ -198,6 +198,18 @@ grid of snowline heights every 0.1 degrees (`snowline.bin`): the summer temperat
 by precipitation, is read off the glaciers; the climate gives a snowline everywhere; glaciers correct it within
 about 200 km of them.
 
+## Mountain heights: CHELSA and the elevation tiles
+
+How high the highest ground near each place reaches, which in new worlds sets how far a range too tall for the
+build limit is scaled down.
+
+CHELSA V2.1's elevation grid (Karger et al. 2017, above; CC0 1.0), its summits measured in the Terrain Tiles
+and Mapterhorn's tiles (above).
+
+**Changes:** not bundled as published. `tools/relief/build_relief.py` keeps the highest point of each
+0.1 degree cell, raises each regional summit to its height in those tiles, and takes the highest within
+150 km, smoothed, every 0.2 degrees (`relief.bin`).
+
 ## Tree density: Crowther et al.
 
 How many trees stand on a hectare of woodland, which sets how far apart trees grow.

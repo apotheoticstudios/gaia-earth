@@ -1265,7 +1265,8 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 
 	@Override
 	public int getSeaLevel() {
-		return VerticalScale.SEA_LEVEL_Y;
+		TerrainField field = RealEarth.terrain();
+		return field == null ? VerticalScale.SEA_LEVEL_Y : field.scale().seaLevelY();
 	}
 
 	@Override
@@ -1285,7 +1286,7 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 			int k = ChunkTerrain.index(8, 8);
 			return Math.max(t.topSolidY[k], t.waterTopY[k]) + 1;
 		} catch (Exception e) {
-			return VerticalScale.SEA_LEVEL_Y + 1;
+			return field.scale().seaLevelY() + 1;
 		}
 	}
 
@@ -1311,8 +1312,8 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 		double lat = field.projection().latitudeAt(z + 0.5);
 		double lon = field.projection().longitudeAt(x + 0.5, lat);
 		double elevation = field.coarseElevationMeters(lat, lon);
-		int top = (int) Math.round(field.toY(elevation, lat)) - 1;
-		return new int[] {top, elevation < 0 ? VerticalScale.SEA_LEVEL_Y - 1 : Integer.MIN_VALUE};
+		int top = (int) Math.round(field.toY(elevation, lat, lon)) - 1;
+		return new int[] {top, elevation < 0 ? field.scale().seaLevelY() - 1 : Integer.MIN_VALUE};
 	}
 
 	/**
@@ -1354,7 +1355,7 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 		}
 		double lat = field.projection().latitudeAt(pos.getZ() + 0.5);
 		double lon = field.projection().longitudeAt(pos.getX() + 0.5, lat);
-		result.add(String.format(Locale.ROOT, "Project Gaia: Earth: %.5f, %.5f  elevation %.0f m", lat, lon, field.toElevation(pos.getY(), lat)));
+		result.add(String.format(Locale.ROOT, "Project Gaia: Earth: %.5f, %.5f  elevation %.0f m", lat, lon, field.toElevation(pos.getY(), lat, lon)));
 		result.add(se.itssimple.realearth.Credits.SHORT);
 	}
 }

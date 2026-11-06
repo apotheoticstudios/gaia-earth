@@ -21,7 +21,7 @@ import se.itssimple.realearth.world.EarthChunkGenerator;
  *
  * Ores, glow lichen, geodes, springs, sculk and the rest are placed at absolute
  * heights: diamonds around Y -59 under ground at about Y 64. On Earth the ground can be anywhere from
- * Y -1200 to 2000, so absolute heights would put every diamond inside mountains and none under the
+ * Y -1800 to 2000, so absolute heights would put every diamond inside mountains and none under the
  * lowlands. Here the height is drawn exactly as vanilla draws it -- in a vanilla-sized world, -64 to
  * 320 -- and then laid out as depth below the local ground, as it relates to vanilla's surface.
  */

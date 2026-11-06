@@ -14,6 +14,16 @@
 
 ### Terrain
 
+- **Land true to scale, tall ranges scaled down whole**: new worlds keep land one block per map metre right up to
+  the summits wherever they fit under the build limit, instead of easing every mountain above 2,800 m. A range too
+  tall to fit (the Himalaya and Karakoram, Alaska's, the high Andes, and toward the poles, where the map draws
+  everything larger, Greenland's, Svalbard's and Antarctica's) is scaled down by one factor, valleys and summits
+  alike, so it keeps its shape, only lower: its highest ground ends 150 blocks under the limit. The factor comes
+  from the highest ground within 150 km, its summits measured in the mod's own elevation tiles, and changes too
+  gradually to see. The sea moves down to Y -1800 with 232 blocks of ground under the lowlands instead of 832, so
+  far less stone is generated; water is true to scale to 100 blocks deep and eased below. Existing worlds keep
+  their layout (`verticalLayout` in the world's `realearth.json`). For other mods, `RealEarthApi.elevationMeters`
+  and `yOf` now take the block X as well.
 - **Lidar elevation** wherever there is national lidar: most of Europe, the USA, Japan, parts of Canada,
   Australia and New Zealand, from Mapterhorn's tiles. Bare ground surveyed at 0.25-10 m instead of 30 m radar
   and surface models: the Matterhorn's summit within a few metres of its 4,478 m (the old tiles were 190 m

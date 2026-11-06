@@ -78,7 +78,7 @@ final class RailTracks {
 			double lon = Projection.wrapLongitude(projection.originLongitude() + projection.longitudeOffsetAt(cells.get(i)[0] + 0.5, lat));
 			double m = heights.meters(Mercator.sampleX(lon), Mercator.sampleY(lat));
 			if (!Double.isNaN(m)) {
-				level[i] = (int) Math.round(field.toY(m, lat));
+				level[i] = (int) Math.round(field.toY(m, lat, lon));
 				known[i] = true;
 			}
 		}

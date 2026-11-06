@@ -19,7 +19,7 @@ import se.itssimple.realearth.world.ClimateLink;
  * blocks are not metres where the map is enlarged or shrunk, nor where heights are eased above the
  * knee -- so that rain turns to snow at the real snowline of its latitude, the same one the snowy
  * biomes follow (BiomePicker.heightTemperature). Recognised by sea level: only the Earth dimension
- * has its sea at Y -1200, and the value is part of the call on both client and server.
+ * has its sea at Y -1800 (-1200 in older worlds), and the value is part of the call on both client and server.
  */
 @Mixin(Biome.class)
 public abstract class BiomeTemperatureMixin {
@@ -27,7 +27,7 @@ public abstract class BiomeTemperatureMixin {
 
 	@Inject(method = "getHeightAdjustedTemperature", at = @At("RETURN"), cancellable = true)
 	private void realearth$realisticLapseRate(BlockPos pos, int seaLevel, CallbackInfoReturnable<Float> cir, @Local(ordinal = 0) float base) {
-		if (seaLevel != VerticalScale.SEA_LEVEL_Y) {
+		if (!VerticalScale.isEarthSeaLevel(seaLevel)) {
 			return;
 		}
 		ClimateLink.Shape shape = ClimateLink.current();

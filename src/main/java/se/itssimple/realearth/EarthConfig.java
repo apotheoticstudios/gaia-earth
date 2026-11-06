@@ -184,12 +184,14 @@ public final class EarthConfig {
 	public double maxLakeDepthMeters = 12.0;
 
 	/**
-	 * Real elevation above which mountains are compressed to fit under the build limit. Below this,
-	 * one block is exactly one metre; above it the scale eases off smoothly so Everest still fits.
+	 * Worlds made before mountains were scaled to fit by region (WorldSettings.verticalLayout 0) only: real
+	 * elevation above which mountains are compressed to fit under the build limit. Below this, one block is
+	 * exactly one metre; above it the scale eases off smoothly so Everest still fits. Newer worlds keep land
+	 * true to scale and scale a range too tall to fit down whole (terrain/VerticalScale).
 	 */
 	public double compressAboveMeters = 2800.0;
 
-	/** Ocean depth below which the seabed is compressed to fit above the bottom of the world. */
+	/** Those worlds only: ocean depth below which the seabed is compressed to fit above the bottom of the world. */
 	public double compressBelowMeters = -600.0;
 
 	/** Permission level needed for /earth tp. 0 lets everyone use it. */

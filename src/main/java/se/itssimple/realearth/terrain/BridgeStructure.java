@@ -226,8 +226,8 @@ final class BridgeStructure {
 		}
 		// Its feet on the first block above the water (or the ground); its crown just under the deck: a masonry arch's
 		// opening up to the deck (the deck its ring there, where a canal bridge has no room for more), a rib's top touching it.
-		double springing = Math.round(field.toY(feet, t.latitude[k]));
-		double crownUnder = Math.round(field.toY(r.heightAt(mid / spacing), t.latitude[k])) - 2;
+		double springing = Math.round(field.toY(feet, t.latitude[k], t.longitude[k]));
+		double crownUnder = Math.round(field.toY(r.heightAt(mid / spacing), t.latitude[k], t.longitude[k])) - 2;
 		double spanBlocks = span.length() * perMeter;
 		boolean masonry = material == STONE || material == BRICK;
 		int ring = (int) Math.max(1, Math.round(spanBlocks / (masonry ? 15 : 60)));

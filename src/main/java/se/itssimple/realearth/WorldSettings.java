@@ -54,6 +54,11 @@ public final class WorldSettings {
 	 * haunches a beam span over 76 m (deep at its piers, shallow at its middle) and clears it under its girder's middle.
 	 */
 	public int roadVersion;
+	/**
+	 * 0 has the sea at Y -1200 on 832 blocks of ground, and eases mountains off above EarthConfig.compressAboveMeters; 1 has
+	 * it at Y -1800 on 232, land true to scale, and ranges too tall to fit scaled down whole (terrain/VerticalScale).
+	 */
+	public int verticalLayout;
 
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 	/** Beyond this the rest of the world would come out very small. */
@@ -89,6 +94,7 @@ public final class WorldSettings {
 		settings.lidarUrl = defaults.lidarUrl == null ? "" : defaults.lidarUrl;
 		settings.waterSurfaceVersion = 4;
 		settings.roadVersion = 12;
+		settings.verticalLayout = 1;
 		if (settings.projection.equals("sinusoidal")) {
 			settings.originLatitude = defaults.startLatitude;
 			settings.originLongitude = defaults.startLongitude;

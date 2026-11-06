@@ -386,7 +386,7 @@ public final class BuildingPlan {
 		return mapped(mapped) || overture == null || overture.part() || !(overture.heightMeters() > 0) ? mapped : overture.heightMeters();
 	}
 
-	static BuildingPlan of(long id, List<double[]> rings, double floorMeters, double latitude, double heightMeters, int colour, Detail detail,
+	static BuildingPlan of(long id, List<double[]> rings, double floorMeters, double latitude, double longitude, double heightMeters, int colour, Detail detail,
 		List<Raised> raised, double area, TerrainField field, Style style, List<int[]> doors, double storeyMeters, int maxFloors, Use use, Trade hall, List<Shop> shops, int tileX, int tileY) {
 		double perMeter = field.projection().blocksPerMeter(latitude);
 		int storey = Math.max(5, (int) Math.ceil(storeyMeters * perMeter));
@@ -401,7 +401,7 @@ public final class BuildingPlan {
 			storey = Math.max(storey, Math.min(16, (int) Math.round(wallHeight * perMeter)));
 			floors = 1;
 		}
-		int floorY = (int) Math.round(field.toY(floorMeters, latitude)) - 1;
+		int floorY = (int) Math.round(field.toY(floorMeters, latitude, longitude)) - 1;
 		while (floors > 1 && floorY + floors * storey + 8 > VerticalScale.MAX_Y) {
 			floors--;
 		}

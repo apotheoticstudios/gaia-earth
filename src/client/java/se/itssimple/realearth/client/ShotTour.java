@@ -428,7 +428,7 @@ final class ShotTour {
 			}
 			player.teleportTo(earth, camera.getX() + 0.5, camera.getY(), camera.getZ() + 0.5, Set.of(), yaw, shot.pitch, true);
 			RealEarth.LOGGER.info("[shots] {} at X {} Z {}, ground Y {} ({} m)", shot.name, x, z, ground,
-				Math.round(field.toElevation(ground, field.projection().latitudeAt(z))));
+				Math.round(field.elevationOfBlock(x + 0.5, ground, z)));
 			moving = false;
 		}));
 	}

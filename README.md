@@ -18,9 +18,9 @@ Clients and servers both need [Saro's Road Blocks](https://modrinth.com/mod/saro
   their `realearth.json`), so their new chunks meet their old ones.
 - The whole planet is **one continuous Mercator map**, like a web map: north is up everywhere and every place has
   its true shape. One block is exactly one metre at the start point's latitude (see *The map* below).
-- Vertical: heights follow the same scale, so mountains keep their true proportions. Up to 2,800 blocks above
-  sea level the vertical scale is linear; higher than that, mountains are eased smoothly so Everest still fits
-  under the build limit (details below).
+- Vertical: heights follow the same scale, so mountains keep their true proportions, true to scale right up to
+  their summits wherever they fit under the build limit. A range too tall for it, such as the Himalaya, is scaled
+  down whole, valleys and summits alike, so it keeps its shape, only lower (details below).
 - Water from **OpenStreetMap**, land cover from **ESA WorldCover** (10 m), climate from the **Köppen-Geiger** map
   (1 km), and the snowline from the **Randolph Glacier Inventory**'s glaciers and **CHELSA** climate. Optional
   **Distant Horizons** support draws distant terrain straight from the data.
@@ -268,20 +268,30 @@ would be terraces with waterfalls between them.
 **Seams.** Everything works in one global sample grid. Each tile is filtered together with real data from its
 neighbours, so chunks computed separately agree exactly. The self-test checks 1,568 shared columns: 0 differ.
 
-**Vertical scale.** The dimension uses the game's maximum height, Y −2032 to 2031, with sea level at **Y −1200**:
+**Vertical scale.** The dimension uses the game's maximum height, Y −2032 to 2031, with sea level at **Y −1800**
+and 232 blocks of ground under the lowlands. Heights follow the map's scale (one block per metre at the start
+point's latitude, more toward the poles), and land is true to scale wherever the mountains around it fit: up to
+3,677 blocks above the sea, keeping the last 150 to spare. Around a range that doesn't fit, all of it, valleys and
+summits alike, is scaled down by one factor, so that its highest ground ends at that height. It keeps its shape,
+only lower. The factor comes from the highest ground within 150 km (`relief.bin`, built by `tools/relief` from
+CHELSA's elevation with the summits measured in the mod's own tiles), and it changes over a hundred kilometres or
+more, a slope too gentle to see. Ground the grid misses eases off into the spare blocks rather than being cut flat.
+Water is true to scale down to 100 blocks deep, then eases off logarithmically so the deepest still fits above
+bedrock. In a world that starts in Stockholm:
 
-| Real elevation | Y |
-|---|---|
-| −11,000 m (Challenger Deep) | −2024 |
-| −600 m | −1800 (1:1 above this) |
-| 0 m | −1200 |
-| 2,800 m | 1600 (1:1 below this) |
-| 4,808 m (Mont Blanc) | ~1915 |
-| 8,849 m (Everest) | ~2026 |
+| Place | Real elevation | Here | Y |
+|---|---|---|---|
+| Challenger Deep | −10,994 m | eased | −1993 |
+| Stockholm | 0 m | true to scale | −1800 |
+| Kebnekaise (68° N) | 2,097 m | true to scale, 1.36 blocks a metre | 1043 |
+| Mont Blanc (46° N) | 4,806 m | true to scale, 0.73 blocks a metre | 1718 |
+| Denali (63° N) | 6,190 m | Alaska Range scaled ×0.52, 0.59 blocks a metre | 1819 |
+| Everest (28° N) | 8,849 m | Himalaya scaled ×0.71, 0.41 blocks a metre | 1846 |
 
-Above and below the knees, the scale eases logarithmically with a slope of exactly 1 at the knee, so there is no
-visible kink. Solid deepslate far below the surface and open ocean far from shore are stored as single-value
-chunk sections, so the tall world costs almost no memory.
+Worlds made before this keep their own layout (`verticalLayout` 0 in the world's `realearth.json`): sea level at
+Y −1200, 1:1 between 600 m deep and 2,800 m high, and eased logarithmically beyond those knees with a slope of
+exactly 1 at the knee, so Everest just fits under the build limit. Solid deepslate far below the surface and open
+ocean far from shore are stored as single-value chunk sections, so the tall world costs almost no memory.
 
 **Caves.** Vanilla's own cave system: cheese caverns, spaghetti and noodle tunnels, pillars, and the entrances
 that open them to the surface. They are built from the same density functions vanilla registers, seeded from the
@@ -292,7 +302,7 @@ caves and the deep dark appear underground in patches, the deep dark 64 m down o
 
 **Features at vanilla depths.** Vanilla's decoration runs, except what it files under structures (see
 below): ores, glow lichen, geodes, springs, sculk, lakes, icebergs, blue ice and vegetation. Vanilla places the underground ones at absolute heights (diamonds near
-Y −59, under ground at about Y 64). On Earth the ground is anywhere from Y −1200 to 2000, so a small hook reads
+Y −59, under ground at about Y 64). On Earth the ground is anywhere from Y −1800 to 2000, so a small hook reads
 those heights as depth below the local ground. Measured in the self-test: coal averages 27 m down, iron 57 m,
 gold 92 m, diamonds 106 m, redstone 113 m.
 
@@ -392,7 +402,7 @@ In `runClient` or `runPlaytest`, open **Mods → Project Gaia: Earth → Configu
 | `detectLakes` | true | Flat-lake detection, where map water isn't available |
 | `lakeWindowSamples`, `lakeFlatnessMeters` | 17, 0.02 | How large and how flat a lake must be |
 | `maxLakeDepthMeters` | 12 | Deepest carved lake bed |
-| `compressAboveMeters`, `compressBelowMeters` | 2800, −600 | Where 1:1 vertical scale ends |
+| `compressAboveMeters`, `compressBelowMeters` | 2800, −600 | Where 1:1 vertical scale ends, in worlds made before ranges were scaled down whole |
 | `teleportPermissionLevel` | 2 | Who may use `/earth tp` (0 = everyone) |
 | `downloadThreads` | 8 | Concurrent tile downloads |
 | `cacheLimitMegabytes` | 8192 | Largest the download cache may grow (0 = no limit) |

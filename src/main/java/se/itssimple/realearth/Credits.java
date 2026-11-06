@@ -51,6 +51,10 @@ public final class Credits {
 				+ "With CHELSA V2.1 climatologies (Karger et al. 2017, Scientific Data 4, 170122), CC0. "
 				+ "Combined into a bundled 0.1° snowline grid.",
 			"https://doi.org/10.5067/f6jmovy5navz"),
+		new Source("Mountain heights",
+			"CHELSA V2.1 elevation (Karger et al. 2017, Scientific Data 4, 170122), CC0, its summits measured in the elevation "
+				+ "tiles above. Combined into a bundled 0.2° grid of the highest ground near each place.",
+			"https://doi.org/10.16904/envidat.228"),
 		new Source("How close together trees stand",
 			"Crowther, T. W., et al. (2015), Mapping tree density at a global scale, Nature 525, 201–205; data Glick, H. B., et al. "
 				+ "(2016), Scientific Data 3, 160069. CC BY 4.0; bundled resampled to 0.1 degrees.",

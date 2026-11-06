@@ -60,7 +60,7 @@ public final class RealEarthJadePlugin implements IWailaPlugin {
 				tag.putDouble("lat", ll.latitude());
 				tag.putDouble("lon", ll.longitude());
 			});
-			RealEarthApi.elevationMeters(level, pos.getY(), pos.getZ() + 0.5).ifPresent(m -> tag.putDouble("meters", m));
+			RealEarthApi.elevationMeters(level, pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5).ifPresent(m -> tag.putDouble("meters", m));
 			RealEarthApi.street(level, pos.getX(), pos.getZ()).ifPresent(s -> tag.putString("street", s));
 			RealEarthApi.place(level, pos.getX() + 0.5, pos.getZ() + 0.5).ifPresent(p -> {
 				tag.putString("town", p.town());
