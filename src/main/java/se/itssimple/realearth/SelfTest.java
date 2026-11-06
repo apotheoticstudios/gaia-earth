@@ -117,6 +117,10 @@ final class SelfTest {
 
 	private static void run(MinecraftServer server) {
 		try {
+			// No player ever joins the test server: unpaused, or a minute in its levels stop ticking, and loading and unloading entities.
+			if (server instanceof net.minecraft.server.dedicated.DedicatedServer dedicated) {
+				server.submit(() -> dedicated.setPauseWhenEmptySeconds(0)).join();
+			}
 			String focused = System.getProperty("realearth.selftestOnly");
 			if ("Mapped waterways".equals(focused) || "Water surfaces".equals(focused)) {
 				if ("Mapped waterways".equals(focused)) testMappedWaterways(server);
@@ -632,7 +636,11 @@ final class SelfTest {
 				// Boats by the harbour, held loaded so their entities can be counted.
 				ServerLevel earth = RealEarth.earthLevel(server);
 				server.submit(() -> forceArea(earth, harbourAt[0], harbourAt[1], 1, true)).join();
-				Thread.sleep(3_000);
+				// Its entities load from disk after the chunk does, seconds later while the server is busy.
+				long harbour = ChunkPos.pack(harbourAt[0], harbourAt[1]);
+				for (int i = 0; i < 60 && !server.submit(() -> earth.areEntitiesLoaded(harbour)).join(); i++) {
+					Thread.sleep(500);
+				}
 				int boats = server.submit(() -> earth.getEntitiesOfClass(net.minecraft.world.entity.vehicle.boat.AbstractBoat.class,
 					new net.minecraft.world.phys.AABB(harbourAt[0] * 16 - 16, VerticalScale.MIN_Y, harbourAt[1] * 16 - 16, harbourAt[0] * 16 + 32,
 						VerticalScale.MAX_Y, harbourAt[1] * 16 + 32)).size()).join();
@@ -4576,7 +4584,10 @@ final class SelfTest {
 				int books = 0;
 				for (int cx = bestCx - 1; cx <= bestCx + 1; cx++) {
 					for (int cz = bestCz - 1; cz <= bestCz + 1; cz++) {
-						for (var be : earth.getChunk(cx, cz).getBlockEntities().values()) {
+						LevelChunk chunk = earth.getChunk(cx, cz);
+						// By position: a chunk loaded from disk keeps its block entities as data until they are asked for.
+						for (BlockPos at : chunk.getBlockEntitiesPos()) {
+							var be = chunk.getBlockEntity(at);
 							if (be instanceof net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity r) {
 								containers++;
 								if (r.getLootTable() != null) {
@@ -4864,8 +4875,9 @@ final class SelfTest {
 					List<String> seen = new ArrayList<>();
 					for (int cx = bestCx - 6; cx <= bestCx + 6; cx++) {
 						for (int cz = bestCz - 6; cz <= bestCz + 6; cz++) {
-							for (var be : earth.getChunk(cx, cz).getBlockEntities().values()) {
-								if (!(be instanceof net.minecraft.world.level.block.entity.SignBlockEntity sign)) {
+							LevelChunk chunk = earth.getChunk(cx, cz);
+							for (BlockPos at : chunk.getBlockEntitiesPos()) {
+								if (!(chunk.getBlockEntity(at) instanceof net.minecraft.world.level.block.entity.SignBlockEntity sign)) {
 									continue;
 								}
 								StringBuilder text = new StringBuilder();
