@@ -4602,6 +4602,14 @@ final class SelfTest {
 					var params = new net.minecraft.world.level.storage.loot.LootParams.Builder(earth)
 						.withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.ORIGIN, at)
 						.create(net.minecraft.world.level.storage.loot.parameters.LootContextParamSets.CHEST);
+					// The town's name comes from place tiles loaded on demand; run alone, this phase is the first to ask for them.
+					for (int i = 0; i < 300 && se.itssimple.realearth.world.Places.at(field, at.x, at.z) == null; i++) {
+						try {
+							Thread.sleep(200);
+						} catch (InterruptedException ex) {
+							Thread.currentThread().interrupt();
+						}
+					}
 					net.minecraft.world.item.ItemStack map = null;
 					for (long seed = 0; seed < 200 && map == null; seed++) {
 						for (var stack : bookshop.getRandomItems(params, seed)) {

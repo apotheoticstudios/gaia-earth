@@ -87,28 +87,36 @@ final class TownFeatures {
 				}
 			}
 		}
-		streetSign(chunk, t, pos, baseX, baseZ);
+		streetSign(chunk, t, pos, baseX, baseZ, buildingTop);
 	}
 
 	/**
 	 * A street name post at one kerb of the chunk, now and then: a fence with a sign on it, turned to
-	 * face the street it names (the nearest named street there is).
+	 * face the street it names (the nearest named street there is). From road version 3 on, where the
+	 * street has pavements, it stands on the pavement's kerb edge, as the street lamps do.
 	 */
-	private static void streetSign(ChunkAccess chunk, ChunkTerrain t, BlockPos.MutableBlockPos pos, int baseX, int baseZ) {
+	private static void streetSign(ChunkAccess chunk, ChunkTerrain t, BlockPos.MutableBlockPos pos, int baseX, int baseZ, int[] buildingTop) {
 		if (t.streets.isEmpty() || GeoNoise.hash(baseX >> 4, 95, baseZ >> 4) >= STREET_SIGN_CHANCE) {
 			return;
 		}
+		boolean pavements = RoadBlocks.roadVersion() >= 3;
 		int best = -1;
 		double bestHash = Double.MAX_VALUE;
 		for (int z = 0; z < 16; z++) {
 			for (int x = 0; x < 16; x++) {
 				int k = ChunkTerrain.index(x, z);
-				if (t.way[k] != Ways.NONE || t.building[k] != 0 || t.waterTopY[k] != Integer.MIN_VALUE || t.deckY[k] != Integer.MIN_VALUE
+				if (t.building[k] != 0 || t.waterTopY[k] != Integer.MIN_VALUE || t.deckY[k] != Integer.MIN_VALUE
 					|| GeoNoise.hash(baseX + x, 94, baseZ + z) < LAMP_CHANCE) {
 					continue;
 				}
-				boolean kerb = Ways.isPaved(t.way[ChunkTerrain.index(x - 1, z)]) || Ways.isPaved(t.way[ChunkTerrain.index(x + 1, z)])
-					|| Ways.isPaved(t.way[ChunkTerrain.index(x, z - 1)]) || Ways.isPaved(t.way[ChunkTerrain.index(x, z + 1)]);
+				boolean kerb;
+				if (pavements && t.way[k] == Ways.PATH) {
+					int street = buildingTop[z * 16 + x] == Integer.MIN_VALUE ? StreetLife.roadBeside(t, x, z) : -1;
+					kerb = street >= 0 && Ways.isPaved(t.way[ChunkTerrain.index(x + DXS[street], z + DZS[street])]);
+				} else {
+					kerb = t.way[k] == Ways.NONE && (Ways.isPaved(t.way[ChunkTerrain.index(x - 1, z)]) || Ways.isPaved(t.way[ChunkTerrain.index(x + 1, z)])
+						|| Ways.isPaved(t.way[ChunkTerrain.index(x, z - 1)]) || Ways.isPaved(t.way[ChunkTerrain.index(x, z + 1)]));
+				}
 				double h = GeoNoise.hash(baseX + x, 96, baseZ + z);
 				if (kerb && h < bestHash) {
 					bestHash = h;
