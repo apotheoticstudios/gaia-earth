@@ -6,12 +6,16 @@ limbs, the size and look of its leaf clumps, and the blocks of its bark and leav
 - crown: a broadleaf or pine. Leaf clumps are scattered through the crown's outline (an ellipsoid, a dome widest
   low down, an umbrella widest high up, or a cone), then the trunk forks into limbs, each limb towards a group of
   neighbouring clumps, and forks again, so the branches reach every clump. With a leader the trunk runs to the top
-  instead and each clump gets its own branch from it, as pines do.
-- conifer: a spruce, fir or cypress, a trunk to the top with whorls of leafy branches narrowing to a spire.
+  instead and each clump gets its own branch from it, as pines do. Each clump is a cloud of small leafy sprays, not
+  one ball: ragged and gappy, fuller on top, the far sprays on twigs of their own. Big trunks flare into roots.
+- conifer: a spruce, fir or cypress, a trunk to the top with whorls of branches narrowing to a spire, each branch
+  of its own length, level by the trunk and drooping to its tip, its sprays gappy and with side twigs; below the
+  crown the stubs of branches that died in the shade, and now and then a forked top.
 - grasstree: a Xanthorrhoea, a short black trunk under a tuft, sometimes forked, sometimes in flower.
 
 Each species grows VERSIONS trees at heights scattered from young to full height, and no two alike: each tree takes
-its own proportions round its species' (width, bare trunk, clump size and spacing, lean), and its crown is lopsided,
+its own proportions round its species' (width, bare trunk, clump size and spacing, lean, how full its foliage is,
+how many limbs), and its crown is lopsided,
 fuller on one side and higher-bottomed on another, its clumps uneven, now and then a branch dead or broken off, its
 limbs parting at different heights; a conifer's trunk sweeps a little and its whorls are uneven. Every run makes the
 same trees, as each is seeded by its species and version. They go through convert.py's own steps (ground, leaf
@@ -269,6 +273,9 @@ def vary(rng, sp):
     """This tree's own proportions, so no two of a species are built alike."""
     v = dict(sp, width=sp["width"] * rng.uniform(0.8, 1.2), bole=min(0.85, max(0.03, sp["bole"] + rng.uniform(-0.08, 0.08))))
     v["lean"] = sp.get("lean", 0.0) + rng.uniform(0.0, 0.05)
+    v["density"] = rng.uniform(0.75, 1.2)  # how full this one's foliage is: a crown in the open or a starved one
+    if "limbs" in sp:
+        v["limbs"] = (max(2, sp["limbs"][0] + rng.randint(-1, 0)), sp["limbs"][1] + rng.randint(0, 1))
     if "clump" in sp:
         k = rng.uniform(0.85, 1.15)
         v.update(clump=(sp["clump"][0] * k, sp["clump"][1] * k), spacing=sp["spacing"] * rng.uniform(0.85, 1.15))
@@ -299,7 +306,7 @@ class Tree:
         self.blocks[p] = ["minecraft:%s_%s" % (pick(self.rng, weights), kind), {"axis": "y"}, None]
 
     def leaf(self, p):
-        if p not in self.blocks:
+        if p[1] >= 0 and p not in self.blocks:  # never below the foot of the trunk, in the ground
             self.blocks[p] = ["minecraft:%s_leaves" % pick(self.rng, self.sp["leaves"]), {}, None]
 
     def trunk(self, points, d0, d1):
@@ -311,6 +318,12 @@ class Tree:
         if y0 == 0:
             for dx, dz in DISCS[d0]:
                 self.blocks[(points[0][0] + dx, -1, points[0][2] + dz)] = ["minecraft:dirt", {}, None]
+            if d0 >= 2:  # a big trunk flares into roots at its foot
+                x0, z0, half = points[0][0] + (d0 - 1) / 2, points[0][2] + (d0 - 1) / 2, d0 / 2
+                for _ in range(self.rng.randint(3, 6)):
+                    a = self.rng.uniform(0, 2 * math.pi)
+                    for i in range(1, self.rng.randint(1, d0) + 1):
+                        self.bark(rounded((x0 + (half + i - 0.5) * math.cos(a), 0, z0 + (half + i - 0.5) * math.sin(a))))
 
     def branch(self, a, b, thick=False):
         points = path(self.rng, a, b, self.sp["crook"], self.sp.get("rise", 0.0))
@@ -333,20 +346,31 @@ class Tree:
                             for p in line(c, end)[1:]:
                                 self.leaf(p)
             return
-        R, V = int(math.ceil(rh)), int(math.ceil(rv))
-        for dx in range(-R, R + 1):
-            for dz in range(-R, R + 1):
-                across = (dx * dx + dz * dz) / (rh * rh)
-                if across > 1:
-                    continue
-                droop = -1 if style == "pad" and across > 0.45 else 0  # a pad's edge hangs
+        # Not one ball of leaves but a cloud of small sprays round the branch's end: a ragged edge with holes in it,
+        # fuller on top where the light is and thin underneath; a pad's sprays lie flat, their outer ones hanging.
+        pad = style == "pad"
+        for _ in range(max(3, int(1.4 * rh * rh * self.sp.get("density", 1.0) + 0.5))):
+            while True:
+                x, y, z = rng.uniform(-1, 1), rng.uniform(-0.6, 0.5) if pad else rng.uniform(-0.7, 1), rng.uniform(-1, 1)
+                if x * x + y * y + z * z <= 1:
+                    break
+            out = math.sqrt(rng.uniform(0.2, 1.0))  # more towards the skin than the middle
+            sx, sy, sz = c[0] + x * rh * out, c[1] + y * rv * out, c[2] + z * rh * out
+            if pad and math.hypot(x, z) > 0.6:
+                sy -= 0.7
+            r = rng.uniform(0.9, 1.7) * min(1.0, 0.3 + rh / 2)
+            v = r * (rng.uniform(0.45, 0.65) if pad else rng.uniform(0.6, 0.9))
+            R, V = int(math.ceil(r)), int(math.ceil(v))
+            for dx in range(-R, R + 1):
                 for dy in range(-V, V + 1):
-                    up = dy / (rv + 0.5 if dy > 0 else rv * 0.7 + 0.3)  # flatter underneath
-                    if across + up * up <= 1 - rng.random() * 0.35:
-                        self.leaf((c[0] + dx, c[1] + dy + droop, c[2] + dz))
-        if rh > 3:  # twigs, so the clump's edge is in reach of wood
-            for dx, dz in ((1, 0), (2, 0), (-1, 0), (-2, 0), (0, 1), (0, 2), (0, -1), (0, -2)):
-                self.bark((c[0] + dx, c[1], c[2] + dz))
+                    for dz in range(-R, R + 1):
+                        q = rounded((sx + dx, sy + dy, sz + dz))
+                        if q[1] >= 1 and (dx / r) ** 2 + (dy / v) ** 2 + (dz / r) ** 2 <= 1 - rng.random() * 0.35:
+                            self.leaf(q)  # never at the foot, on the ground
+            if math.dist((sx, sy, sz), c) > 2.8:  # a far spray on a twig of its own, so its leaves are in reach of wood
+                for p in line(c, (sx, sy, sz))[1:-1]:
+                    if p[1] >= 1:
+                        self.bark(p)
 
 
 def crown(rng, height, sp):
@@ -365,7 +389,7 @@ def crown(rng, height, sp):
 
     # Clumps through the crown's outline, kept apart, more towards its skin than its middle. The outline is lopsided,
     # and its bottom higher on one side, where lower branches died off in the shade.
-    low, shape, gap = min(base + rv * 0.5, top - 1), SHAPES[sp["shape"]], sp["spacing"] * (rh + rv) * 0.8
+    low, shape, gap = min(base + rv * 0.5, top - 1), SHAPES[sp["shape"]], sp["spacing"] * (rh + rv) * 0.75
     side, shade, lift = lopsided(rng), rng.uniform(0, 2 * math.pi), rng.uniform(0, 0.3) * (top - low)
     tips = [(axis(top)[0] + rng.uniform(-1, 1), top, axis(top)[1] + rng.uniform(-1, 1))]
     misses, enough = 0, 2 if height < 8 else 5
@@ -409,7 +433,7 @@ def crown(rng, height, sp):
             tree.trunk(stem, d1, d1)
             grow(tree, stem, group, sp["depth"], d0 >= 3, rng.randint(*sp["limbs"]))
     for q in tips:
-        if sp["style"] != "star" and q is not tips[0] and rng.random() < 0.04:
+        if sp["style"] != "star" and q is not tips[0] and rng.random() < 0.06:
             continue  # a dead branch, bare
         k = rng.uniform(0.75, 1.15)
         tree.clump(q, max(1.2, rh * k), max(1.0, rv * k), sp["style"])
@@ -446,10 +470,10 @@ def conifer(rng, height, sp):
     for y in range(base, top + 1):
         cx, cz = centre[y]
         r = radius * (1 - (y - base) / max(1, top - base)) ** sp["taper"] * rng.uniform(0.85, 1.1)
-        near = max(1.0, r * 0.4)  # foliage close round the trunk, narrowing to the spire
+        near = max(1.0, r * 0.4 * rng.uniform(0.8, 1.1))  # foliage close round the trunk, narrowing to the spire
         for dx in range(-int(near), int(near) + 1):
             for dz in range(-int(near), int(near) + 1):
-                if dx * dx + dz * dz <= near * near:
+                if dx * dx + dz * dz <= near * near and (dx == dz == 0 or rng.random() < 0.85):
                     tree.leaf((cx + dx, y, cz + dz))
         if r < 1 or y < whorl:
             continue
@@ -462,15 +486,39 @@ def conifer(rng, height, sp):
             if rng.random() < 0.08:
                 continue  # a branch broken off
             a = turn + 2 * math.pi * i / n + rng.uniform(-0.4, 0.4)
-            length = min(max(1.0, r * side(a) * rng.uniform(0.65, 1.1)), MAX_RADIUS)
-            end = (cx + length * math.cos(a), y - sp["droop"] * length / 2, cz + length * math.sin(a))
-            for x, by, z in line((cx, y, cz), end)[1:]:
+            length = min(max(1.0, r * side(a) * rng.uniform(0.55, 1.15)), MAX_RADIUS)
+            # Level near the trunk, drooping towards the tip.
+            mid = (cx + 0.6 * length * math.cos(a), max(1, y - sp["droop"] * length * 0.15), cz + 0.6 * length * math.sin(a))
+            end = (cx + length * math.cos(a), max(1, y - sp["droop"] * length * rng.uniform(0.4, 0.7)), cz + length * math.sin(a))
+            limb = line((cx, y, cz), mid)[1:] + line(mid, end)[1:]
+            for k, (x, by, z) in enumerate(limb):
                 tree.bark((x, by, z))
                 for dx, dy, dz in SPRAY:
-                    tree.leaf((x + dx, by + dy, z + dz))
+                    if rng.random() < 0.85:
+                        tree.leaf((x + dx, by + dy, z + dz))
+                if k >= len(limb) // 3 and k % 2 == 1 and rng.random() < 0.5:  # a side twig, leafy
+                    side_a = a + rng.choice((-1, 1)) * math.pi / 2
+                    for j in range(1, rng.randint(1, 2) + 1):
+                        tx, tz = rounded((x + j * math.cos(side_a), 0, z + j * math.sin(side_a)))[::2]
+                        for dx, dy, dz in SPRAY:
+                            if rng.random() < 0.7:
+                                tree.leaf((tx + dx, by - (j > 1) + dy, tz + dz))
+    # Below the crown, the stubs of branches that died in the shade.
+    for y in range(max(1, base - 4), base):
+        if rng.random() < 0.3:
+            cx, cz = centre[y]
+            a = rng.uniform(0, 2 * math.pi)
+            for x, by, z in line((cx, y, cz), (cx + rng.uniform(1, 3) * math.cos(a), y, cz + rng.uniform(1, 3) * math.sin(a)))[1:]:
+                tree.bark((x, by, z))
     cx, cz = centre[top]
     for dx, dy, dz in [(0, 1, 0), (0, 2, 0), (1, 0, 0), (-1, 0, 0), (0, 0, 1), (0, 0, -1)]:
         tree.leaf((cx + dx, top + dy, cz + dz))
+    if height >= 12 and rng.random() < 0.08:  # now and then a forked top, where the leader was lost
+        ox, oz = rng.choice([(1, 0), (-1, 0), (0, 1), (0, -1)])
+        for dy in range(0, 3):
+            tree.bark((cx + ox, top - 1 + dy, cz + oz), "log")
+        for dx, dy, dz in SPRAY:
+            tree.leaf((cx + ox + dx, top + 2 + dy, cz + oz + dz))
     return tree.blocks
 
 
