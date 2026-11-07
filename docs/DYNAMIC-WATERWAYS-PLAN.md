@@ -26,7 +26,7 @@ downstream currents that carry items, swimmers and boats, with gentler lowland r
 mountain reaches, coherent junctions and mouths, and improved beds, banks and waterfalls.
 
 Use code directly from Dynamic Waters where it fits, adapted to Gaia's data and platform. Gaia is
-Fabric / Minecraft 26.1 / Java 25; the reference targets NeoForge / Minecraft 1.21.1. This is a source
+Fabric / Minecraft 1.21.1 / Java 21; the reference targets NeoForge / Minecraft 1.21.1. This is a source
 port, not a dependency that can simply be added to the build.
 
 The inspected reference implements generated channels and a current field queried by fluids and

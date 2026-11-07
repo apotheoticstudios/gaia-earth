@@ -181,6 +181,11 @@ STRUCTURE_TAGS = ('has_structure/', 'stronghold_biased_to')
 TAG_DIR = 'data/minecraft/tags/worldgen/biome/'
 
 
+def colour(hex_rgb):
+    """'#rrggbb' as the number 1.21.1's biome files take."""
+    return int(hex_rgb.lstrip('#'), 16)
+
+
 def main():
     jar, resources = sys.argv[1], sys.argv[2]
     with zipfile.ZipFile(jar) as z:
@@ -193,12 +198,12 @@ def main():
         biome = json.loads(json.dumps(vanilla[parent]))
         effects = biome.setdefault('effects', {})
         if grass:
-            effects['grass_color'] = grass
+            effects['grass_color'] = colour(grass)
             effects.pop('grass_color_modifier', None)
         if foliage:
-            effects['foliage_color'] = foliage
+            effects['foliage_color'] = colour(foliage)
         if name in WATER:
-            effects['water_color'] = WATER[name]
+            effects['water_color'] = colour(WATER[name])
         with open(os.path.join(out_dir, name + '.json'), 'w') as f:
             json.dump(biome, f, indent=2, sort_keys=True)
             f.write('\n')

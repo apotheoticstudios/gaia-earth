@@ -17,7 +17,7 @@ import java.util.concurrent.Executors;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
@@ -208,7 +208,7 @@ public final class XaeroMapBackground {
 					int parts = 1 << up;
 					float u = (float) (wx & parts - 1) / parts;
 					float v = (float) (ty & parts - 1) / parts;
-					GuiMap.buildTexturedModalSubRectWithLighting(matrix, renderer.begin(texture.getTextureView()), px, pz, u, v, u + 1.0F / parts,
+					GuiMap.buildTexturedModalSubRectWithLighting(matrix, renderer.begin(texture.getId()), px, pz, u, v, u + 1.0F / parts,
 						v + 1.0F / parts, px1 - px, pz1 - pz);
 					shown = true;
 					if (up == 0) {
@@ -269,7 +269,7 @@ public final class XaeroMapBackground {
 	 * data's credit at the bottom right above the map's zoom, while the map shows a picture. The camera
 	 * is in blocks, {@code scale} screen pixels per block, as the map has them.
 	 */
-	public static void overlay(GuiGraphicsExtractor graphics, int width, int height, double cameraX, double cameraZ, double scale) {
+	public static void overlay(GuiGraphics graphics, int width, int height, double cameraX, double cameraZ, double scale) {
 		var font = Minecraft.getInstance().font;
 		var window = Minecraft.getInstance().getWindow();
 		double gui = window.getGuiScale();
@@ -307,18 +307,18 @@ public final class XaeroMapBackground {
 				case MapPainter.Place.CITY, MapPainter.Place.TOWN -> 0xFFFFFFFF;
 				default -> 0xFFDADADA;
 			};
-			graphics.pose().pushMatrix();
-			graphics.pose().translate(x, y);
-			graphics.pose().scale(k, k);
-			graphics.text(font, text, 0, 0, colour, true);
-			graphics.pose().popMatrix();
+			graphics.pose().pushPose();
+			graphics.pose().translate(x, y, 0.0F);
+			graphics.pose().scale(k, k, 1.0F);
+			graphics.drawString(font, text, 0, 0, colour, true);
+			graphics.pose().popPose();
 		}
 		if (shown) {
-			graphics.pose().pushMatrix();
-			graphics.pose().translate(width - 26 - font.width(CREDIT) * k, height - 12 - 9 * k);
-			graphics.pose().scale(k, k);
-			graphics.text(font, CREDIT, 0, 0, 0xFFC0C0C0);
-			graphics.pose().popMatrix();
+			graphics.pose().pushPose();
+			graphics.pose().translate(width - 26 - font.width(CREDIT) * k, height - 12 - 9 * k, 0.0F);
+			graphics.pose().scale(k, k, 1.0F);
+			graphics.drawString(font, CREDIT, 0, 0, 0xFFC0C0C0);
+			graphics.pose().popPose();
 		}
 		// Until the map draws again: not on its loading screen.
 		shown = false;
@@ -376,11 +376,11 @@ public final class XaeroMapBackground {
 				for (int y = 0; y < MapPainter.SIZE; y++) {
 					for (int x = 0; x < MapPainter.SIZE; x++) {
 						// The map's shader reads alpha as block light: none, so the picture dims at night with the map.
-						image.setPixel(x, y, argb[y * MapPainter.SIZE + x] & 0xFFFFFF);
+						int c = argb[y * MapPainter.SIZE + x];
+						image.setPixelRGBA(x, y, (c & 0xFF) << 16 | c & 0xFF00 | c >> 16 & 0xFF); // ABGR, alpha 0
 					}
 				}
-				long key = e.getKey();
-				texture = new DynamicTexture(() -> "Project Gaia: Earth map tile " + Long.toHexString(key), image);
+				texture = new DynamicTexture(image);
 				uploaded++;
 			}
 			textures.put(e.getKey(), texture);

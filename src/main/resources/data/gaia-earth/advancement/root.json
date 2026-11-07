@@ -14,7 +14,7 @@
     "description": {
       "translate": "advancements.realearth.root.description"
     },
-    "background": "minecraft:gui/advancements/backgrounds/adventure",
+    "background": "minecraft:textures/gui/advancements/backgrounds/adventure.png",
     "show_toast": false,
     "announce_to_chat": false
   },

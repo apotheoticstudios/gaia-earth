@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **Minecraft 1.21.1**: the mod moved from 26.1 to 1.21.1 (Fabric, Java 21), with the 1.21.1 builds of Sodium,
+  Distant Horizons, Jade, Xaero's maps, Saro's Road Blocks, Macaw's Fences and Diagonal Fences. Worlds made on 26.1
+  don't open in 1.21.1. Trees that used blocks 1.21.1 doesn't have use its nearest ones: pale oak's grey bark is
+  acacia's, its leaves spruce's.
 - **Renamed**: Real Earth, by itssimple, continues as its own mod, **Project Gaia: Earth** (mod id `gaia-earth`).
   Its blocks, dimension, world type, loot tables and advancements are now under `gaia-earth:`, so worlds made with
   Real Earth do not carry over.

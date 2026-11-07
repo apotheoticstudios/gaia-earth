@@ -2,7 +2,7 @@ package net.apotheoticstudios.gaiaearth.mixin;
 
 import com.llamalad7.mixinextras.sugar.Local;
 import java.util.ArrayList;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -81,13 +81,13 @@ public abstract class GuiMapMixin {
 			hopMenu = false;
 			attachedCamera = false;
 			Screen screen = (Screen) (Object) this;
-			screen.init(screen.width, screen.height);
+			screen.init(net.minecraft.client.Minecraft.getInstance(), screen.width, screen.height);
 		}
 	}
 
 	/** Just before the map adds its regions to the batch, after it has cleared its frame and set up the batch. */
-	@Inject(method = "extractRenderState", at = @At(value = "INVOKE", target = "Lxaero/map/region/LeveledRegion;setComparison(IIIII)V"))
-	private void realearth$background(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks, CallbackInfo ci,
+	@Inject(method = "render", at = @At(value = "INVOKE", target = "Lxaero/map/region/LeveledRegion;setComparison(IIIII)V"))
+	private void realearth$background(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks, CallbackInfo ci,
 		@Local Matrix4f matrix, @Local(name = "withLightRenderer") MultiTextureRenderTypeRenderer renderer,
 		@Local(name = "flooredCameraX") int cameraX, @Local(name = "flooredCameraZ") int cameraZ,
 		@Local(name = "leftBorder") double left, @Local(name = "rightBorder") double right,
@@ -110,14 +110,14 @@ public abstract class GuiMapMixin {
 	 * instead, leaving Project Gaia: Earth's picture: what has been explored is under a pixel there anyway. The most
 	 * it goes through at its own furthest zoom is some 30,000.
 	 */
-	@ModifyVariable(method = "extractRenderState", at = @At("STORE"), name = "maxRegZ")
+	@ModifyVariable(method = "render", at = @At("STORE"), name = "maxRegZ")
 	private int realearth$fewerRegions(int maxRegZ, @Local(name = "minRegX") int minRegX, @Local(name = "maxRegX") int maxRegX,
 		@Local(name = "minRegZ") int minRegZ) {
 		return (long) (maxRegX - minRegX + 1) * (maxRegZ - minRegZ + 1) > MAX_REGIONS ? minRegZ - 1 : maxRegZ;
 	}
 
 	@Inject(method = "renderPreDropdown", at = @At("HEAD"))
-	private void realearth$credit(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks, CallbackInfo ci) {
+	private void realearth$credit(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks, CallbackInfo ci) {
 		Screen screen = (Screen) (Object) this;
 		XaeroMapBackground.overlay(graphics, screen.width, screen.height, cameraX, cameraZ, scale);
 	}

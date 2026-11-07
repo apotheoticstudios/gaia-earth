@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-ResourceLocation: MPL-2.0
 // Adapted from Dynamic Waters' VanillaRiverFlow.java. See META-INF/NOTICE-DYNAMIC-WATERS.txt.
 package net.apotheoticstudios.gaiaearth.hydrology;
 

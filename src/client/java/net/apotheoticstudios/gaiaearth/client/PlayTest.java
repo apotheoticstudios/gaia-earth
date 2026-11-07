@@ -44,9 +44,9 @@ final class PlayTest {
 		done = true;
 		server.execute(() -> {
 			ServerPlayer player = server.getPlayerList().getPlayers().get(0);
-			server.getPlayerList().op(player.nameAndId());
+			server.getPlayerList().op(player.getGameProfile());
 			var source = server.createCommandSourceStack();
-			String name = player.getGameProfile().name();
+			String name = player.getGameProfile().getName();
 			server.getCommands().performPrefixedCommand(source, "gamemode creative " + name);
 			server.getCommands().performPrefixedCommand(source, "time set morning");
 			server.getCommands().performPrefixedCommand(source,

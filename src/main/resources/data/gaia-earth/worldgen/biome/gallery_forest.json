@@ -1,25 +1,31 @@
 {
-  "attributes": {
-    "minecraft:audio/background_music": {
-      "default": {
-        "max_delay": 24000,
-        "min_delay": 12000,
-        "sound": "minecraft:music.overworld.jungle"
-      }
-    },
-    "minecraft:gameplay/increased_fire_burnout": true,
-    "minecraft:visual/sky_color": "#77a8ff"
+  "carvers": {
+    "air": [
+      "minecraft:cave",
+      "minecraft:cave_extra_underground",
+      "minecraft:canyon"
+    ]
   },
-  "carvers": [
-    "minecraft:cave",
-    "minecraft:cave_extra_underground",
-    "minecraft:canyon"
-  ],
   "downfall": 0.9,
   "effects": {
-    "foliage_color": "#2f8a2a",
-    "grass_color": "#4fa035",
-    "water_color": "#3f76e4"
+    "fog_color": 12638463,
+    "foliage_color": 3115562,
+    "grass_color": 5218357,
+    "mood_sound": {
+      "block_search_extent": 8,
+      "offset": 2.0,
+      "sound": "minecraft:ambient.cave",
+      "tick_delay": 6000
+    },
+    "music": {
+      "max_delay": 24000,
+      "min_delay": 12000,
+      "replace_current_music": false,
+      "sound": "minecraft:music.overworld.jungle"
+    },
+    "sky_color": 7842047,
+    "water_color": 4159204,
+    "water_fog_color": 329011
   },
   "features": [
     [],
@@ -80,9 +86,8 @@
       "minecraft:patch_grass_jungle",
       "minecraft:brown_mushroom_normal",
       "minecraft:red_mushroom_normal",
-      "minecraft:patch_pumpkin",
       "minecraft:patch_sugar_cane",
-      "minecraft:patch_firefly_bush_near_water",
+      "minecraft:patch_pumpkin",
       "minecraft:vines",
       "minecraft:patch_melon"
     ],

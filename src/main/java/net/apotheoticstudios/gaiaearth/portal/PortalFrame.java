@@ -4,7 +4,7 @@ import java.util.Optional;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.LevelAccessor;
@@ -21,8 +21,8 @@ import net.apotheoticstudios.gaiaearth.RealEarth;
  * gaia-earth:portal_activators (items).
  */
 public final class PortalFrame {
-	public static final TagKey<Block> FRAME = TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath(RealEarth.MOD_ID, "portal_frame"));
-	public static final TagKey<Item> ACTIVATORS = TagKey.create(Registries.ITEM, Identifier.fromNamespaceAndPath(RealEarth.MOD_ID, "portal_activators"));
+	public static final TagKey<Block> FRAME = TagKey.create(Registries.BLOCK, ResourceLocation.fromNamespaceAndPath(RealEarth.MOD_ID, "portal_frame"));
+	public static final TagKey<Item> ACTIVATORS = TagKey.create(Registries.ITEM, ResourceLocation.fromNamespaceAndPath(RealEarth.MOD_ID, "portal_activators"));
 
 	private static final int MAX_SIZE = 21;
 

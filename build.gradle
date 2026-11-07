@@ -1,5 +1,5 @@
 plugins {
-	id 'net.fabricmc.fabric-loom' version "${loom_version}"
+	id 'net.fabricmc.fabric-loom-remap' version "${loom_version}"
 }
 
 loom {
@@ -86,9 +86,16 @@ configurations {
 	xaero {
 		transitive = false
 	}
-	compileOnly.extendsFrom xaero
-	clientCompileOnly.extendsFrom clientMenu
+	// Runtime mods with libraries inside them, which Loom leaves out: added from inside the jars below.
+	bundles {
+		transitive = false
+	}
+	modRuntimeOnly.extendsFrom bundles
+	// On the compile classpath only, which is how Loom remaps them; the runs below add them as mods (clientRunMods).
+	modCompileOnly.extendsFrom xaero
+	modClientCompileOnly.extendsFrom clientMenu, clientPerformance
 }
+
 
 def clientRequirements = tasks.register("clientRequirementsJar", Jar) {
 	archiveFileName = "gaia-earth-client.jar"
@@ -99,44 +106,51 @@ def clientRequirements = tasks.register("clientRequirementsJar", Jar) {
 
 dependencies {
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
-	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
-	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+	mappings loom.officialMojangMappings()
+	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+	compileOnly "org.jspecify:jspecify:1.0.0" // @Nullable, which 1.21.1 doesn't ship
 
 	// Optional mods, compiled against and never shipped, from Modrinth: Distant Horizons for level-of-detail
 	// terrain, Jade and Xaero's Minimap and World Map for what the mod shows in them.
-	compileOnly "maven.modrinth:distanthorizons:3.3.3-26.1.2"
-	compileOnly "maven.modrinth:jade:26.1.9+fabric"
-	xaero "maven.modrinth:xaeros-minimap:fabric-26.1.2-26.6.1"
-	xaero "maven.modrinth:xaeros-world-map:fabric-26.1.2-1.47.2"
+	modCompileOnly "maven.modrinth:distanthorizons:3.3.3-1.21.1"
+	modCompileOnly "maven.modrinth:jade:adpNvTZS" // 15.10.6+fabric
+	xaero "maven.modrinth:xaeros-minimap:fabric-1.21.1-26.6.0"
+	xaero "maven.modrinth:xaeros-world-map:fabric-1.21.1-1.47.0"
 	// xaerolib is published only inside Xaero's mods (META-INF/jars): the minimap's copy.
-	compileOnly files(zipTree(configurations.xaero.find { it.name.startsWith("xaeros-minimap") }).matching { include "META-INF/jars/*.jar" })
+	modCompileOnly files(zipTree(configurations.xaero.find { it.name.startsWith("xaeros-minimap") }).matching { include "META-INF/jars/*.jar" })
 
 	// The metadata JAR lets Fabric enforce Sodium on clients while accepting dedicated servers.
 	runtimeOnly files(clientRequirements)
-	clientImplementation "maven.modrinth:sodium:mc26.1.1-0.8.9-fabric"
+	modClientImplementation "maven.modrinth:sodium:mc1.21.1-0.8.13-fabric"
 
 	// Optional development-client mods.
-	clientPerformance "maven.modrinth:lithium:mc26.1.2-0.24.7-fabric"
-	clientPerformance "maven.modrinth:ferrite-core:9.0.0-fabric"
-	clientMenu "maven.modrinth:modmenu:18.0.2"
+	clientPerformance "maven.modrinth:lithium:mc1.21.1-0.15.4-fabric"
+	clientPerformance "maven.modrinth:ferrite-core:7.0.3-fabric"
+	clientMenu "maven.modrinth:modmenu:11.0.5"
 
-	// Saro's Road Blocks (a dependency, never shipped): asphalt and road markings. Its exact 5.12 build for Fabric 26.1.
-	runtimeOnly "maven.modrinth:saros-road-blocks:yUevnPQt"
+	// Saro's Road Blocks (a dependency, never shipped): asphalt and road markings. Its newest build for Fabric 1.21.1, 5.13 on
+	// Modrinth, which calls itself 5.11: the same blocks and states as 5.12 for 26.1.
+	modRuntimeOnly "maven.modrinth:saros-road-blocks:x8ajMJE0"
 	// Macaw's Fences and Walls (sketchmacaw; a dependency, never shipped): bridges' railings. Diagonal Fences (Fuzs) joins them
-	// diagonally along a deck's edge, with the libraries it needs. Their exact builds for Fabric 26.1 (the libraries' newest
-	// that run on this Fabric API).
-	runtimeOnly "maven.modrinth:macaws-fences-and-walls:oWA108EY"
-	runtimeOnly "maven.modrinth:diagonal-fences:UUuyVvvj"
-	runtimeOnly "maven.modrinth:puzzles-lib:hpDvq0QC"
-	runtimeOnly "maven.modrinth:forge-config-api-port:mwAOaKnn"
+	// diagonally along a deck's edge, with the libraries it needs. Their builds for Fabric 1.21.1.
+	modRuntimeOnly "maven.modrinth:macaws-fences-and-walls:ZGMGDbjg" // 1.2.1
+	bundles "maven.modrinth:diagonal-fences:9jL3vlSG" // v21.1.1, with Diagonal Blocks inside
+	modRuntimeOnly "maven.modrinth:puzzles-lib:IV6k1yRp" // 21.1.66
+	bundles "maven.modrinth:forge-config-api-port:N5qzq0XV" // v21.1.6, with NightConfig inside
+	configurations.bundles.each { modRuntimeOnly files(zipTree(it).matching { include "META-INF/jars/*.jar" }) }
 }
 
-// Keep the clean client free of optional mods.
-def performanceMods = providers.gradleProperty("noPerformanceMods").isPresent() ? [] : configurations.clientPerformance.files.toList()
-def playtestMods = configurations.clientMenu.files.toList() + performanceMods
-def clientMods = configurations.xaero.files.toList() + playtestMods
-loom.runs.client.vmArg "-Dfabric.addMods=${clientMods.join(File.pathSeparator)}"
-loom.runs.playtest.vmArg "-Dfabric.addMods=${playtestMods.join(File.pathSeparator)}"
+// Keep the clean client free of optional mods. After Loom has remapped them.
+afterEvaluate {
+	def remapped = configurations.clientCompileClasspath.files
+	def jars = { String... names -> remapped.findAll { f -> names.any { f.name.contains(it) } }.toList() }
+	def performanceMods = providers.gradleProperty("noPerformanceMods").isPresent() ? [] : jars("lithium", "ferrite-core")
+	def playtestMods = jars("modmenu") + performanceMods
+	def clientMods = jars("xaeros-minimap", "xaeros-world-map") + playtestMods
+	loom.runs.client.vmArg "-Dfabric.addMods=${clientMods.join(File.pathSeparator)}"
+	loom.runs.playtest.vmArg "-Dfabric.addMods=${playtestMods.join(File.pathSeparator)}"
+}
 
 processResources {
 	def version = project.version
@@ -148,12 +162,12 @@ processResources {
 }
 
 tasks.withType(JavaCompile).configureEach {
-	it.options.release = 25
+	it.options.release = 21
+	it.options.compilerArgs += ['-Xmaxerrs', '5000']
 }
 
 java {
-	sourceCompatibility = JavaVersion.VERSION_25
-	targetCompatibility = JavaVersion.VERSION_25
+	toolchain.languageVersion = JavaLanguageVersion.of(21)
 }
 
 // The data sources' licences ask for attribution wherever the mod is passed on.

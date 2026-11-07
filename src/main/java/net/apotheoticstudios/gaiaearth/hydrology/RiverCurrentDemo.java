@@ -2,7 +2,7 @@ package net.apotheoticstudios.gaiaearth.hydrology;
 
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
-import net.fabricmc.fabric.api.entity.event.v1.ServerEntityLevelChangeEvents;
+import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
@@ -46,15 +46,15 @@ public final class RiverCurrentDemo {
 	}
 
 	public static void register() {
-		PayloadTypeRegistry.clientboundPlay().register(CurrentDemoPayload.TYPE, CurrentDemoPayload.CODEC);
+		PayloadTypeRegistry.playS2C().register(CurrentDemoPayload.TYPE, CurrentDemoPayload.CODEC);
 		ServerLifecycleEvents.SERVER_STOPPED.register(stopped -> server = null);
 		ServerPlayConnectionEvents.JOIN.register((handler, sender, minecraft) -> send(handler.player));
-		ServerEntityLevelChangeEvents.AFTER_PLAYER_CHANGE_LEVEL.register((player, from, to) -> send(player));
+		ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register((player, from, to) -> send(player));
 	}
 
 	public static LiteralArgumentBuilder<CommandSourceStack> command() {
 		return Commands.literal("water")
-			.requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+			.requires(source -> source.hasPermission(Commands.LEVEL_GAMEMASTERS))
 			.then(Commands.literal("test")
 				.executes(ctx -> start(ctx.getSource(), 0))
 				.then(Commands.argument("degrees", IntegerArgumentType.integer(0, 359))

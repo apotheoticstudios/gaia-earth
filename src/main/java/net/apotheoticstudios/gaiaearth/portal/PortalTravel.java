@@ -18,7 +18,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
-import net.minecraft.world.level.portal.TeleportTransition;
+import net.minecraft.world.level.portal.DimensionTransition;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import net.apotheoticstudios.gaiaearth.RealEarth;
@@ -80,7 +80,7 @@ public final class PortalTravel {
 		}
 	}
 
-	public static @Nullable TeleportTransition destination(ServerLevel from, Entity entity, BlockPos entry) {
+	public static @Nullable DimensionTransition destination(ServerLevel from, Entity entity, BlockPos entry) {
 		ServerLevel earth = from.getServer().getLevel(RealEarth.EARTH);
 		if (earth == null || RealEarth.earthIsOverworld(from.getServer())) {
 			return null;
@@ -124,7 +124,7 @@ public final class PortalTravel {
 	}
 
 	/** @param hintY where a portal is expected to be, besides near the ground; MIN_VALUE for none */
-	private static TeleportTransition arrive(ServerLevel level, int x, int z, int hintY, Entity entity) {
+	private static DimensionTransition arrive(ServerLevel level, int x, int z, int hintY, Entity entity) {
 		Optional<BlockPos> existing = findPortal(level, x, z, hintY);
 		BlockPos bottomLeft;
 		Direction.Axis axis;
@@ -149,7 +149,7 @@ public final class PortalTravel {
 				z = open[1];
 			}
 			int y = RealEarth.surfaceY(level, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
-			y = Math.max(level.getMinY() + 8, Math.min(level.getMaxY() - 8, y));
+			y = Math.max(level.getMinBuildHeight() + 8, Math.min((level.getMaxBuildHeight() - 1) - 8, y));
 			axis = Direction.Axis.X;
 			bottomLeft = PortalFrame.build(level, new BlockPos(x, y, z), axis).bottomLeft();
 		}
@@ -157,8 +157,8 @@ public final class PortalTravel {
 		Vec3 target = axis == Direction.Axis.X
 			? new Vec3(bottomLeft.getX() + 1.0, bottomLeft.getY(), bottomLeft.getZ() + 0.5)
 			: new Vec3(bottomLeft.getX() + 0.5, bottomLeft.getY(), bottomLeft.getZ() + 1.0);
-		return new TeleportTransition(level, target, Vec3.ZERO, entity.getYRot(), entity.getXRot(),
-			TeleportTransition.PLAY_PORTAL_SOUND.then(TeleportTransition.PLACE_PORTAL_TICKET));
+		return new DimensionTransition(level, target, Vec3.ZERO, entity.getYRot(), entity.getXRot(),
+			DimensionTransition.PLAY_PORTAL_SOUND.then(DimensionTransition.PLACE_PORTAL_TICKET));
 	}
 
 	/**
@@ -175,8 +175,8 @@ public final class PortalTravel {
 					}
 					int ground = RealEarth.surfaceY(level, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x + dx, z + dz);
 					for (int centre : hintY == Integer.MIN_VALUE ? new int[] {ground} : new int[] {hintY, ground}) {
-						int top = Math.min(level.getMaxY(), centre + 24);
-						int bottom = Math.max(level.getMinY(), centre - 24);
+						int top = Math.min((level.getMaxBuildHeight() - 1), centre + 24);
+						int bottom = Math.max(level.getMinBuildHeight(), centre - 24);
 						for (int y = top; y >= bottom; y--) {
 							pos.set(x + dx, y, z + dz);
 							if (level.getBlockState(pos).is(RealEarth.PORTAL)) {

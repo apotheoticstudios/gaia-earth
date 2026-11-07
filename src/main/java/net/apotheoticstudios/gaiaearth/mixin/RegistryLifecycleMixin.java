@@ -21,7 +21,7 @@ import net.apotheoticstudios.gaiaearth.RealEarth;
 public abstract class RegistryLifecycleMixin {
 	@ModifyVariable(method = "register", at = @At("HEAD"), argsOnly = true)
 	private RegistrationInfo realearth$stableOwnEntries(RegistrationInfo info, @Local(argsOnly = true) ResourceKey<?> key) {
-		if (RealEarth.MOD_ID.equals(key.identifier().getNamespace()) && info.lifecycle() != Lifecycle.stable()) {
+		if (RealEarth.MOD_ID.equals(key.location().getNamespace()) && info.lifecycle() != Lifecycle.stable()) {
 			return new RegistrationInfo(info.knownPackInfo(), Lifecycle.stable());
 		}
 		return info;

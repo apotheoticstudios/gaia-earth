@@ -2,7 +2,7 @@ package net.apotheoticstudios.gaiaearth.world;
 
 import java.util.BitSet;
 import net.minecraft.core.RegistryAccess;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.ChunkPos;
@@ -23,7 +23,7 @@ final class CaveMask {
 	private static final int CELL_XZ = 4;
 	private static final int CELL_Y = 8;
 
-	private static final Identifier RAVINE_RANDOM = RealEarth.id("ravines");
+	private static final ResourceLocation RAVINE_RANDOM = RealEarth.id("ravines");
 	/** Chance that a chunk starts a ravine, as vanilla's canyon carver. */
 	private static final float RAVINE_CHANCE = 0.01f;
 	/** Ravines are carved from starts up to this many chunks away. */
@@ -125,8 +125,8 @@ final class CaveMask {
 	private static void carveRavines(BitSet mask, ChunkPos pos, int[] top, int lowest, int height, PositionalRandomFactory randoms) {
 		int minX = pos.getMinBlockX();
 		int minZ = pos.getMinBlockZ();
-		for (int sx = pos.x() - RAVINE_REACH; sx <= pos.x() + RAVINE_REACH; sx++) {
-			for (int sz = pos.z() - RAVINE_REACH; sz <= pos.z() + RAVINE_REACH; sz++) {
+		for (int sx = pos.x - RAVINE_REACH; sx <= pos.x + RAVINE_REACH; sx++) {
+			for (int sz = pos.z - RAVINE_REACH; sz <= pos.z + RAVINE_REACH; sz++) {
 				RandomSource random = randoms.at(sx, 0, sz);
 				if (random.nextFloat() >= RAVINE_CHANCE) {
 					continue;

@@ -7,8 +7,8 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import net.apotheoticstudios.gaiaearth.terrain.VerticalScale;
 import net.apotheoticstudios.gaiaearth.world.ClimateLink;
+import net.apotheoticstudios.gaiaearth.world.OnEarth;
 
 /**
  * Snow and ice on Earth by real elevation.
@@ -18,28 +18,15 @@ import net.apotheoticstudios.gaiaearth.world.ClimateLink;
  * metres in ordinary forest. On Earth a block's temperature follows its real elevation instead --
  * blocks are not metres where the map is enlarged or shrunk, nor where heights are eased above the
  * knee -- so that rain turns to snow at the real snowline of its latitude, the same one the snowy
- * biomes follow (BiomePicker.heightTemperature). Recognised by sea level: only the Earth dimension
- * has its sea at Y -1800 (-1200 in older worlds), and the value is part of the call on both client and server.
+ * biomes follow (BiomePicker.heightTemperature). 1.21.1 doesn't say which level the block is in: OnEarth does.
  */
 @Mixin(Biome.class)
 public abstract class BiomeTemperatureMixin {
-	private static final float LAPSE_FRACTION = 0.25F;
-
 	@Inject(method = "getHeightAdjustedTemperature", at = @At("RETURN"), cancellable = true)
-	private void realearth$realisticLapseRate(BlockPos pos, int seaLevel, CallbackInfoReturnable<Float> cir, @Local(ordinal = 0) float base) {
-		if (!VerticalScale.isEarthSeaLevel(seaLevel)) {
-			return;
-		}
-		ClimateLink.Shape shape = ClimateLink.current();
+	private void realearth$realisticLapseRate(BlockPos pos, CallbackInfoReturnable<Float> cir, @Local(ordinal = 0) float base) {
+		ClimateLink.Shape shape = OnEarth.now() ? ClimateLink.current() : null;
 		if (shape != null) {
 			cir.setReturnValue(shape.temperature(base, pos));
-			return;
-		}
-		// No map shape from the server (a Project Gaia: Earth from before it was sent): its rule, a quarter of vanilla's per block.
-		int snowLevel = seaLevel + 17;
-		if (pos.getY() > snowLevel) {
-			float excess = (pos.getY() - snowLevel) * (1.0F - LAPSE_FRACTION) * 0.05F / 40.0F;
-			cir.setReturnValue(cir.getReturnValueF() + excess);
 		}
 	}
 }

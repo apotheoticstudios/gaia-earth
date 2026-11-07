@@ -14,7 +14,7 @@ next twenty, split into two halves that can be done apart.
    realm and name.
 2. **The biome itself:** add `(name, vanilla parent, grass colour, foliage colour, display name)` to `BIOMES` in
    `tools/biomes/build_biomes.py` (and `WATER` for water colour), then run
-   `python3 tools/biomes/build_biomes.py ~/.gradle/caches/fabric-loom/26.1/minecraft-common.jar src/main/resources`.
+   `python3 tools/biomes/build_biomes.py ~/.gradle/caches/fabric-loom/minecraftMaven/net/minecraft/minecraft-common/1.21.1-*/minecraft-common-1.21.1-*-v2.jar src/main/resources`.
    It writes the biome JSON, its biome tags (the parent's, but no structure tags: Earth generates no structures but its
    own) and its name.
 3. **Where it goes and what grows:** in `world/EarthBiomes.java`, `add(name, mix)` (tree kinds and shares: spruce, oak,

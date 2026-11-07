@@ -22,7 +22,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderSet;
-import net.minecraft.util.Util;
+import net.minecraft.Util;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.ChunkPos;
@@ -43,7 +43,6 @@ import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.chunk.ChunkGeneratorStructureState;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.PalettedContainer;
-import net.minecraft.world.level.chunk.Strategy;
 import net.minecraft.world.level.levelgen.GenerationStep;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.LegacyRandomSource;
@@ -72,8 +71,6 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 	public static final MapCodec<EarthChunkGenerator> CODEC = RecordCodecBuilder.mapCodec(
 		i -> i.group(BiomeSource.CODEC.fieldOf("biome_source").forGetter(g -> g.biomeSource)).apply(i, i.stable(EarthChunkGenerator::new))
 	);
-
-	private static final Strategy<BlockState> BLOCK_STRATEGY = Strategy.createForBlockStates(Block.BLOCK_STATE_REGISTRY);
 
 	private static final BlockState AIR = Blocks.AIR.defaultBlockState();
 	private static final BlockState WATER = Blocks.WATER.defaultBlockState();
@@ -109,14 +106,16 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 	private static BiomeGenerationSettings decoration(Holder<Biome> biome) {
 		BiomeGenerationSettings settings = biome.value().getGenerationSettings();
 		BiomeGenerationSettings.PlainBuilder kept = new BiomeGenerationSettings.PlainBuilder();
-		settings.getCarvers().forEach(kept::addCarver);
+		for (GenerationStep.Carving step : GenerationStep.Carving.values()) {
+			settings.getCarvers(step).forEach(carver -> kept.addCarver(step, carver));
+		}
 		List<HolderSet<PlacedFeature>> steps = settings.features();
 		for (int step = 0; step < steps.size(); step++) {
 			boolean structures = step == GenerationStep.Decoration.UNDERGROUND_STRUCTURES.ordinal()
 				|| step == GenerationStep.Decoration.SURFACE_STRUCTURES.ordinal() || step == GenerationStep.Decoration.STRONGHOLDS.ordinal();
 			boolean vegetation = step == GenerationStep.Decoration.VEGETAL_DECORATION.ordinal();
 			for (Holder<PlacedFeature> feature : steps.get(step)) {
-				String key = feature.unwrapKey().map(k -> k.identifier().toString()).orElse("");
+				String key = feature.unwrapKey().map(k -> k.location().toString()).orElse("");
 				boolean madeUp = vegetation && (MADE_UP_VEGETATION.contains(key) || key.startsWith("minecraft:trees_"));
 				if ((!structures || NATURAL_IN_STRUCTURE_STEPS.contains(key)) && !madeUp) {
 					kept.addFeature(step, feature);
@@ -148,11 +147,11 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 	 */
 	@Override
 	public void createStructures(RegistryAccess registryAccess, ChunkGeneratorStructureState state, StructureManager structureManager,
-		ChunkAccess chunk, StructureTemplateManager templates, ResourceKey<Level> level) {
-		ChunkTimes.started(chunk.getPos().x(), chunk.getPos().z());
+		ChunkAccess chunk, StructureTemplateManager templates) {
+		ChunkTimes.started(chunk.getPos().x, chunk.getPos().z);
 		TerrainField field = RealEarth.terrain();
 		if (field != null) {
-			field.chunk(chunk.getPos().x(), chunk.getPos().z());
+			field.chunk(chunk.getPos().x, chunk.getPos().z);
 		}
 	}
 
@@ -170,7 +169,7 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 		// Biomes depend on the ground, so the terrain must be known first. Waiting here costs nothing
 		// extra: fillFromNoise needs the same data and will find it ready.
 		ChunkPos pos = chunk.getPos();
-		return field.chunk(pos.x(), pos.z())
+		return field.chunk(pos.x, pos.z)
 			.handle((t, error) -> null)
 			.thenCompose(ignored -> super.createBiomes(randomState, blender, structureManager, chunk));
 	}
@@ -182,7 +181,7 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 			return CompletableFuture.completedFuture(chunk);
 		}
 		ChunkPos pos = chunk.getPos();
-		return field.chunk(pos.x(), pos.z()).handle((terrain, error) -> {
+		return field.chunk(pos.x, pos.z).handle((terrain, error) -> {
 			if (error != null) {
 				RealEarth.LOGGER.error("Terrain for chunk {} failed; leaving it empty", pos, error);
 				recordDegraded(pos);
@@ -208,7 +207,7 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 			if (server != null) {
 				for (net.minecraft.server.level.ServerLevel level : server.getAllLevels()) {
 					if (level.getChunkSource().getGenerator() == this) {
-						id = levelId = level.dimension().identifier().toString();
+						id = levelId = level.dimension().location().toString();
 						break;
 					}
 				}
@@ -234,7 +233,7 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 	}
 
 	private void fill(ChunkAccess chunk, ChunkTerrain t, RandomState randomState) {
-		int minY = chunk.getMinY();
+		int minY = chunk.getMinBuildHeight();
 		ChunkPos pos = chunk.getPos();
 		int baseX = pos.getMinBlockX();
 		int baseZ = pos.getMinBlockZ();
@@ -270,11 +269,11 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 				continue;
 			}
 			if (bottom > bedrockTop && topOfSection <= uniformDeepTop) {
-				sections[s] = new LevelChunkSection(new PalettedContainer<>(DEEPSLATE, BLOCK_STRATEGY), sections[s].getBiomes());
+				sections[s] = new LevelChunkSection(new PalettedContainer<>(Block.BLOCK_STATE_REGISTRY, DEEPSLATE, PalettedContainer.Strategy.SECTION_STATES), sections[s].getBiomes());
 				continue;
 			}
 			if (bottom > maxTop && topOfSection <= minWaterTop) {
-				sections[s] = new LevelChunkSection(new PalettedContainer<>(WATER, BLOCK_STRATEGY), sections[s].getBiomes());
+				sections[s] = new LevelChunkSection(new PalettedContainer<>(Block.BLOCK_STATE_REGISTRY, WATER, PalettedContainer.Strategy.SECTION_STATES), sections[s].getBiomes());
 				continue;
 			}
 
@@ -316,7 +315,7 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 				}
 				BlockPos above = new BlockPos(x, c.top + 1, z);
 				if (chunk.getBlockState(above).isAir() && chunk.getBlockState(above.below()).equals(c.surface)) {
-					chunk.setBlockState(above, c.topper, 0);
+					chunk.setBlockState(above, c.topper, false);
 				}
 			}
 		}
@@ -338,27 +337,27 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 				BlockState lining = block(Blocks.STONE_BRICKS);
 				if (tunnel == ChunkTerrain.TUNNEL_BORE) {
 					if (chunk.getBlockState(new BlockPos(x, floor - 1, z)).isAir()) {
-						chunk.setBlockState(new BlockPos(x, floor - 1, z), lining, 0);
+						chunk.setBlockState(new BlockPos(x, floor - 1, z), lining, false);
 					}
 					byte kind = t.tunnelKind[k];
-					chunk.setBlockState(new BlockPos(x, floor, z), Ways.isRail(kind) ? block(Blocks.GRAVEL) : waySurface(kind, baseX + x, baseZ + z), 0);
+					chunk.setBlockState(new BlockPos(x, floor, z), Ways.isRail(kind) ? block(Blocks.GRAVEL) : waySurface(kind, baseX + x, baseZ + z), false);
 					for (int y = floor + 1; y < roof; y++) {
-						chunk.setBlockState(new BlockPos(x, y, z), AIR, 0);
+						chunk.setBlockState(new BlockPos(x, y, z), AIR, false);
 					}
 					// The roof where there is ground over it; where the bore comes up into the open (its ramps by
 					// the portals), none, and no lantern hanging from nothing.
 					boolean covered = !chunk.getBlockState(new BlockPos(x, roof, z)).isAir();
 					if (covered) {
-						chunk.setBlockState(new BlockPos(x, roof, z), lining, 0);
+						chunk.setBlockState(new BlockPos(x, roof, z), lining, false);
 					}
 					if (covered && net.apotheoticstudios.gaiaearth.terrain.Tunnels.lit(t, x, z, baseX + x, baseZ + z)) {
-						chunk.setBlockState(new BlockPos(x, roof - 1, z), Blocks.LANTERN.defaultBlockState().setValue(BlockStateProperties.HANGING, true), 0);
+						chunk.setBlockState(new BlockPos(x, roof - 1, z), Blocks.LANTERN.defaultBlockState().setValue(BlockStateProperties.HANGING, true), false);
 					}
 				} else {
 					for (int y = floor; y <= roof; y++) {
 						BlockPos at = new BlockPos(x, y, z);
 						if (!chunk.getBlockState(at).isAir()) {
-							chunk.setBlockState(at, lining, 0);
+							chunk.setBlockState(at, lining, false);
 						}
 					}
 				}
@@ -376,17 +375,17 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 				int level = railLevel(t, x, z, false);
 				BlockState rail = railState(t, x, z, baseX + x, baseZ + z, level, false);
 				for (int y = c.top + 1; y < level - 1; y++) {
-					chunk.setBlockState(new BlockPos(x, y, z), block(Blocks.GRAVEL), 0);
+					chunk.setBlockState(new BlockPos(x, y, z), block(Blocks.GRAVEL), false);
 				}
 				for (int y = level; y <= c.top; y++) {
-					chunk.setBlockState(new BlockPos(x, y, z), AIR, 0);
+					chunk.setBlockState(new BlockPos(x, y, z), AIR, false);
 				}
-				chunk.setBlockState(new BlockPos(x, level - 1, z), rail.is(Blocks.POWERED_RAIL) ? block(Blocks.REDSTONE_BLOCK) : block(Blocks.GRAVEL), 0);
-				chunk.setBlockState(new BlockPos(x, level, z), rail, 0);
+				chunk.setBlockState(new BlockPos(x, level - 1, z), rail.is(Blocks.POWERED_RAIL) ? block(Blocks.REDSTONE_BLOCK) : block(Blocks.GRAVEL), false);
+				chunk.setBlockState(new BlockPos(x, level, z), rail, false);
 				for (int up = 1; up <= 2; up++) {
 					BlockPos above = new BlockPos(x, level + up, z);
 					if (!chunk.getBlockState(above).isAir() && chunk.getBlockState(above).getFluidState().isEmpty()) {
-						chunk.setBlockState(above, AIR, 0);
+						chunk.setBlockState(above, AIR, false);
 					}
 				}
 			}
@@ -401,10 +400,10 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 				int level = railLevel(t, x, z, true);
 				BlockState rail = railState(t, x, z, baseX + x, baseZ + z, level, true);
 				for (int y = t.tunnelY[k] + 1; y < level - 1; y++) {
-					chunk.setBlockState(new BlockPos(x, y, z), block(Blocks.GRAVEL), 0);
+					chunk.setBlockState(new BlockPos(x, y, z), block(Blocks.GRAVEL), false);
 				}
-				chunk.setBlockState(new BlockPos(x, level - 1, z), rail.is(Blocks.POWERED_RAIL) ? block(Blocks.REDSTONE_BLOCK) : block(Blocks.GRAVEL), 0);
-				chunk.setBlockState(new BlockPos(x, level, z), rail, 0);
+				chunk.setBlockState(new BlockPos(x, level - 1, z), rail.is(Blocks.POWERED_RAIL) ? block(Blocks.REDSTONE_BLOCK) : block(Blocks.GRAVEL), false);
+				chunk.setBlockState(new BlockPos(x, level, z), rail, false);
 			}
 		}
 
@@ -420,21 +419,21 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 				}
 				boolean rail = Ways.isRail(t.deckWay[k]);
 				chunk.setBlockState(new BlockPos(x, y, z), rail ? block(Blocks.STONE_BRICKS)
-					: RoadBlocks.high(deckSurface(t, k, baseX + x, baseZ + z), t.deckHeight[k]), 0);
+					: RoadBlocks.high(deckSurface(t, k, baseX + x, baseZ + z), t.deckHeight[k]), false);
 				for (int up = 1; up <= 3; up++) {
-					chunk.setBlockState(new BlockPos(x, y + up, z), AIR, 0);
+					chunk.setBlockState(new BlockPos(x, y + up, z), AIR, false);
 				}
 				deckTop[z * 16 + x] = y;
 				if (t.deckWay[k] == Ways.RAIL) {
 					int level = railLevel(t, x, z, false);
 					BlockState track = railState(t, x, z, baseX + x, baseZ + z, level, false);
 					for (int fill = y + 1; fill < level; fill++) {
-						chunk.setBlockState(new BlockPos(x, fill, z), block(Blocks.STONE_BRICKS), 0);
+						chunk.setBlockState(new BlockPos(x, fill, z), block(Blocks.STONE_BRICKS), false);
 					}
 					if (track.is(Blocks.POWERED_RAIL)) {
-						chunk.setBlockState(new BlockPos(x, level - 1, z), block(Blocks.REDSTONE_BLOCK), 0);
+						chunk.setBlockState(new BlockPos(x, level - 1, z), block(Blocks.REDSTONE_BLOCK), false);
 					}
-					chunk.setBlockState(new BlockPos(x, level, z), track, 0);
+					chunk.setBlockState(new BlockPos(x, level, z), track, false);
 					deckTop[z * 16 + x] = level;
 				}
 			}
@@ -453,16 +452,16 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 							BlockPos at = new BlockPos(x, y, z);
 							BlockState there = chunk.getBlockState(at);
 							if (there.isAir() || !there.getFluidState().isEmpty()) {
-								chunk.setBlockState(at, b, 0);
+								chunk.setBlockState(at, b, false);
 								deckTop[z * 16 + x] = Math.max(deckTop[z * 16 + x], y);
 							}
 						}
 					}
 					if (railing(t, x, z)) {
 						BlockPos deck = new BlockPos(x, t.deckY[k], z);
-						chunk.setBlockState(deck, RoadBlocks.high(chunk.getBlockState(deck), 16), 0);
+						chunk.setBlockState(deck, RoadBlocks.high(chunk.getBlockState(deck), 16), false);
 						if (chunk.getBlockState(deck.above()).isAir()) {
-							chunk.setBlockState(deck.above(), railingState(t, x, z), 0);
+							chunk.setBlockState(deck.above(), railingState(t, x, z), false);
 							deckTop[z * 16 + x] = Math.max(deckTop[z * 16 + x], t.deckY[k] + 1);
 						}
 					}
@@ -482,7 +481,7 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 				int k = ChunkTerrain.index(x, z);
 				BlockPos top = new BlockPos(x, t.topSolidY[k], z);
 				if (t.roadHeight[k] > 0 && t.roadHeight[k] < 16 && !chunk.getBlockState(top.above()).isAir()) {
-					chunk.setBlockState(top, RoadBlocks.high(chunk.getBlockState(top), 16), 0);
+					chunk.setBlockState(top, RoadBlocks.high(chunk.getBlockState(top), 16), false);
 				}
 			}
 		}
@@ -643,10 +642,10 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 		if (id == null) {
 			return railingState7(t, x, z);
 		}
-		net.minecraft.resources.Identifier name = net.minecraft.resources.Identifier.parse(id);
+		net.minecraft.resources.ResourceLocation name = net.minecraft.resources.ResourceLocation.parse(id);
 		var registry = net.minecraft.core.registries.BuiltInRegistries.BLOCK;
 		// Diagonal Fences' copy of a fence (Diagonal Blocks names it after the fence's own name), else the fence, else iron bars.
-		BlockState b = registry.getOptional(net.minecraft.resources.Identifier.fromNamespaceAndPath("diagonalfences", name.getNamespace() + "/" + name.getPath()))
+		BlockState b = registry.getOptional(net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("diagonalfences", name.getNamespace() + "/" + name.getPath()))
 			.or(() -> registry.getOptional(name)).map(Block::defaultBlockState).orElse(block(Blocks.IRON_BARS));
 		boolean north = railing(t, x, z - 1);
 		boolean east = railing(t, x + 1, z);
@@ -799,7 +798,7 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 				};
 			}
 		}
-		boolean slope = shape.isSlope();
+		boolean slope = shape.isAscending();
 		if (slope || Math.floorMod(eastWest ? wx : wz, POWER_EVERY) == 0) {
 			return Blocks.POWERED_RAIL.defaultBlockState().setValue(net.minecraft.world.level.block.PoweredRailBlock.SHAPE, shape)
 				.setValue(net.minecraft.world.level.block.PoweredRailBlock.POWERED, true);
@@ -1103,26 +1102,27 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 	}
 
 	@Override
-	public void applyCarvers(WorldGenRegion region, long seed, RandomState randomState, BiomeManager biomeManager, StructureManager structureManager, ChunkAccess chunk) {
+	public void applyCarvers(WorldGenRegion region, long seed, RandomState randomState, BiomeManager biomeManager, StructureManager structureManager, ChunkAccess chunk,
+		GenerationStep.Carving step) {
 	}
 
 	@Override
 	public void spawnOriginalMobs(WorldGenRegion region) {
 		ChunkPos center = region.getCenter();
-		Holder<Biome> biome = region.getBiome(center.getWorldPosition().atY(region.getMaxY()));
+		Holder<Biome> biome = region.getBiome(center.getWorldPosition().atY((region.getMaxBuildHeight() - 1)));
 		WorldgenRandom random = new WorldgenRandom(new LegacyRandomSource(RandomSupport.generateUniqueSeed()));
 		random.setDecorationSeed(region.getSeed(), center.getMinBlockX(), center.getMinBlockZ());
 		long started = net.apotheoticstudios.gaiaearth.Perf.start();
 		NaturalSpawner.spawnMobsForChunkGeneration(region, biome, center, random);
 		moveInVillagers(region, center);
 		TerrainField field = RealEarth.terrain();
-		ChunkTerrain life = field == null ? null : field.chunkIfReady(center.x(), center.z());
+		ChunkTerrain life = field == null ? null : field.chunkIfReady(center.x, center.z);
 		if (life != null && !life.pois.isEmpty()) {
 			StreetLife.entities(region, life, center.getMinBlockX(), center.getMinBlockZ());
 		}
 		net.apotheoticstudios.gaiaearth.Perf.stop("mobs", started);
 		// The last step of a chunk's generation that is the generator's.
-		ChunkTimes.generated(center.x(), center.z());
+		ChunkTimes.generated(center.x, center.z);
 	}
 
 	/**
@@ -1132,8 +1132,8 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 	 */
 	private static void moveInVillagers(WorldGenRegion region, ChunkPos center) {
 		TerrainField field = RealEarth.terrain();
-		ChunkTerrain t = field == null ? null : field.chunkIfReady(center.x(), center.z());
-		if (t == null || t.beds.isEmpty() || GeoNoise.hash(center.x(), 71, center.z()) >= RealEarth.config().villagerChance) {
+		ChunkTerrain t = field == null ? null : field.chunkIfReady(center.x, center.z);
+		if (t == null || t.beds.isEmpty() || GeoNoise.hash(center.x, 71, center.z) >= RealEarth.config().villagerChance) {
 			return;
 		}
 		int moved = 0;
@@ -1141,12 +1141,12 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 			if (moved >= 1) {
 				break;
 			}
-			var villager = net.minecraft.world.entity.EntityType.VILLAGER.create(region.getLevel(), net.minecraft.world.entity.EntitySpawnReason.STRUCTURE);
+			var villager = net.minecraft.world.entity.EntityType.VILLAGER.create(region.getLevel());
 			if (villager == null) {
 				continue;
 			}
-			villager.snapTo(bed[0] + 0.5, bed[1], bed[2] + 0.5, 0, 0);
-			villager.finalizeSpawn(region, region.getCurrentDifficultyAt(villager.blockPosition()), net.minecraft.world.entity.EntitySpawnReason.STRUCTURE, null);
+			villager.moveTo(bed[0] + 0.5, bed[1], bed[2] + 0.5, 0, 0);
+			villager.finalizeSpawn(region, region.getCurrentDifficultyAt(villager.blockPosition()), net.minecraft.world.entity.MobSpawnType.STRUCTURE, null);
 			villager.setPersistenceRequired();
 			region.addFreshEntityWithPassengers(villager);
 			moved++;
@@ -1156,6 +1156,15 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 
 	@Override
 	public void applyBiomeDecoration(net.minecraft.world.level.WorldGenLevel level, ChunkAccess chunk, StructureManager structureManager) {
+		OnEarth.enter(true); // vanilla's freezing and snow features read biome temperatures
+		try {
+			decorate(level, chunk, structureManager);
+		} finally {
+			OnEarth.leave();
+		}
+	}
+
+	private void decorate(net.minecraft.world.level.WorldGenLevel level, ChunkAccess chunk, StructureManager structureManager) {
 		long started = net.apotheoticstudios.gaiaearth.Perf.start();
 		EarthTrees.fill(level, this, chunk);
 		net.apotheoticstudios.gaiaearth.Perf.stop("trees", started);
@@ -1180,8 +1189,8 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 		BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
 		for (int dx = -1; dx <= 1; dx++) {
 			for (int dz = -1; dz <= 1; dz++) {
-				int cx = centre.x() + dx;
-				int cz = centre.z() + dz;
+				int cx = centre.x + dx;
+				int cz = centre.z + dz;
 				ChunkTerrain t = level.hasChunk(cx, cz) ? field.chunkIfReady(cx, cz) : null;
 				if (t == null || !town(t)) {
 					continue;
@@ -1339,7 +1348,7 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 		int[] h = columnHeights(x, z);
 		int top = h[0];
 		int water = h[1];
-		int minY = heightAccessor.getMinY();
+		int minY = heightAccessor.getMinBuildHeight();
 		for (int i = 0; i < states.length; i++) {
 			int y = minY + i;
 			states[i] = y <= top ? (top - y >= DEEPSLATE_DEPTH ? DEEPSLATE : STONE) : y <= water ? WATER : AIR;

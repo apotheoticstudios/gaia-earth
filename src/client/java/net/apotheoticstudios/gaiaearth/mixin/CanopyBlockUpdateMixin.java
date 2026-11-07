@@ -17,8 +17,8 @@ import net.apotheoticstudios.gaiaearth.client.CanopyMeshUpdates;
 @Mixin(Level.class)
 public abstract class CanopyBlockUpdateMixin {
 	@WrapOperation(method = "setBlock(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;II)Z",
-		at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/chunk/LevelChunk;setBlockState(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;I)Lnet/minecraft/world/level/block/state/BlockState;"))
-	private BlockState realearth$refreshShadeBelow(LevelChunk chunk, BlockPos pos, BlockState state, int flags,
+		at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/chunk/LevelChunk;setBlockState(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;Z)Lnet/minecraft/world/level/block/state/BlockState;"))
+	private BlockState realearth$refreshShadeBelow(LevelChunk chunk, BlockPos pos, BlockState state, boolean flags,
 			Operation<BlockState> original) {
 		if (!((Object) this instanceof ClientLevel level) || !RealEarth.isEarth(level)
 				|| !CanopyLight.hasHeightmaps(chunk)) {

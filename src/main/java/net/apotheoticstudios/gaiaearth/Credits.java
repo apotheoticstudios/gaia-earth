@@ -79,7 +79,7 @@ public final class Credits {
 			MutableComponent line = Component.literal(s.what + ": ").withStyle(ChatFormatting.GOLD)
 				.append(Component.literal(s.credit + " ").withStyle(ChatFormatting.WHITE))
 				.append(Component.literal("[link]").withStyle(st -> st.withColor(ChatFormatting.AQUA).withUnderlined(true)
-					.withClickEvent(new ClickEvent.OpenUrl(URI.create(s.url)))));
+					.withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, s.url))));
 			return (Component) line;
 		}).toList();
 	}

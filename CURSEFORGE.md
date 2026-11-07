@@ -59,9 +59,9 @@ Start in your own street, fly to the nearest town centre, or teleport anywhere o
 
 ## Requirements
 
-- Minecraft **26.1**, Fabric Loader 0.19.5+, Fabric API, Java 25
+- Minecraft **1.21.1**, Fabric Loader 0.19.5+, Fabric API, Java 21
 - Sodium 0.8.9 or later in the 0.8 series on clients
-- **Saro's Road Blocks** 5.12+ on clients and servers (asphalt and road markings)
+- **Saro's Road Blocks** 5.11+ on clients and servers (asphalt and road markings)
 - Install on **both client and server**
 - Recommended: **Distant Horizons** 3.3+ (at one block per metre, vanilla render distance shows only a few
   hundred metres)

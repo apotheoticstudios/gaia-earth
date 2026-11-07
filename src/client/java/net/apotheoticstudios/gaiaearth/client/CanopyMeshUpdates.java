@@ -53,8 +53,8 @@ public final class CanopyMeshUpdates {
 		int maxX = SectionPos.blockToSectionCoord(edit.getX() + border);
 		int minZ = SectionPos.blockToSectionCoord(edit.getZ() - border);
 		int maxZ = SectionPos.blockToSectionCoord(edit.getZ() + border);
-		int minY = Math.max(level.getMinSectionY(), SectionPos.blockToSectionCoord(bottom - border));
-		int maxY = Math.min(level.getMaxSectionY(), SectionPos.blockToSectionCoord(highestSample + border));
+		int minY = Math.max(level.getMinSection(), SectionPos.blockToSectionCoord(bottom - border));
+		int maxY = Math.min((level.getMaxSection() - 1), SectionPos.blockToSectionCoord(highestSample + border));
 		for (int z = minZ; z <= maxZ; z++) {
 			for (int y = minY; y <= maxY; y++) {
 				for (int x = minX; x <= maxX; x++) {

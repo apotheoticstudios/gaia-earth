@@ -6,7 +6,7 @@ import java.util.WeakHashMap;
 import net.minecraft.core.HolderGetter;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.levelgen.DensityFunction;
 import net.minecraft.world.level.levelgen.DensityFunctions;
@@ -48,7 +48,7 @@ public final class Caves {
 	}
 
 	private static DensityFunction fn(HolderGetter<DensityFunction> functions, String path) {
-		ResourceKey<DensityFunction> key = ResourceKey.create(Registries.DENSITY_FUNCTION, Identifier.withDefaultNamespace(path));
+		ResourceKey<DensityFunction> key = ResourceKey.create(Registries.DENSITY_FUNCTION, ResourceLocation.withDefaultNamespace(path));
 		return new DensityFunctions.HolderHolder(functions.getOrThrow(key));
 	}
 

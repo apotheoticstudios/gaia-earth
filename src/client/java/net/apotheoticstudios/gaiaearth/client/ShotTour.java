@@ -148,7 +148,7 @@ final class ShotTour {
 			mc.options.hideGui = !Boolean.getBoolean("realearth.shotHud");
 		} else if (ticks == SETTLE_TICKS + 5) {
 			Shot shot = SHOTS.get(index);
-			Screenshot.grab(mc.gameDirectory, "realearth-" + shot.name + ".png", mc.getMainRenderTarget(), 1,
+			Screenshot.grab(mc.gameDirectory, "realearth-" + shot.name + ".png", mc.getMainRenderTarget(),
 				message -> RealEarth.LOGGER.info("[shots] {}: {}", shot.name, message.getString()));
 		} else if (ticks == SETTLE_TICKS + 25) {
 			mc.options.hideGui = false;
@@ -406,7 +406,7 @@ final class ShotTour {
 			int ground = RealEarth.surfaceY(earth, Heightmap.Types.MOTION_BLOCKING, x, z);
 			server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), "time set noon");
 			player.setGameMode(GameType.SPECTATOR);
-			BlockPos camera = new BlockPos(x, (int) Math.min(ground + shot.above, earth.getMaxY() - 4), z);
+			BlockPos camera = new BlockPos(x, (int) Math.min(ground + shot.above, (earth.getMaxBuildHeight() - 1) - 4), z);
 			float yaw = shot.yaw;
 			if (shot.name.startsWith("inside-")) {
 				// In a stairwell, a shop or a flat's living room nearby, looking across it.
@@ -426,7 +426,7 @@ final class ShotTour {
 				player.addEffect(new MobEffectInstance(MobEffects.NIGHT_VISION, 20 * 600, 0, false, false));
 				camera = findOpenSpace(earth, x, z, shot.minDepth, shot.maxDepth);
 			}
-			player.teleportTo(earth, camera.getX() + 0.5, camera.getY(), camera.getZ() + 0.5, Set.of(), yaw, shot.pitch, true);
+			player.teleportTo(earth, camera.getX() + 0.5, camera.getY(), camera.getZ() + 0.5, Set.of(), yaw, shot.pitch);
 			RealEarth.LOGGER.info("[shots] {} at X {} Z {}, ground Y {} ({} m)", shot.name, x, z, ground,
 				Math.round(field.elevationOfBlock(x + 0.5, ground, z)));
 			moving = false;

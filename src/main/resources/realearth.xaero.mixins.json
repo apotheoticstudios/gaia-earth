@@ -2,7 +2,7 @@
   "required": false,
   "package": "net.apotheoticstudios.gaiaearth.mixin",
   "plugin": "net.apotheoticstudios.gaiaearth.compat.xaero.XaeroMixins",
-  "compatibilityLevel": "JAVA_25",
+  "compatibilityLevel": "JAVA_21",
   "mixins": [],
   "injectors": {
     "defaultRequire": 1

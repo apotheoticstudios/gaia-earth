@@ -255,7 +255,7 @@ public final class LodSampler {
 			case "minecraft:snow_block" -> "minecraft:snow_block";
 			default -> "minecraft:stone";
 		};
-		return new Column(groundTop, waterTop, surface, under, groundTop + canopyHeight, leaves, earth.identifier().toString());
+		return new Column(groundTop, waterTop, surface, under, groundTop + canopyHeight, leaves, earth.location().toString());
 	}
 
 	private static String surface(ResourceKey<Biome> biome, int cover, int climate, double rise, boolean sea, boolean inland, byte land) {

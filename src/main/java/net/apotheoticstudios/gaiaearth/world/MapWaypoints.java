@@ -72,7 +72,7 @@ public final class MapWaypoints {
 	}
 
 	public static void register() {
-		PayloadTypeRegistry.clientboundPlay().register(Payload.TYPE, Payload.CODEC);
+		PayloadTypeRegistry.playS2C().register(Payload.TYPE, Payload.CODEC);
 		ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> SENT.remove(handler.getPlayer().getUUID()));
 	}
 

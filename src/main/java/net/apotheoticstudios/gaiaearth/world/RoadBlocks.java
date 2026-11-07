@@ -25,7 +25,7 @@ final class RoadBlocks {
 
 	private static BlockState block(String name) {
 		return net.minecraft.core.registries.BuiltInRegistries.BLOCK
-			.getOptional(net.minecraft.resources.Identifier.fromNamespaceAndPath("saros_road_blocks_mod", name)).map(Block::defaultBlockState).orElse(null);
+			.getOptional(net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("saros_road_blocks_mod", name)).map(Block::defaultBlockState).orElse(null);
 	}
 
 	/**

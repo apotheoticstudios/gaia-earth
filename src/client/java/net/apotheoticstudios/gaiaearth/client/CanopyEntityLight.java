@@ -45,7 +45,7 @@ public final class CanopyEntityLight {
 		var entries = SECTIONS.long2ObjectEntrySet().fastIterator();
 		while (entries.hasNext()) {
 			long section = entries.next().getLongKey();
-			if (Math.abs(SectionPos.x(section) - chunk.x()) <= 1 && Math.abs(SectionPos.z(section) - chunk.z()) <= 1) {
+			if (Math.abs(SectionPos.x(section) - chunk.x) <= 1 && Math.abs(SectionPos.z(section) - chunk.z) <= 1) {
 				entries.remove();
 			}
 		}

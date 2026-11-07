@@ -17,7 +17,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
@@ -66,26 +66,24 @@ public class RealEarth implements ModInitializer {
 	public static final ResourceKey<Level> EARTH = ResourceKey.create(Registries.DIMENSION, id("earth"));
 	public static final ResourceKey<DimensionType> EARTH_TYPE = ResourceKey.create(Registries.DIMENSION_TYPE, id("earth"));
 
-	public static final Block PORTAL = Blocks.register(
-		ResourceKey.create(Registries.BLOCK, id("earth_portal")),
-		EarthPortalBlock::new,
+	public static final Block PORTAL = Registry.register(BuiltInRegistries.BLOCK, id("earth_portal"), new EarthPortalBlock(
 		BlockBehaviour.Properties.of()
 			.mapColor(MapColor.COLOR_BLUE)
-			.noCollision()
+			.noCollission()
 			.strength(-1.0F)
 			.sound(SoundType.GLASS)
 			.lightLevel(state -> 11)
 			.pushReaction(PushReaction.BLOCK)
 			.noLootTable()
-	);
+	));
 
 	private static EarthConfig config = new EarthConfig();
 	private static volatile TerrainField terrain;
 	private static volatile MinecraftServer server;
 	private static ExecutorService auxDownloads;
 
-	public static Identifier id(String path) {
-		return Identifier.fromNamespaceAndPath(MOD_ID, path);
+	public static ResourceLocation id(String path) {
+		return ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
 	}
 
 	public static MinecraftServer server() {
@@ -123,7 +121,7 @@ public class RealEarth implements ModInitializer {
 		Registry.register(BuiltInRegistries.CHUNK_GENERATOR, id("earth"), EarthChunkGenerator.CODEC);
 		Registry.register(BuiltInRegistries.BIOME_SOURCE, id("earth"), EarthBiomeSource.CODEC);
 		Registry.register(BuiltInRegistries.STRUCTURE_PLACEMENT, id("built_up"), net.apotheoticstudios.gaiaearth.world.BuiltUpPlacement.TYPE);
-		Registry.register(BuiltInRegistries.LOOT_FUNCTION_TYPE, id("town_map"), net.apotheoticstudios.gaiaearth.world.TownMapFunction.CODEC);
+		Registry.register(BuiltInRegistries.LOOT_FUNCTION_TYPE, id("town_map"), net.apotheoticstudios.gaiaearth.world.TownMapFunction.TYPE);
 
 		net.apotheoticstudios.gaiaearth.world.HereLink.register();
 		net.apotheoticstudios.gaiaearth.world.MapWaypoints.register();
@@ -144,11 +142,11 @@ public class RealEarth implements ModInitializer {
 		UseBlockCallback.EVENT.register(RealEarth::onBlockChange);
 		PlayerBlockBreakEvents.AFTER.register((level, player, pos, state, entity) -> {
 			if (isEarth(level)) {
-				DegradedChunks.touch(level.dimension().identifier().toString(), pos.getX() >> 4, pos.getZ() >> 4);
+				DegradedChunks.touch(level.dimension().location().toString(), pos.getX() >> 4, pos.getZ() >> 4);
 			}
 		});
 		// Attribution where the data is seen: arriving on Earth through a portal.
-		net.fabricmc.fabric.api.entity.event.v1.ServerEntityLevelChangeEvents.AFTER_PLAYER_CHANGE_LEVEL.register((player, from, to) -> {
+		net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register((player, from, to) -> {
 			if (isEarth(to) && !isEarth(from)) {
 				player.sendSystemMessage(Credits.greeting());
 			}
@@ -177,7 +175,7 @@ public class RealEarth implements ModInitializer {
 				handler.player.sendSystemMessage(Credits.greeting());
 			}
 			int degraded = DegradedChunks.count();
-			if (degraded > 0 && server.getPlayerList().isOp(handler.player.nameAndId())) {
+			if (degraded > 0 && server.getPlayerList().isOp(handler.player.getGameProfile())) {
 				handler.player.sendSystemMessage(Component.literal("[Project Gaia: Earth] " + degraded + " chunk" + (degraded == 1 ? " was" : "s were")
 					+ " generated from placeholder data while offline. Run /earth repair when online to regenerate them.").withStyle(ChatFormatting.GOLD));
 			}
@@ -272,7 +270,7 @@ public class RealEarth implements ModInitializer {
 	 */
 	private static InteractionResult onBlockChange(Player player, Level level, InteractionHand hand, BlockHitResult hit) {
 		if (!level.isClientSide() && isEarth(level) && !player.getItemInHand(hand).isEmpty()) {
-			String id = level.dimension().identifier().toString();
+			String id = level.dimension().location().toString();
 			BlockPos at = hit.getBlockPos();
 			BlockPos next = at.relative(hit.getDirection());
 			DegradedChunks.touch(id, at.getX() >> 4, at.getZ() >> 4);
@@ -296,7 +294,7 @@ public class RealEarth implements ModInitializer {
 		}
 		// In the Earth world type the Overworld already is Earth; a portal to Earth would lead nowhere.
 		if (level.dimension() == Level.OVERWORLD && isEarth(level)) {
-			player.sendOverlayMessage(Component.literal("You are already on Earth."));
+			player.displayClientMessage(Component.literal("You are already on Earth."), true);
 			return InteractionResult.FAIL;
 		}
 		if (!level.isClientSide()) {

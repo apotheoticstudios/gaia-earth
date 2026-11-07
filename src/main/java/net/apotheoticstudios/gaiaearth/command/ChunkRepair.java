@@ -9,7 +9,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ChunkMap;
@@ -133,7 +133,7 @@ public final class ChunkRepair {
 			if (!t.ready) {
 				continue;
 			}
-			ServerLevel level = server.getLevel(ResourceKey.create(Registries.DIMENSION, Identifier.parse(t.level)));
+			ServerLevel level = server.getLevel(ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(t.level)));
 			if (level == null) {
 				continue;
 			}
@@ -142,17 +142,17 @@ public final class ChunkRepair {
 				continue;
 			}
 			ChunkMap chunkMap = level.getChunkSource().chunkMap;
-			if (chunkMap.getUpdatingChunkIfPresent(t.key) != null
+			if (((ChunkMapAccessor) chunkMap).realearth$updatingChunk(t.key) != null
 				|| ((ChunkMapAccessor) chunkMap).realearth$pendingUnloads().containsKey(t.key)
 				|| level.areEntitiesLoaded(t.key)) {
 				loaded++;
 				continue;
 			}
-			ChunkPos pos = ChunkPos.unpack(t.key);
-			chunkMap.write(pos, IOWorker.STORE_EMPTY);
+			ChunkPos pos = new ChunkPos(t.key);
+			chunkMap.write(pos, null);
 			var storage = ((PersistentEntitySectionManagerAccessor) ((ServerLevelAccessor) level).realearth$entityManager()).realearth$permanentStorage();
 			if (storage instanceof EntityStorage entities) {
-				((EntityStorageAccessor) entities).realearth$simpleRegionStorage().write(pos, IOWorker.STORE_EMPTY);
+				((EntityStorageAccessor) entities).realearth$simpleRegionStorage().write(pos, null);
 			}
 			DegradedChunks.remove(t.level, t.key);
 			repaired++;

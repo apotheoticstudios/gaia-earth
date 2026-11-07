@@ -7,12 +7,12 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.BlockTags;
-import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.ai.village.poi.PoiManager;
 import net.minecraft.world.entity.ai.village.poi.PoiRecord;
 import net.minecraft.world.entity.ai.village.poi.PoiTypes;
-import net.minecraft.world.entity.npc.villager.Villager;
+import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
 import net.apotheoticstudios.gaiaearth.RealEarth;
@@ -93,7 +93,7 @@ public final class Townsfolk {
 			return null;
 		}
 		double reach = (AROUND + 0.5) * 16;
-		AABB town = new AABB(at.getX() - reach, level.getMinY(), at.getZ() - reach, at.getX() + reach, level.getMaxY(), at.getZ() + reach);
+		AABB town = new AABB(at.getX() - reach, level.getMinBuildHeight(), at.getZ() - reach, at.getX() + reach, (level.getMaxBuildHeight() - 1), at.getZ() + reach);
 		int there = level.getEntitiesOfClass(Villager.class, town).size();
 		if (there >= room) {
 			return null;
@@ -105,12 +105,12 @@ public final class Townsfolk {
 			if (near(pos, players, UNSEEN) || !level.isPositionEntityTicking(pos) || !level.getBlockState(pos).is(BlockTags.BEDS)) {
 				continue;
 			}
-			Villager villager = EntityType.VILLAGER.create(level, EntitySpawnReason.EVENT);
+			Villager villager = EntityType.VILLAGER.create(level);
 			if (villager == null) {
 				return null;
 			}
-			villager.snapTo(pos.getX() + 0.5, pos.getY() + 0.5625, pos.getZ() + 0.5, level.getRandom().nextFloat() * 360, 0);
-			villager.finalizeSpawn(level, level.getCurrentDifficultyAt(pos), EntitySpawnReason.EVENT, null);
+			villager.moveTo(pos.getX() + 0.5, pos.getY() + 0.5625, pos.getZ() + 0.5, level.getRandom().nextFloat() * 360, 0);
+			villager.finalizeSpawn(level, level.getCurrentDifficultyAt(pos), MobSpawnType.EVENT, null);
 			if (level.getRandom().nextInt(CHILDREN) == 0) {
 				villager.setAge(-24000);
 			}
@@ -127,7 +127,7 @@ public final class Townsfolk {
 	 */
 	public static int leave(ServerLevel level, List<? extends Player> players) {
 		int gone = 0;
-		for (Villager villager : level.getEntities(EntityType.VILLAGER, v -> v.entityTags().contains(TAG))) {
+		for (Villager villager : level.getEntities(EntityType.VILLAGER, v -> v.getTags().contains(TAG))) {
 			if (villager.getVillagerXp() > 0 || villager.hasCustomName() || villager.isLeashed() || villager.isTrading()
 				|| villager.isPassenger() || near(villager.blockPosition(), players, GONE)) {
 				continue;

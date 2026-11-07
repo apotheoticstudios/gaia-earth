@@ -8,7 +8,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.util.context.ContextKey;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.MapItem;
@@ -16,6 +15,8 @@ import net.minecraft.world.level.saveddata.maps.MapDecorationTypes;
 import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 import net.minecraft.world.level.storage.loot.LootContext;
 import net.minecraft.world.level.storage.loot.functions.LootItemConditionalFunction;
+import net.minecraft.world.level.storage.loot.functions.LootItemFunctionType;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParam;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.level.storage.loot.predicates.LootItemCondition;
 import net.minecraft.world.phys.Vec3;
@@ -29,6 +30,7 @@ import net.apotheoticstudios.gaiaearth.terrain.TerrainField;
  */
 public final class TownMapFunction extends LootItemConditionalFunction {
 	public static final MapCodec<TownMapFunction> CODEC = RecordCodecBuilder.mapCodec(i -> commonFields(i).apply(i, TownMapFunction::new));
+	public static final LootItemFunctionType<TownMapFunction> TYPE = new LootItemFunctionType<>(CODEC);
 	/** A town's map: two blocks to a pixel, 256 blocks across. */
 	private static final byte SCALE = 1;
 
@@ -37,18 +39,18 @@ public final class TownMapFunction extends LootItemConditionalFunction {
 	}
 
 	@Override
-	public MapCodec<TownMapFunction> codec() {
-		return CODEC;
+	public LootItemFunctionType<TownMapFunction> getType() {
+		return TYPE;
 	}
 
 	@Override
-	public Set<ContextKey<?>> getReferencedContextParams() {
+	public Set<LootContextParam<?>> getReferencedContextParams() {
 		return Set.of(LootContextParams.ORIGIN);
 	}
 
 	@Override
 	protected ItemStack run(ItemStack stack, LootContext context) {
-		Vec3 origin = context.getOptionalParameter(LootContextParams.ORIGIN);
+		Vec3 origin = context.getParamOrNull(LootContextParams.ORIGIN);
 		if (!stack.is(Items.MAP) || origin == null) {
 			return stack;
 		}

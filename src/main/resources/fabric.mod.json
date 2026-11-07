@@ -41,17 +41,17 @@
   ],
   "depends": {
     "fabricloader": ">=0.19.5",
-    "minecraft": "~26.1",
-    "java": ">=25",
+    "minecraft": "~1.21.1",
+    "java": ">=21",
     "fabric-api": "*",
     "gaia-earth-client": "*",
-    "saros_road_blocks_mod": ">=5.12",
+    "saros_road_blocks_mod": ">=5.11",
     "mcwfences": ">=1.2.1",
-    "diagonalfences": ">=26.1.0"
+    "diagonalfences": ">=21.1.0"
   },
   "suggests": {
     "distanthorizons": ">=3.3.0",
-    "jade": ">=26.1",
+    "jade": ">=15.0",
     "xaerominimap": ">=26.0",
     "xaeroworldmap": ">=1.47"
   }

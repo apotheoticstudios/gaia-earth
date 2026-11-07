@@ -2,7 +2,7 @@ package net.apotheoticstudios.gaiaearth.mixin;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
-import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.level.LevelAccessor;
@@ -21,7 +21,7 @@ public abstract class SlimeSpawnMixin {
 	private static final int VANILLA_SEA_LEVEL = 63;
 
 	@Redirect(method = "checkSlimeSpawnRules", at = @At(value = "INVOKE", target = "Lnet/minecraft/core/BlockPos;getY()I"))
-	private static int realearth$fromSeaLevel(BlockPos pos, EntityType<Slime> type, LevelAccessor level, EntitySpawnReason reason, BlockPos at,
+	private static int realearth$fromSeaLevel(BlockPos pos, EntityType<Slime> type, LevelAccessor level, MobSpawnType reason, BlockPos at,
 		RandomSource random) {
 		return pos.getY() - level.getSeaLevel() + VANILLA_SEA_LEVEL;
 	}

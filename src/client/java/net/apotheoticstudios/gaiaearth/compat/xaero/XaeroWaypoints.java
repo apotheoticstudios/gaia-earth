@@ -4,7 +4,7 @@ import java.util.List;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.Minecraft;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import net.apotheoticstudios.gaiaearth.RealEarth;
@@ -25,7 +25,7 @@ import xaero.hud.minimap.world.container.MinimapWorldRootContainer;
  * sends new ones as the player moves. Only on the Earth's dimension; off with mapWaypoints in the config.
  */
 final class XaeroWaypoints {
-	private static final Identifier ORIGIN = RealEarth.id("map");
+	private static final ResourceLocation ORIGIN = RealEarth.id("map");
 
 	/** The marks from the server last put in the minimap. */
 	private static List<MapWaypoints.Mark> applied = List.of();

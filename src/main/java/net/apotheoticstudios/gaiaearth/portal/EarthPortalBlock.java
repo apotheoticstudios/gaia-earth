@@ -10,12 +10,11 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.InsideBlockEffectApplier;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelReader;
-import net.minecraft.world.level.ScheduledTickAccess;
+import net.minecraft.world.level.GameRules;
+import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.Portal;
@@ -24,10 +23,8 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
-import net.minecraft.world.level.gamerules.GameRules;
-import net.minecraft.world.level.portal.TeleportTransition;
+import net.minecraft.world.level.portal.DimensionTransition;
 import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.Nullable;
 
@@ -35,7 +32,9 @@ import org.jspecify.annotations.Nullable;
 public class EarthPortalBlock extends Block implements Portal {
 	public static final MapCodec<EarthPortalBlock> CODEC = simpleCodec(EarthPortalBlock::new);
 	public static final EnumProperty<Direction.Axis> AXIS = BlockStateProperties.HORIZONTAL_AXIS;
-	private static final Map<Direction.Axis, VoxelShape> SHAPES = Shapes.rotateHorizontalAxis(Block.column(4.0, 16.0, 0.0, 16.0));
+	private static final Map<Direction.Axis, VoxelShape> SHAPES = Map.of(
+		Direction.Axis.X, Block.box(0.0, 0.0, 6.0, 16.0, 16.0, 10.0),
+		Direction.Axis.Z, Block.box(6.0, 0.0, 0.0, 10.0, 16.0, 16.0));
 
 	public EarthPortalBlock(BlockBehaviour.Properties properties) {
 		super(properties);
@@ -59,18 +58,18 @@ public class EarthPortalBlock extends Block implements Portal {
 
 	/** Collapses when anything in its own plane stops being portal or frame -- e.g. a frame block is mined. */
 	@Override
-	protected BlockState updateShape(BlockState state, LevelReader level, ScheduledTickAccess ticks, BlockPos pos,
-		Direction direction, BlockPos neighbourPos, BlockState neighbourState, RandomSource random) {
+	protected BlockState updateShape(BlockState state, Direction direction, BlockState neighbourState, LevelAccessor level,
+		BlockPos pos, BlockPos neighbourPos) {
 		Direction.Axis axis = state.getValue(AXIS);
 		boolean inPlane = direction.getAxis() == axis || direction.getAxis() == Direction.Axis.Y;
 		if (inPlane && !neighbourState.is(this) && !PortalFrame.isFrame(neighbourState)) {
 			return Blocks.AIR.defaultBlockState();
 		}
-		return super.updateShape(state, level, ticks, pos, direction, neighbourPos, neighbourState, random);
+		return super.updateShape(state, direction, neighbourState, level, pos, neighbourPos);
 	}
 
 	@Override
-	protected void entityInside(BlockState state, Level level, BlockPos pos, Entity entity, InsideBlockEffectApplier effects, boolean isPrecise) {
+	protected void entityInside(BlockState state, Level level, BlockPos pos, Entity entity) {
 		if (entity.canUsePortal(false)) {
 			entity.setAsInsidePortal(this, pos);
 		}
@@ -79,15 +78,15 @@ public class EarthPortalBlock extends Block implements Portal {
 	@Override
 	public int getPortalTransitionTime(ServerLevel level, Entity entity) {
 		if (entity instanceof Player player) {
-			return Math.max(0, level.getGameRules().get(player.getAbilities().invulnerable
-				? GameRules.PLAYERS_NETHER_PORTAL_CREATIVE_DELAY
-				: GameRules.PLAYERS_NETHER_PORTAL_DEFAULT_DELAY));
+			return Math.max(0, level.getGameRules().getInt(player.getAbilities().invulnerable
+				? GameRules.RULE_PLAYERS_NETHER_PORTAL_CREATIVE_DELAY
+				: GameRules.RULE_PLAYERS_NETHER_PORTAL_DEFAULT_DELAY));
 		}
 		return 0;
 	}
 
 	@Override
-	public @Nullable TeleportTransition getPortalDestination(ServerLevel currentLevel, Entity entity, BlockPos portalEntryPos) {
+	public @Nullable DimensionTransition getPortalDestination(ServerLevel currentLevel, Entity entity, BlockPos portalEntryPos) {
 		return PortalTravel.destination(currentLevel, entity, portalEntryPos);
 	}
 

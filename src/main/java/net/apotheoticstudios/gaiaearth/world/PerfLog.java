@@ -86,8 +86,8 @@ public final class PerfLog {
 			}
 			// Chunks within the player's view the server has not finished: generation falling behind.
 			int view = Math.min(player.requestedViewDistance(), server.getPlayerList().getViewDistance());
-			int cx = player.chunkPosition().x();
-			int cz = player.chunkPosition().z();
+			int cx = player.chunkPosition().x;
+			int cz = player.chunkPosition().z;
 			int missing = 0;
 			int nearest = Integer.MAX_VALUE;
 			for (int dz = -view; dz <= view; dz++) {
@@ -100,7 +100,7 @@ public final class PerfLog {
 			}
 			int all = (2 * view + 1) * (2 * view + 1);
 			lines.add(String.format(Locale.ROOT, "  %s at %d, %d, %d%s, %.1f blocks/s%s, view %d: %d of %d chunks not generated yet%s",
-				player.getGameProfile().name(), player.getBlockX(), player.getBlockY(), player.getBlockZ(), where, speed,
+				player.getGameProfile().getName(), player.getBlockX(), player.getBlockY(), player.getBlockZ(), where, speed,
 				player.isFallFlying() ? " gliding" : "", view, missing, all, missing == 0 ? "" : ", nearest " + nearest + " chunks away"));
 		}
 

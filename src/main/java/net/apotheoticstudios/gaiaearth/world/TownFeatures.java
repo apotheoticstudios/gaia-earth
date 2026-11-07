@@ -299,10 +299,10 @@ final class TownFeatures {
 
 	/** Sets a block, and its block entity when it has one; returns that block entity, or null. */
 	private static net.minecraft.world.level.block.entity.BlockEntity set(ChunkAccess chunk, BlockPos.MutableBlockPos pos, int x, int y, int z, BlockState s) {
-		if (y <= chunk.getMinY() || y >= chunk.getMaxY()) {
+		if (y <= chunk.getMinBuildHeight() || y >= (chunk.getMaxBuildHeight() - 1)) {
 			return null;
 		}
-		chunk.setBlockState(pos.set(x, y, z), s, 0);
+		chunk.setBlockState(pos.set(x, y, z), s, false);
 		// Blocks set straight into a chunk get no block entity of their own: a bed, chest or bell would
 		// be invisible or dead. Make it here, at the block's place in the world.
 		if (s.hasBlockEntity() && s.getBlock() instanceof net.minecraft.world.level.block.EntityBlock entityBlock) {

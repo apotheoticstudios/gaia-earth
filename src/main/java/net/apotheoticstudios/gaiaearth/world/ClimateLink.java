@@ -66,7 +66,7 @@ public final class ClimateLink {
 	}
 
 	public static void register() {
-		PayloadTypeRegistry.clientboundPlay().register(Payload.TYPE, Payload.CODEC);
+		PayloadTypeRegistry.playS2C().register(Payload.TYPE, Payload.CODEC);
 		ServerPlayConnectionEvents.JOIN.register((handler, sender, s) -> {
 			Payload p = served;
 			if (p != null && ServerPlayNetworking.canSend(handler.player, Payload.TYPE)) {

@@ -328,7 +328,7 @@ public final class CanopyLight {
 
 	private static boolean blocksSpill(BlockState state) {
 		return !state.getFluidState().isEmpty()
-			|| (!(state.getBlock() instanceof LeavesBlock) && (state.getLightDampening() > 0 || state.canOcclude()));
+			|| (!(state.getBlock() instanceof LeavesBlock) && (state.getLightBlock(net.minecraft.world.level.EmptyBlockGetter.INSTANCE, net.minecraft.core.BlockPos.ZERO) > 0 || state.canOcclude()));
 	}
 
 	private static int filter(BlockState state) {
@@ -342,6 +342,6 @@ public final class CanopyLight {
 			return LEAF;
 		}
 		return Heightmap.Types.MOTION_BLOCKING_NO_LEAVES.isOpaque().test(state)
-			|| state.getLightDampening() > 0 || state.canOcclude() ? BLOCKED : CLEAR;
+			|| state.getLightBlock(net.minecraft.world.level.EmptyBlockGetter.INSTANCE, net.minecraft.core.BlockPos.ZERO) > 0 || state.canOcclude() ? BLOCKED : CLEAR;
 	}
 }

@@ -41,7 +41,24 @@ import sys
 import tempfile
 from collections import Counter
 
-DATA_VERSION = 4786  # Minecraft 26.1
+DATA_VERSION = 3955  # Minecraft 1.21.1
+# Blocks newer than 1.21.1, as the nearest 1.21.1 block with the same properties (None: left out). Pale oak's grey
+# bark is acacia's; its grey-green leaves, spruce's blue-green.
+NEWER_BLOCKS = {
+    "minecraft:pale_oak_log": "minecraft:acacia_log", "minecraft:pale_oak_wood": "minecraft:acacia_wood",
+    "minecraft:stripped_pale_oak_log": "minecraft:stripped_birch_log", "minecraft:stripped_pale_oak_wood": "minecraft:stripped_birch_wood",
+    "minecraft:pale_oak_leaves": "minecraft:spruce_leaves", "minecraft:pale_oak_fence": "minecraft:birch_fence",
+    "minecraft:pale_oak_fence_gate": "minecraft:birch_fence_gate", "minecraft:pale_oak_trapdoor": "minecraft:birch_trapdoor",
+    "minecraft:pale_moss_block": "minecraft:moss_block", "minecraft:pale_hanging_moss": None,
+    "minecraft:resin_block": "minecraft:orange_terracotta", "minecraft:resin_clump": None,
+    "minecraft:open_eyeblossom": None, "minecraft:closed_eyeblossom": None,
+    "minecraft:poplar_wood": "minecraft:birch_wood", "minecraft:poplar_fence": "minecraft:birch_fence",
+    "minecraft:poplar_fence_gate": "minecraft:birch_fence_gate", "minecraft:poplar_trapdoor": "minecraft:birch_trapdoor",
+    "minecraft:yellow_poplar_leaves": "minecraft:birch_leaves", "minecraft:orange_poplar_leaves": "minecraft:birch_leaves",
+    "minecraft:red_poplar_leaves": "minecraft:birch_leaves",
+    "minecraft:poplar_shelf": None, "minecraft:spruce_shelf": None, "minecraft:shelf_mushroom": None,
+    "minecraft:waxed_copper_bars": "minecraft:iron_bars", "minecraft:waxed_exposed_copper_bars": "minecraft:iron_bars",
+}
 MAX_REACH = 23  # a trunk mid-chunk has 23 blocks of room each way within world generation's reach
 MAX_ROOTS = 3  # layers of root flare at most
 ROOT_SCAN = 6  # bottom layers looked at for the trunk's width
@@ -423,6 +440,7 @@ def tree_only(blocks, base):
 
 def convert(blocks, origin, ground="", version=DATA_VERSION):
     """A tree as a vanilla structure template, and what trees.json says about it."""
+    blocks = {p: (NEWER_BLOCKS.get(b[0], b[0]),) + tuple(b[1:]) for p, b in blocks.items() if NEWER_BLOCKS.get(b[0], b[0]) is not None}
     base, how = find_base(blocks, origin, ground)
     blocks = tree_only(blocks, base)
     if not blocks:

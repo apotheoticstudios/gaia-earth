@@ -1,0 +1,23 @@
+{
+  "replace": false,
+  "values": [
+    "gaia-earth:atlantic_forest",
+    "gaia-earth:babassu_palm_forest",
+    "gaia-earth:cloud_forest",
+    "gaia-earth:cypress_swamp",
+    "gaia-earth:dipterocarp_rainforest",
+    "gaia-earth:flooded_grassland",
+    "gaia-earth:gallery_forest",
+    "gaia-earth:hawaiian_forest",
+    "gaia-earth:madagascar_rainforest",
+    "gaia-earth:mangrove_forest",
+    "gaia-earth:pacific_island_forest",
+    "gaia-earth:papyrus_swamp",
+    "gaia-earth:peat_bog",
+    "gaia-earth:reed_marsh",
+    "gaia-earth:salt_marsh",
+    "gaia-earth:sawgrass_marsh",
+    "gaia-earth:swamp_forest",
+    "gaia-earth:tropical_rainforest"
+  ]
+}

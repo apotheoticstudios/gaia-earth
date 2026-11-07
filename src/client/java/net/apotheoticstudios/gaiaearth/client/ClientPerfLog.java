@@ -22,7 +22,7 @@ final class ClientPerfLog {
 	static void install() {
 		ClientChunkEvents.CHUNK_LOAD.register((level, chunk) -> {
 			if (PerfLog.seconds() > 0 && level.dimension() == RealEarth.EARTH) {
-				ChunkTimes.arrived(chunk.getPos().x(), chunk.getPos().z());
+				ChunkTimes.arrived(chunk.getPos().x, chunk.getPos().z);
 			}
 		});
 		ClientTickEvents.END_CLIENT_TICK.register(ClientPerfLog::tick);
@@ -34,8 +34,8 @@ final class ClientPerfLog {
 			return;
 		}
 		int view = mc.options.getEffectiveRenderDistance();
-		int cx = mc.player.chunkPosition().x();
-		int cz = mc.player.chunkPosition().z();
+		int cx = mc.player.chunkPosition().x;
+		int cz = mc.player.chunkPosition().z;
 		int missing = 0;
 		int nearest = Integer.MAX_VALUE;
 		for (int dz = -view; dz <= view; dz++) {
@@ -50,7 +50,7 @@ final class ClientPerfLog {
 		PerfLog.write(String.format(java.util.Locale.ROOT, "[perf client] %d fps; render distance %d: %d of %d chunks not here yet%s; arrived %s (first generation"
 				+ " step to here), sending %s (last step to here), %d from disk; %d sections waiting to be built; %s",
 			mc.getFps(), view, missing, all, missing == 0 ? "" : ", nearest " + nearest + " chunks away", ChunkTimes.TO_CLIENT.take(),
-			ChunkTimes.SENDING.take(), ChunkTimes.takeFromDisk(), mc.levelRenderer.getSectionRenderDispatcher().getCompileQueueSize(),
+			ChunkTimes.SENDING.take(), ChunkTimes.takeFromDisk(), mc.levelRenderer.getSectionRenderDispatcher().getToBatchCount(),
 			mc.levelRenderer.getSectionStatistics()));
 	}
 }

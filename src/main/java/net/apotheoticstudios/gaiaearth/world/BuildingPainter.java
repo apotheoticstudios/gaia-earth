@@ -6,7 +6,7 @@ import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -74,7 +74,7 @@ final class BuildingPainter {
 	private static final double FUELLED = 0.4;
 
 	private static ResourceKey<LootTable> loot(String path) {
-		return ResourceKey.create(Registries.LOOT_TABLE, Identifier.fromNamespaceAndPath("gaia-earth", path));
+		return ResourceKey.create(Registries.LOOT_TABLE, ResourceLocation.fromNamespaceAndPath("gaia-earth", path));
 	}
 
 	/** A house chest holds what a village house's chest of the same climate holds. */
@@ -663,7 +663,7 @@ final class BuildingPainter {
 		if (set(chunk, pos, x, y, z, s) instanceof ChiseledBookShelfBlockEntity shelf) {
 			for (int i = 0; i < 6; i++) {
 				if ((slots >> i & 1) == 1) {
-					shelf.getItems().set(i, new ItemStack(Items.BOOK));
+					((net.apotheoticstudios.gaiaearth.mixin.ChiseledBookShelfAccessor) shelf).realearth$items().set(i, new ItemStack(Items.BOOK));
 				}
 			}
 		}
@@ -671,10 +671,10 @@ final class BuildingPainter {
 
 	/** Sets a block, and its block entity when it has one; returns that block entity, or null. */
 	private static BlockEntity set(ChunkAccess chunk, BlockPos.MutableBlockPos pos, int x, int y, int z, BlockState s) {
-		if (y <= chunk.getMinY() || y >= chunk.getMaxY()) {
+		if (y <= chunk.getMinBuildHeight() || y >= (chunk.getMaxBuildHeight() - 1)) {
 			return null;
 		}
-		chunk.setBlockState(pos.set(x, y, z), s, 0);
+		chunk.setBlockState(pos.set(x, y, z), s, false);
 		// Blocks set straight into a chunk get no block entity of their own: a bed, chest or bell would
 		// be invisible or dead. Make it here, at the block's place in the world.
 		if (s.hasBlockEntity() && s.getBlock() instanceof net.minecraft.world.level.block.EntityBlock entityBlock) {

@@ -18,7 +18,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
@@ -28,7 +28,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.Heightmap;
-import net.minecraft.world.level.portal.TeleportTransition;
+import net.minecraft.world.level.portal.DimensionTransition;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.phys.Vec3;
 import net.apotheoticstudios.gaiaearth.command.AreaDownload;
@@ -117,10 +117,6 @@ final class SelfTest {
 
 	private static void run(MinecraftServer server) {
 		try {
-			// No player ever joins the test server: unpaused, or a minute in its levels stop ticking, and loading and unloading entities.
-			if (server instanceof net.minecraft.server.dedicated.DedicatedServer dedicated) {
-				server.submit(() -> dedicated.setPauseWhenEmptySeconds(0)).join();
-			}
 			String focused = System.getProperty("realearth.selftestOnly");
 			if ("Mapped waterways".equals(focused) || "Water surfaces".equals(focused)) {
 				if ("Mapped waterways".equals(focused)) testMappedWaterways(server);
@@ -438,7 +434,7 @@ final class SelfTest {
 				int cover = t.cover[k] & 0xFF;
 				boolean wet = !Float.isNaN(t.waterMeters[k]) && t.waterTopY[k] != Integer.MIN_VALUE;
 				String biome = net.apotheoticstudios.gaiaearth.world.BiomePicker.pick(t.latitude[k], t.longitude[k], t.groundMeters[k], wet, t.lake[k],
-					wet ? t.waterMeters[k] : 0, climate, cover).identifier().getPath();
+					wet ? t.waterMeters[k] : 0, climate, cover).location().getPath();
 				log("%-22s climate %s (%s), cover %s, biome %s, ground %.1f m, %s", p.name, net.apotheoticstudios.gaiaearth.climate.Koppen.code(climate),
 					net.apotheoticstudios.gaiaearth.climate.Koppen.name(climate), net.apotheoticstudios.gaiaearth.landcover.WorldCover.name(cover), biome,
 					t.groundMeters[k], wet ? String.format(Locale.ROOT, "water at %.1f m", t.waterMeters[k]) : "dry");
@@ -672,11 +668,11 @@ final class SelfTest {
 				ServerLevel earth = RealEarth.earthLevel(server);
 				server.submit(() -> forceArea(earth, harbourAt[0], harbourAt[1], 1, true)).join();
 				// Its entities load from disk after the chunk does, seconds later while the server is busy.
-				long harbour = ChunkPos.pack(harbourAt[0], harbourAt[1]);
+				long harbour = ChunkPos.asLong(harbourAt[0], harbourAt[1]);
 				for (int i = 0; i < 60 && !server.submit(() -> earth.areEntitiesLoaded(harbour)).join(); i++) {
 					Thread.sleep(500);
 				}
-				int boats = server.submit(() -> earth.getEntitiesOfClass(net.minecraft.world.entity.vehicle.boat.AbstractBoat.class,
+				int boats = server.submit(() -> earth.getEntitiesOfClass(net.minecraft.world.entity.vehicle.Boat.class,
 					new net.minecraft.world.phys.AABB(harbourAt[0] * 16 - 16, VerticalScale.MIN_Y, harbourAt[1] * 16 - 16, harbourAt[0] * 16 + 32,
 						VerticalScale.MAX_Y, harbourAt[1] * 16 + 32)).size()).join();
 				server.submit(() -> forceArea(earth, harbourAt[0], harbourAt[1], 1, false)).join();
@@ -692,14 +688,14 @@ final class SelfTest {
 				int[] seen = server.submit(() -> {
 					BlockPos centre = new BlockPos(homesAt[0] * 16 + 8, 0, homesAt[1] * 16 + 8);
 					var box = new net.minecraft.world.phys.AABB(centre).inflate(56, 2000, 56);
-					int before = earth.getEntitiesOfClass(net.minecraft.world.entity.npc.villager.Villager.class, box).size();
+					int before = earth.getEntitiesOfClass(net.minecraft.world.entity.npc.Villager.class, box).size();
 					int came = 0;
 					for (int i = 0; i < 40; i++) {
 						if (net.apotheoticstudios.gaiaearth.world.Townsfolk.comeHome(earth, field, centre, RealEarth.config().townsfolk, List.of()) != null) {
 							came++;
 						}
 					}
-					int after = earth.getEntitiesOfClass(net.minecraft.world.entity.npc.villager.Villager.class, box).size();
+					int after = earth.getEntitiesOfClass(net.minecraft.world.entity.npc.Villager.class, box).size();
 					int gone = net.apotheoticstudios.gaiaearth.world.Townsfolk.leave(earth, List.of());
 					var homes = earth.getPoiManager().getInSquare(t -> t.is(net.minecraft.world.entity.ai.village.poi.PoiTypes.HOME), centre, 56,
 						net.minecraft.world.entity.ai.village.poi.PoiManager.Occupancy.ANY).map(net.minecraft.world.entity.ai.village.poi.PoiRecord::getPos).toList();
@@ -981,12 +977,12 @@ final class SelfTest {
 		// Repair: a recorded chunk whose data is now complete is cleared from the list; one a player
 		// has built in is left alone; one that is loaded waits.
 		ServerLevel earth = RealEarth.earthLevel(server);
-		String level = earth.dimension().identifier().toString();
+		String level = earth.dimension().location().toString();
 		// A chunk that is really saved: generate it, let it unload, and it must be gone from the save after repair.
 		ChunkPos saved = new ChunkPos(9_000, 9_004);
 		CompletableFuture<Void> generated = new CompletableFuture<>();
 		server.execute(() -> {
-			earth.getChunk(saved.x(), saved.z());
+			earth.getChunk(saved.x, saved.z);
 			generated.complete(null);
 		});
 		generated.get(180, java.util.concurrent.TimeUnit.SECONDS);
@@ -994,10 +990,10 @@ final class SelfTest {
 		boolean onDisk = false;
 		while (System.currentTimeMillis() < unloadBy) {
 			CompletableFuture<Boolean> gone = new CompletableFuture<>();
-			server.execute(() -> gone.complete(earth.getChunkSource().chunkMap.getUpdatingChunkIfPresent(saved.pack()) == null
-				&& !earth.areEntitiesLoaded(saved.pack())));
+			server.execute(() -> gone.complete(((net.apotheoticstudios.gaiaearth.mixin.ChunkMapAccessor) earth.getChunkSource().chunkMap).realearth$updatingChunk(saved.toLong()) == null
+				&& !earth.areEntitiesLoaded(saved.toLong())));
 			if (gone.get(10, java.util.concurrent.TimeUnit.SECONDS)) {
-				server.execute(() -> earth.getChunkSource().chunkMap.synchronize(true));
+				server.execute(() -> earth.getChunkSource().chunkMap.flushWorker());
 				onDisk = earth.getChunkSource().chunkMap.read(saved).get(30, java.util.concurrent.TimeUnit.SECONDS).isPresent();
 				if (onDisk) {
 					break;
@@ -1019,8 +1015,8 @@ final class SelfTest {
 		DegradedChunks.record(level, free);
 		DegradedChunks.record(level, built);
 		DegradedChunks.record(level, loaded);
-		DegradedChunks.touch(level, built.x(), built.z());
-		check(DegradedChunks.isTouched(level, built.pack()) && !DegradedChunks.isTouched(level, free.pack()), "repair: player changes are tracked per chunk");
+		DegradedChunks.touch(level, built.x, built.z);
+		check(DegradedChunks.isTouched(level, built.toLong()) && !DegradedChunks.isTouched(level, free.toLong()), "repair: player changes are tracked per chunk");
 		CompletableFuture<Boolean> started = new CompletableFuture<>();
 		server.execute(() -> started.complete(ChunkRepair.start(server.createCommandSourceStack(), false)));
 		check(started.get(10, java.util.concurrent.TimeUnit.SECONDS), "repair: starts");
@@ -1032,15 +1028,15 @@ final class SelfTest {
 		for (long k : DegradedChunks.degraded(level)) {
 			left.add(k);
 		}
-		check(!left.contains(free.pack()), "repair: an untouched, unloaded chunk is cleared for regeneration");
-		earth.getChunkSource().chunkMap.synchronize(true).get(30, java.util.concurrent.TimeUnit.SECONDS);
-		check(!left.contains(saved.pack()) && earth.getChunkSource().chunkMap.read(saved).get(30, java.util.concurrent.TimeUnit.SECONDS).isEmpty(),
+		check(!left.contains(free.toLong()), "repair: an untouched, unloaded chunk is cleared for regeneration");
+		earth.getChunkSource().chunkMap.flushWorker();
+		check(!left.contains(saved.toLong()) && earth.getChunkSource().chunkMap.read(saved).get(30, java.util.concurrent.TimeUnit.SECONDS).isEmpty(),
 			"repair: the saved chunk is deleted from the save, to be generated afresh");
-		check(left.contains(built.pack()), "repair: a chunk players built in is kept unless 'all' is given");
-		check(left.contains(loaded.pack()), "repair: a loaded chunk waits until it is unloaded");
+		check(left.contains(built.toLong()), "repair: a chunk players built in is kept unless 'all' is given");
+		check(left.contains(loaded.toLong()), "repair: a loaded chunk waits until it is unloaded");
 		server.execute(() -> earth.setChunkForced(0, 0, false));
-		DegradedChunks.remove(level, built.pack());
-		DegradedChunks.remove(level, loaded.pack());
+		DegradedChunks.remove(level, built.toLong());
+		DegradedChunks.remove(level, loaded.toLong());
 		DegradedChunks.save();
 		check(DegradedChunks.count() == 0, "repair: list empty after clean-up");
 
@@ -1314,7 +1310,7 @@ final class SelfTest {
 						if (!dumped) {
 							dumped = true;
 							// What else stands there: structures reaching into the building's chunks.
-							var registry = level.registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.STRUCTURE);
+							var registry = level.registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.STRUCTURE);
 							java.util.Set<String> near = new java.util.TreeSet<>();
 							for (int cx = (int) Math.floor(plan.minX) >> 4; cx <= (int) Math.ceil(plan.maxX) >> 4; cx++) {
 								for (int cz = (int) Math.floor(plan.minZ) >> 4; cz <= (int) Math.ceil(plan.maxZ) >> 4; cz++) {
@@ -1616,8 +1612,8 @@ final class SelfTest {
 		if (river == null) return;
 		ChunkPos pos = river;
 		var chunk = server.submit(() -> {
-			earth.setChunkForced(pos.x(), pos.z(), true);
-			return earth.getChunk(pos.x(), pos.z());
+			earth.setChunkForced(pos.x, pos.z, true);
+			return earth.getChunk(pos.x, pos.z);
 		}).join();
 		check(waitForCurrent(server, chunk), "mapped currents attach automatically when an Earth chunk loads");
 		boolean moving = server.submit(() -> {
@@ -1643,7 +1639,7 @@ final class SelfTest {
 			return false;
 		}).join();
 		check(moving, "ordinary water in the mapped river exposes a current without a test zone");
-		server.submit(() -> earth.setChunkForced(pos.x(), pos.z(), false)).join();
+		server.submit(() -> earth.setChunkForced(pos.x, pos.z, false)).join();
 		int lakeX = (int) Math.floor(projection.blockX(60.88, 14.75));
 		int lakeZ = (int) Math.floor(projection.blockZ(60.88));
 		var lake = field.mappedCurrents(lakeX >> 4, lakeZ >> 4).get(60, java.util.concurrent.TimeUnit.SECONDS);
@@ -1663,18 +1659,16 @@ final class SelfTest {
 
 			var item = new ItemEntity(earth, surface.getX() + 0.5, surface.getY() + 0.25,
 				surface.getZ() + 0.5, new ItemStack(Items.STICK), 0, 0, 0);
-			var interaction = new net.minecraft.world.entity.EntityFluidInteraction(java.util.Set.of(net.minecraft.tags.FluidTags.WATER));
-			interaction.update(item, false);
 			config.riverCurrentStrength = 100;
-			interaction.applyCurrentTo(net.minecraft.tags.FluidTags.WATER, item, 0.014);
+			item.updateFluidHeightAndDoFluidPushing(net.minecraft.tags.FluidTags.WATER, 0.014);
 			Vec3 normal = item.getDeltaMovement();
 			item.setDeltaMovement(Vec3.ZERO);
 			config.riverCurrentStrength = 200;
-			interaction.applyCurrentTo(net.minecraft.tags.FluidTags.WATER, item, 0.014);
+			item.updateFluidHeightAndDoFluidPushing(net.minecraft.tags.FluidTags.WATER, 0.014);
 			Vec3 strong = item.getDeltaMovement();
 			item.setDeltaMovement(Vec3.ZERO);
 			config.riverCurrentStrength = 0;
-			interaction.applyCurrentTo(net.minecraft.tags.FluidTags.WATER, item, 0.014);
+			item.updateFluidHeightAndDoFluidPushing(net.minecraft.tags.FluidTags.WATER, 0.014);
 			check(normal.lengthSqr() > 0 && strong.subtract(normal.scale(2)).lengthSqr() < 1e-12
 				&& item.getDeltaMovement().lengthSqr() < 1e-12, "river strength scales the item push from zero to double");
 			testRiverBedBound(earth, surface);
@@ -1750,7 +1744,7 @@ final class SelfTest {
 			for (int i = 0; i < 20; i++) item.tick();
 			check(item.getX() > startX + 0.25, "dropped item drifts east by %.2f blocks", item.getX() - startX);
 
-			var boat = EntityType.OAK_BOAT.create(earth, EntitySpawnReason.COMMAND);
+			var boat = EntityType.BOAT.create(earth);
 			boat.setPos(centre.x, y + 0.7, centre.z);
 			for (int i = 0; i < 20; i++) boat.tick();
 			check(boat.getX() > centre.x + 0.25, "unoccupied boat drifts east by %.2f blocks", boat.getX() - centre.x);
@@ -1777,8 +1771,8 @@ final class SelfTest {
 		if (earth == null) {
 			return phases;
 		}
-		check(earth.getMinY() == VerticalScale.MIN_Y && earth.getMaxY() == VerticalScale.MAX_Y,
-			"Earth spans Y %d to %d", earth.getMinY(), earth.getMaxY());
+		check(earth.getMinBuildHeight() == VerticalScale.MIN_Y && (earth.getMaxBuildHeight() - 1) == VerticalScale.MAX_Y,
+			"Earth spans Y %d to %d", earth.getMinBuildHeight(), (earth.getMaxBuildHeight() - 1));
 
 		// Everything below happens around the start point, which is where players are.
 		int startCx = RealEarth.terrain().startX() >> 4;
@@ -1930,7 +1924,7 @@ final class SelfTest {
 				java.util.Set<String> placed = new java.util.TreeSet<>();
 				for (var biome : generator.getBiomeSource().possibleBiomes()) {
 					for (var step : generator.getBiomeGenerationSettings(biome).features()) {
-						step.forEach(f -> f.unwrapKey().ifPresent(k -> placed.add(k.identifier().toString())));
+						step.forEach(f -> f.unwrapKey().ifPresent(k -> placed.add(k.location().toString())));
 					}
 				}
 				java.util.List<String> structural = List.of("minecraft:monster_room", "minecraft:monster_room_deep", "minecraft:fossil_upper",
@@ -2533,7 +2527,7 @@ final class SelfTest {
 					int cz = (int) Math.floor(field.projection().blockZ(lat)) >> 4;
 					for (int dx = -1; dx <= 1; dx++) {
 						for (int dz = -1; dz <= 1; dz++) {
-							chunks.add(ChunkPos.pack(cx + dx, cz + dz));
+							chunks.add(ChunkPos.asLong(cx + dx, cz + dz));
 						}
 					}
 				}
@@ -2692,7 +2686,7 @@ final class SelfTest {
 					int cz = (int) Math.floor(field.projection().blockZ(lat)) >> 4;
 					for (int dx = -1; dx <= 1; dx++) {
 						for (int dz = -1; dz <= 1; dz++) {
-							chunks.add(ChunkPos.pack(cx + dx, cz + dz));
+							chunks.add(ChunkPos.asLong(cx + dx, cz + dz));
 						}
 					}
 				}
@@ -2847,8 +2841,8 @@ final class SelfTest {
 			}
 			try {
 				var blocks = net.minecraft.core.registries.BuiltInRegistries.BLOCK;
-				boolean macaw = blocks.containsKey(net.minecraft.resources.Identifier.parse("mcwfences:railing_andesite_wall"));
-				boolean diagonal = blocks.containsKey(net.minecraft.resources.Identifier.parse("diagonalfences:mcwfences/railing_andesite_wall"));
+				boolean macaw = blocks.containsKey(net.minecraft.resources.ResourceLocation.parse("mcwfences:railing_andesite_wall"));
+				boolean diagonal = blocks.containsKey(net.minecraft.resources.ResourceLocation.parse("diagonalfences:mcwfences/railing_andesite_wall"));
 				check(macaw && diagonal, "Macaw's railing and Diagonal Fences' copy of it are installed (%s, %s)", macaw, diagonal);
 				double lat0 = -27.4724;
 				double lon0 = 153.0212;
@@ -3194,7 +3188,7 @@ final class SelfTest {
 			var koppen = net.apotheoticstudios.gaiaearth.climate.Koppen.get();
 			var biomes = earth.registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.BIOME);
 			List<String> missing = net.apotheoticstudios.gaiaearth.world.EarthBiomes.ALL.stream().filter(b -> biomes.get(b).isEmpty())
-				.map(b -> b.identifier().toString()).toList();
+				.map(b -> b.location().toString()).toList();
 			check(missing.isEmpty(), "every Earth biome is in the game (missing %s)", missing);
 			record Place(String name, double lat, double lon, double meters, net.minecraft.resources.ResourceKey<net.minecraft.world.level.biome.Biome> base,
 				int cover, net.minecraft.resources.ResourceKey<net.minecraft.world.level.biome.Biome> expect) {
@@ -3510,24 +3504,24 @@ final class SelfTest {
 					net.apotheoticstudios.gaiaearth.landcover.WorldCover.CROPS, net.minecraft.world.level.biome.Biomes.PLAINS));
 			for (Place p : places) {
 				var got = net.apotheoticstudios.gaiaearth.world.EarthBiomes.of(p.base(), p.cover(), koppen.classAt(p.lat(), p.lon()), p.lat(), p.lon(), p.meters());
-				check(got == p.expect(), "%s is %s (%s)", p.name(), p.expect().identifier().getPath(), got.identifier().getPath());
+				check(got == p.expect(), "%s is %s (%s)", p.name(), p.expect().location().getPath(), got.location().getPath());
 			}
 			// Each biome's trees at its place: real species, through its own kinds of tree (EarthTrees.speciesAt).
 			List<String> vanillaTrees = new ArrayList<>();
 			for (Place p : places) {
-				if (p.expect().identifier().getNamespace().equals("minecraft")) {
+				if (p.expect().location().getNamespace().equals("minecraft")) {
 					continue;
 				}
 				Map<String, Double> grows = net.apotheoticstudios.gaiaearth.world.EarthTrees.speciesAt(earth.getServer(), biomes.getOrThrow(p.expect()),
 					koppen.classAt(p.lat(), p.lon()), p.lat(), p.lon(), p.meters());
 				double treeline = BiomePicker.treelineMeters(p.lat(), p.lon());
-				log("trees of %s at %s (%s, %.0f m, treeline %.0f m): %s", p.expect().identifier().getPath(), p.name(),
+				log("trees of %s at %s (%s, %.0f m, treeline %.0f m): %s", p.expect().location().getPath(), p.name(),
 					net.apotheoticstudios.gaiaearth.climate.Koppen.code(koppen.classAt(p.lat(), p.lon())), p.meters(), treeline, grows.entrySet().stream()
 					.sorted(Map.Entry.<String, Double>comparingByValue().reversed()).limit(10)
 					.map(e -> String.format("%s %.0f%%", e.getKey(), 100 * e.getValue())).collect(java.util.stream.Collectors.joining(", ")));
 				double vanilla = grows.entrySet().stream().filter(e -> e.getKey().startsWith("vanilla")).mapToDouble(Map.Entry::getValue).sum();
 				if (vanilla > 0) {
-					vanillaTrees.add(String.format("%s %.0f%%", p.expect().identifier().getPath(), 100 * vanilla));
+					vanillaTrees.add(String.format("%s %.0f%%", p.expect().location().getPath(), 100 * vanilla));
 				}
 			}
 			check(vanillaTrees.isEmpty(), "every Earth biome grows real species at its place (vanilla trees: %s)", vanillaTrees);
@@ -3623,7 +3617,7 @@ final class SelfTest {
 						int z = cz * 16 + (q >> 2) * 4 + 2;
 						var here = earth.getBiome(new BlockPos(x, c.topSolidY[ChunkTerrain.index(x & 15, z & 15)] + 1, z));
 						beach += here.is(net.minecraft.world.level.biome.Biomes.BEACH) ? 1 : 0;
-						cells.merge(here.unwrapKey().map(k -> k.identifier().getPath()).orElse("?") + "/land " + c.landcover[ChunkTerrain.index(x & 15, z & 15)]
+						cells.merge(here.unwrapKey().map(k -> k.location().getPath()).orElse("?") + "/land " + c.landcover[ChunkTerrain.index(x & 15, z & 15)]
 							+ "/water " + (c.waterTopY[ChunkTerrain.index(x & 15, z & 15)] != Integer.MIN_VALUE), 1, Integer::sum);
 					}
 				}
@@ -3909,8 +3903,8 @@ final class SelfTest {
 							if (wc.building[k] == 0 && wc.surface[k] == net.apotheoticstudios.gaiaearth.osm.OsmDetail.FOOTWAY * 8 + net.apotheoticstudios.gaiaearth.osm.OsmDetail.TILES) {
 								walks++;
 								walksBuilt += walkChunk.getBlockState(new BlockPos(walkCx * 16 + x, wc.topSolidY[k], walkCz * 16 + z))
-									.is(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getValue(
-										net.minecraft.resources.Identifier.fromNamespaceAndPath("saros_road_blocks_mod", "sidewalk"))) ? 1 : 0;
+									.is(net.minecraft.core.registries.BuiltInRegistries.BLOCK.get(
+										net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("saros_road_blocks_mod", "sidewalk"))) ? 1 : 0;
 							}
 						}
 					}
@@ -4066,7 +4060,7 @@ final class SelfTest {
 					for (int i = 0; i + 1 < longest.length; i += 2) {
 						double rLat = Mercator.latitudeOfSampleY(longest[i + 1]);
 						double rLon = (longest[i] + 0.5) / Mercator.SAMPLES_PER_AXIS * 360.0 - 180.0;
-						along.add(ChunkPos.pack((int) field.projection().blockX(rLat, rLon) >> 4, (int) field.projection().blockZ(rLat) >> 4));
+						along.add(ChunkPos.asLong((int) field.projection().blockX(rLat, rLon) >> 4, (int) field.projection().blockZ(rLat) >> 4));
 					}
 				}
 				int decks = 0;
@@ -4109,7 +4103,7 @@ final class SelfTest {
 				int steps = 0;
 				java.util.Set<Long> walkedTiles = new java.util.LinkedHashSet<>();
 				for (double[] at : new double[][] {{59.3228, 18.0262}, {59.3293, 18.0686}, {59.3195, 18.0717}}) {
-					walkedTiles.add(ChunkPos.pack((int) Math.floor(Mercator.sampleX(at[1]) / (Mercator.TILE_SIZE * 2)),
+					walkedTiles.add(ChunkPos.asLong((int) Math.floor(Mercator.sampleX(at[1]) / (Mercator.TILE_SIZE * 2)),
 						(int) Math.floor(Mercator.sampleY(at[0]) / (Mercator.TILE_SIZE * 2))));
 				}
 				for (long tile : walkedTiles) {
@@ -4380,8 +4374,8 @@ final class SelfTest {
 				boolean water = earth.getFluidState(pos).is(net.minecraft.tags.FluidTags.WATER) && earth.getFluidState(pos.above(2)).is(net.minecraft.tags.FluidTags.WATER);
 				int ok = 0;
 				for (long seed = 0; seed < 20; seed++) {
-					ok += net.minecraft.world.entity.animal.fish.WaterAnimal.checkSurfaceWaterAnimalSpawnRules(net.minecraft.world.entity.EntityType.COD, earth,
-						net.minecraft.world.entity.EntitySpawnReason.NATURAL, pos, net.minecraft.util.RandomSource.create(seed)) ? 1 : 0;
+					ok += net.minecraft.world.entity.animal.WaterAnimal.checkSurfaceWaterAnimalSpawnRules(net.minecraft.world.entity.EntityType.COD, earth,
+						net.minecraft.world.entity.MobSpawnType.NATURAL, pos, net.minecraft.util.RandomSource.create(seed)) ? 1 : 0;
 				}
 				log("fish in Siljan: water surface at Y %d (%s), the spawn rule allows %d of 20", top - 1, water ? "deep enough" : "not water", ok);
 				check(water && ok == 20, "fish may spawn in lakes above the sea (%d of 20)", ok);
@@ -4515,9 +4509,9 @@ final class SelfTest {
 						BlockPos low = new BlockPos(x, earth.getSeaLevel() - 60, z);
 						for (long seed = 0; seed < 200; seed++) {
 							surface += net.minecraft.world.entity.monster.Slime.checkSlimeSpawnRules(net.minecraft.world.entity.EntityType.SLIME, earth,
-								net.minecraft.world.entity.EntitySpawnReason.NATURAL, top, net.minecraft.util.RandomSource.create(seed)) ? 1 : 0;
+								net.minecraft.world.entity.MobSpawnType.NATURAL, top, net.minecraft.util.RandomSource.create(seed)) ? 1 : 0;
 							deep += net.minecraft.world.entity.monster.Slime.checkSlimeSpawnRules(net.minecraft.world.entity.EntityType.SLIME, earth,
-								net.minecraft.world.entity.EntitySpawnReason.NATURAL, low, net.minecraft.util.RandomSource.create(seed)) ? 1 : 0;
+								net.minecraft.world.entity.MobSpawnType.NATURAL, low, net.minecraft.util.RandomSource.create(seed)) ? 1 : 0;
 						}
 					}
 				}
@@ -4630,7 +4624,7 @@ final class SelfTest {
 									looted++;
 								}
 							} else if (be instanceof net.minecraft.world.level.block.entity.ChiseledBookShelfBlockEntity shelf) {
-								books += shelf.getItems().stream().filter(s -> !s.isEmpty()).count();
+								books += ((net.apotheoticstudios.gaiaearth.mixin.ChiseledBookShelfAccessor) shelf).realearth$items().stream().filter(s -> !s.isEmpty()).count();
 							}
 						}
 					}
@@ -4639,12 +4633,12 @@ final class SelfTest {
 				check(looted >= 3 && looted * 2 >= containers, "chests and storeroom barrels have loot tables (%d of %d)", looted, containers);
 				lootrCheck = new int[] {bestCx, bestCz, looted};
 				var storeroom = server.reloadableRegistries().getLootTable(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.LOOT_TABLE,
-					net.minecraft.resources.Identifier.fromNamespaceAndPath("gaia-earth", "chests/storeroom")));
+					net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("gaia-earth", "chests/storeroom")));
 				check(storeroom != net.minecraft.world.level.storage.loot.LootTable.EMPTY, "the storeroom loot table loads");
 				// Town maps in bookshops: a filled map of the town, named after it.
 				{
 					var bookshop = server.reloadableRegistries().getLootTable(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.LOOT_TABLE,
-						net.minecraft.resources.Identifier.fromNamespaceAndPath("gaia-earth", "chests/shop_books")));
+						net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("gaia-earth", "chests/shop_books")));
 					net.minecraft.world.phys.Vec3 at = new net.minecraft.world.phys.Vec3(field.projection().blockX(59.3250, 18.0710), 0, field.projection().blockZ(59.3250));
 					var params = new net.minecraft.world.level.storage.loot.LootParams.Builder(earth)
 						.withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.ORIGIN, at)
@@ -5218,7 +5212,7 @@ final class SelfTest {
 			check(surface > earth.getSeaLevel() - 200 && surface < earth.getSeaLevel() + 200,
 				"start surface Y %d (%.0f m), floor block %s, biome %s", surface,
 				RealEarth.terrain().elevationOfBlock(ox, surface, oz),
-				top, earth.getBiome(new BlockPos(ox, surface, oz)).unwrapKey().map(k -> k.identifier().toString()).orElse("?"));
+				top, earth.getBiome(new BlockPos(ox, surface, oz)).unwrapKey().map(k -> k.location().toString()).orElse("?"));
 			int deepSections = 0;
 			for (var section : chunk.getSections()) {
 				if (section.getStates().get(0, 0, 0).is(Blocks.DEEPSLATE) && section.maybeHas(s -> !s.is(Blocks.DEEPSLATE)) == false) {
@@ -5229,9 +5223,9 @@ final class SelfTest {
 			check(earth.getBlockState(new BlockPos(ox, VerticalScale.MIN_Y, oz)).is(Blocks.BEDROCK), "bedrock at the bottom of the world");
 
 			if (RealEarth.earthIsOverworld(server)) {
-				Entity probe = EntityType.ARMOR_STAND.create(earth, EntitySpawnReason.COMMAND);
+				Entity probe = EntityType.ARMOR_STAND.create(earth);
 				check(PortalTravel.destination(earth, probe, BlockPos.ZERO) == null, "Earth world type: portals lead nowhere");
-				BlockPos spawn = earth.getRespawnData().globalPos().pos();
+				BlockPos spawn = earth.getSharedSpawnPos();
 				check(spawn.getY() > earth.getSeaLevel() - 40, "Earth world type: spawn on the ground at Y %d", spawn.getY());
 				check(Math.abs(spawn.getX() - ox) < 200 && Math.abs(spawn.getZ() - oz) < 200,
 					"Earth world type: spawn at the start point (%d, %d; start %d, %d)", spawn.getX(), spawn.getZ(), ox, oz);
@@ -5264,17 +5258,17 @@ final class SelfTest {
 				return;
 			}
 
-			Entity traveller = EntityType.ARMOR_STAND.create(overworld, EntitySpawnReason.COMMAND);
+			Entity traveller = EntityType.ARMOR_STAND.create(overworld);
 			traveller.setPos(base.getX() + 1.0, base.getY(), base.getZ() + 0.5);
 			overworld.addFreshEntity(traveller);
 
 			long t1 = System.nanoTime();
-			TeleportTransition there = PortalTravel.destination(overworld, traveller, base);
+			DimensionTransition there = PortalTravel.destination(overworld, traveller, base);
 			check(there != null && there.newLevel() == earth, "portal leads to Earth (%d ms)", (System.nanoTime() - t1) / 1_000_000);
 			if (there == null) {
 				return;
 			}
-			Entity arrived = traveller.teleport(there);
+			Entity arrived = traveller.changeDimension(there);
 			check(arrived != null && arrived.level() == earth, "entity arrived on Earth at %s", arrived == null ? null : arrived.blockPosition());
 			if (arrived == null) {
 				return;
@@ -5287,19 +5281,19 @@ final class SelfTest {
 			log("arrived %.0f m above sea level at X %d Z %d", elevation, at.getX(), at.getZ());
 
 			// A portal into ground nobody has loaded yet must still land on the real surface.
-			Entity explorer = EntityType.ARMOR_STAND.create(overworld, EntitySpawnReason.COMMAND);
+			Entity explorer = EntityType.ARMOR_STAND.create(overworld);
 			BlockPos far = new BlockPos(6000, 70, -4000);
-			TeleportTransition farTrip = PortalTravel.destination(overworld, explorer, far);
+			DimensionTransition farTrip = PortalTravel.destination(overworld, explorer, far);
 			int farX = far.getX() + RealEarth.terrain().startX();
 			int farZ = far.getZ() + RealEarth.terrain().startZ();
 			ChunkTerrain farTerrain = RealEarth.terrain().chunkIfReady(farX >> 4, farZ >> 4);
 			int expected = farTerrain == null ? Integer.MIN_VALUE : farTerrain.topSolidY[ChunkTerrain.index(farX & 15, farZ & 15)];
-			check(farTrip != null && Math.abs(farTrip.position().y - expected) < 40,
-				"portal into unloaded terrain lands on the ground: Y %.0f, terrain top Y %d", farTrip == null ? Double.NaN : farTrip.position().y, expected);
+			check(farTrip != null && Math.abs(farTrip.pos().y - expected) < 40,
+				"portal into unloaded terrain lands on the ground: Y %.0f, terrain top Y %d", farTrip == null ? Double.NaN : farTrip.pos().y, expected);
 
-			TeleportTransition back = PortalTravel.destination(earth, arrived, at);
-			check(back != null && back.newLevel() == overworld && back.position().distanceTo(base.getCenter()) < 32,
-				"return portal leads back to the Overworld portal: %s", back == null ? null : back.position());
+			DimensionTransition back = PortalTravel.destination(earth, arrived, at);
+			check(back != null && back.newLevel() == overworld && back.pos().distanceTo(base.getCenter()) < 32,
+				"return portal leads back to the Overworld portal: %s", back == null ? null : back.pos());
 		}));
 		return phases;
 	}

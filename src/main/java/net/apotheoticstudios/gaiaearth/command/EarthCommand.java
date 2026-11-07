@@ -18,7 +18,6 @@ import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.server.permissions.PermissionCheck;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.Vec3;
 import net.apotheoticstudios.gaiaearth.RealEarth;
@@ -44,7 +43,7 @@ public final class EarthCommand {
 	private EarthCommand() {
 	}
 
-	private static PermissionCheck permission(int level) {
+	private static int permission(int level) {
 		return switch (level) {
 			case 0 -> Commands.LEVEL_ALL;
 			case 1 -> Commands.LEVEL_MODERATORS;
@@ -59,7 +58,7 @@ public final class EarthCommand {
 			.then(Commands.literal("where").executes(ctx -> where(ctx.getSource())))
 			.then(net.apotheoticstudios.gaiaearth.hydrology.RiverCurrentDemo.command())
 			.then(Commands.literal("perf")
-				.requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+				.requires(source -> source.hasPermission(Commands.LEVEL_GAMEMASTERS))
 				.executes(ctx -> {
 					ctx.getSource().sendSuccess(() -> Component.literal("Generation time by stage, since start or reset (ms/runs): "
 						+ net.apotheoticstudios.gaiaearth.Perf.report()), false);
@@ -96,7 +95,7 @@ public final class EarthCommand {
 			}))
 			.then(Commands.literal("origin").executes(ctx -> origin(ctx.getSource())))
 			.then(Commands.literal("tp")
-				.requires(Commands.hasPermission(permission(teleportPermissionLevel)))
+				.requires(source -> source.hasPermission(permission(teleportPermissionLevel)))
 				.then(Commands.literal("block")
 					.then(Commands.argument("x", IntegerArgumentType.integer())
 						.then(Commands.argument("z", IntegerArgumentType.integer())
@@ -109,11 +108,11 @@ public final class EarthCommand {
 							DoubleArgumentType.getDouble(ctx, "latitude"),
 							DoubleArgumentType.getDouble(ctx, "longitude"))))))
 			.then(Commands.literal("go")
-				.requires(Commands.hasPermission(permission(teleportPermissionLevel)))
+				.requires(source -> source.hasPermission(permission(teleportPermissionLevel)))
 				.then(Commands.argument("place", StringArgumentType.greedyString())
 					.executes(ctx -> go(ctx.getSource(), StringArgumentType.getString(ctx, "place")))))
 			.then(Commands.literal("download")
-				.requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+				.requires(source -> source.hasPermission(Commands.LEVEL_GAMEMASTERS))
 				.then(Commands.literal("cancel").executes(ctx -> cancelDownload(ctx.getSource())))
 				.then(Commands.argument("radius", IntegerArgumentType.integer(16, MAX_DOWNLOAD_RADIUS))
 					.executes(ctx -> download(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "radius"), Double.NaN, Double.NaN))
@@ -122,14 +121,14 @@ public final class EarthCommand {
 							.executes(ctx -> download(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "radius"),
 								DoubleArgumentType.getDouble(ctx, "latitude"), DoubleArgumentType.getDouble(ctx, "longitude")))))))
 			.then(Commands.literal("repair")
-				.requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+				.requires(source -> source.hasPermission(Commands.LEVEL_GAMEMASTERS))
 				.executes(ctx -> repair(ctx.getSource(), false))
 				.then(Commands.literal("all").executes(ctx -> repair(ctx.getSource(), true))))
 			.then(Commands.literal("cache")
-				.requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+				.requires(source -> source.hasPermission(Commands.LEVEL_GAMEMASTERS))
 				.executes(ctx -> cache(ctx.getSource()))
 				.then(Commands.literal("clear")
-					.requires(Commands.hasPermission(Commands.LEVEL_OWNERS))
+					.requires(source -> source.hasPermission(Commands.LEVEL_OWNERS))
 					.executes(ctx -> clearCache(ctx.getSource())))));
 	}
 
@@ -247,7 +246,7 @@ public final class EarthCommand {
 	private static Component mapLink(double lat, double lon) {
 		String url = String.format(Locale.ROOT, "https://www.openstreetmap.org/?mlat=%.6f&mlon=%.6f#map=15/%.6f/%.6f", lat, lon, lat, lon);
 		return Component.literal("[map]").withStyle(s -> s.withColor(ChatFormatting.AQUA).withUnderlined(true)
-			.withClickEvent(new ClickEvent.OpenUrl(URI.create(url))));
+			.withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, url)));
 	}
 
 	private static int where(CommandSourceStack source) {
@@ -367,7 +366,7 @@ public final class EarthCommand {
 				// On the street beside a building, not on its roof.
 				int[] open = field.openGround(x, z, 24);
 				int y = RealEarth.surfaceY(earth, Heightmap.Types.MOTION_BLOCKING, open[0], open[1]);
-				player.teleportTo(earth, open[0] + 0.5, y, open[1] + 0.5, Set.of(), player.getYRot(), player.getXRot(), true);
+				player.teleportTo(earth, open[0] + 0.5, y, open[1] + 0.5, Set.of(), player.getYRot(), player.getXRot());
 				double ground = field.groundMetersAt(open[0], open[1]);
 				double elevation = Double.isNaN(ground) ? field.toElevation(y, lat, lon) : ground;
 				player.sendSystemMessage(Component.literal(String.format(Locale.ROOT, "Welcome to %.4f, %.4f, %.0f m above sea level. ", lat, lon, elevation))

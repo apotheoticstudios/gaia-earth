@@ -169,7 +169,7 @@ public final class MappedCurrents {
 
 	public static void register() {
 		CurrentSettings.register();
-		ServerChunkEvents.CHUNK_LOAD.register((level, chunk, generated) -> {
+		ServerChunkEvents.CHUNK_LOAD.register((level, chunk) -> {
 			var terrain = RealEarth.terrain();
 			if (!RealEarth.config().mappedRiverCurrents || terrain == null || terrain.map() == null
 				|| !RealEarth.isEarth(level) || resolved(chunk)) return;
@@ -209,7 +209,7 @@ public final class MappedCurrents {
 			boolean wet = Arrays.stream(chunk.getSections()).anyMatch(section -> section.maybeHas(state -> state.is(Blocks.WATER)));
 			if (!wet) continue;
 			var pos = chunk.getPos();
-			ACTIVE.put(chunk, terrain.mappedCurrents(pos.x(), pos.z()));
+			ACTIVE.put(chunk, terrain.mappedCurrents(pos.x, pos.z));
 		}
 	}
 
@@ -220,7 +220,7 @@ public final class MappedCurrents {
 
 	private static boolean loaded(LevelChunk chunk) {
 		var pos = chunk.getPos();
-		return ((ServerLevel) chunk.getLevel()).getChunkSource().getChunkNow(pos.x(), pos.z()) == chunk;
+		return ((ServerLevel) chunk.getLevel()).getChunkSource().getChunkNow(pos.x, pos.z) == chunk;
 	}
 
 	public static Vec3 flowAt(Level level, BlockPos pos) {

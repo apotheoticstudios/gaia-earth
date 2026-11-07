@@ -106,12 +106,12 @@ public final class DegradedChunks {
 		boolean notify = false;
 		int count;
 		synchronized (DegradedChunks.class) {
-			if (storage == null || !DEGRADED.computeIfAbsent(level, k -> new LongLinkedOpenHashSet()).add(pos.pack())) {
+			if (storage == null || !DEGRADED.computeIfAbsent(level, k -> new LongLinkedOpenHashSet()).add(pos.toLong())) {
 				return;
 			}
 			LongSet touched = TOUCHED.get(level);
 			if (touched != null) {
-				touched.remove(pos.pack());
+				touched.remove(pos.toLong());
 			}
 			dirty = true;
 			sinceNotice++;
@@ -141,7 +141,7 @@ public final class DegradedChunks {
 				+ "Once you are back online, run /earth repair to regenerate it (" + count + " chunk" + (count == 1 ? "" : "s") + " so far).")
 				.withStyle(ChatFormatting.GOLD);
 			for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-				if (server.getPlayerList().isOp(player.nameAndId())) {
+				if (server.getPlayerList().isOp(player.getGameProfile())) {
 					player.sendSystemMessage(message);
 				}
 			}
@@ -150,7 +150,7 @@ public final class DegradedChunks {
 
 	/** A player changed blocks in this chunk: if it is degraded, repair should leave it alone by default. */
 	public static void touch(String level, int chunkX, int chunkZ) {
-		long key = ChunkPos.pack(chunkX, chunkZ);
+		long key = ChunkPos.asLong(chunkX, chunkZ);
 		synchronized (DegradedChunks.class) {
 			LongSet set = DEGRADED.get(level);
 			if (set != null && set.contains(key) && TOUCHED.computeIfAbsent(level, k -> new LongOpenHashSet()).add(key)) {

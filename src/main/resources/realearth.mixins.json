@@ -1,9 +1,11 @@
 {
   "required": true,
   "package": "net.apotheoticstudios.gaiaearth.mixin",
-  "compatibilityLevel": "JAVA_25",
+  "compatibilityLevel": "JAVA_21",
   "mixins": [
     "BiomeTemperatureMixin",
+    "ServerLevelTickMixin",
+    "EarthSeaLevelMixin",
     "HeightRangePlacementMixin",
     "ChunkMapAccessor",
     "ServerLevelAccessor",
@@ -13,6 +15,7 @@
     "RegistryLifecycleMixin",
     "DimensionStabilityMixin",
     "SignBlockEntityAccessor",
+    "ChiseledBookShelfAccessor",
     "SlimeSpawnMixin",
     "StructureTemplateAccessor",
     "TreeFeatureMixin",
@@ -28,7 +31,6 @@
     "CanopyEntityRendererMixin",
     "CanopySodiumSliceMixin",
     "ClientLevelDataMixin",
-    "ClientShutdownWatchdogMixin",
     "RiverRenderRegionMixin",
     "SodiumRiverRenderRegionMixin"
   ]

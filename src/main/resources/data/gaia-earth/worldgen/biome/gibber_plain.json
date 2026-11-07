@@ -1,25 +1,31 @@
 {
-  "attributes": {
-    "minecraft:audio/background_music": {
-      "default": {
-        "max_delay": 24000,
-        "min_delay": 12000,
-        "sound": "minecraft:music.overworld.desert"
-      }
-    },
-    "minecraft:gameplay/snow_golem_melts": true,
-    "minecraft:visual/sky_color": "#6eb1ff"
+  "carvers": {
+    "air": [
+      "minecraft:cave",
+      "minecraft:cave_extra_underground",
+      "minecraft:canyon"
+    ]
   },
-  "carvers": [
-    "minecraft:cave",
-    "minecraft:cave_extra_underground",
-    "minecraft:canyon"
-  ],
   "downfall": 0.0,
   "effects": {
-    "foliage_color": "#8f8a5e",
-    "grass_color": "#b89a6a",
-    "water_color": "#3f76e4"
+    "fog_color": 12638463,
+    "foliage_color": 9407070,
+    "grass_color": 12098154,
+    "mood_sound": {
+      "block_search_extent": 8,
+      "offset": 2.0,
+      "sound": "minecraft:ambient.cave",
+      "tick_delay": 6000
+    },
+    "music": {
+      "max_delay": 24000,
+      "min_delay": 12000,
+      "replace_current_music": false,
+      "sound": "minecraft:music.overworld.desert"
+    },
+    "sky_color": 7254527,
+    "water_color": 4159204,
+    "water_fog_color": 329011
   },
   "features": [
     [],
@@ -80,7 +86,6 @@
       "minecraft:glow_lichen",
       "minecraft:flower_default",
       "minecraft:patch_grass_badlands",
-      "minecraft:patch_dry_grass_desert",
       "minecraft:patch_dead_bush_2",
       "minecraft:brown_mushroom_normal",
       "minecraft:red_mushroom_normal",
@@ -109,13 +114,7 @@
         "maxCount": 3,
         "minCount": 2,
         "type": "minecraft:rabbit",
-        "weight": 12
-      },
-      {
-        "maxCount": 1,
-        "minCount": 1,
-        "type": "minecraft:camel",
-        "weight": 1
+        "weight": 4
       }
     ],
     "misc": [],
@@ -142,7 +141,7 @@
         "maxCount": 4,
         "minCount": 4,
         "type": "minecraft:skeleton",
-        "weight": 50
+        "weight": 100
       },
       {
         "maxCount": 4,
@@ -173,12 +172,6 @@
         "minCount": 4,
         "type": "minecraft:husk",
         "weight": 80
-      },
-      {
-        "maxCount": 4,
-        "minCount": 4,
-        "type": "minecraft:parched",
-        "weight": 50
       }
     ],
     "underground_water_creature": [

@@ -9,7 +9,7 @@ import java.util.function.IntConsumer;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
@@ -130,11 +130,11 @@ public final class GaiaModMenu implements ModMenuApi {
 		}
 
 		@Override
-		public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-			super.extractRenderState(graphics, mouseX, mouseY, partialTick);
+		public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+			super.render(graphics, mouseX, mouseY, partialTick);
 			int top = controlsTop();
-			graphics.centeredText(font, title, width / 2, top - 25, 0xFFFFFFFF);
-			graphics.centeredText(font, status, width / 2, top - 12, 0xFFCCCCCC);
+			graphics.drawCenteredString(font, title, width / 2, top - 25, 0xFFFFFFFF);
+			graphics.drawCenteredString(font, status, width / 2, top - 12, 0xFFCCCCCC);
 		}
 
 		@Override

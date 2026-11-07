@@ -26,7 +26,7 @@ public record CurrentSettings(int strength, int depth) implements CustomPacketPa
 	}
 
 	static void register() {
-		PayloadTypeRegistry.clientboundPlay().register(TYPE, CODEC);
+		PayloadTypeRegistry.playS2C().register(TYPE, CODEC);
 		ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
 			if (ServerPlayNetworking.canSend(handler.player, TYPE)) {
 				var config = RealEarth.config();

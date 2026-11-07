@@ -54,7 +54,7 @@ public final class HereLink {
 	}
 
 	public static void register() {
-		PayloadTypeRegistry.clientboundPlay().register(Payload.TYPE, Payload.CODEC);
+		PayloadTypeRegistry.playS2C().register(Payload.TYPE, Payload.CODEC);
 		// A player who comes back has a new client, which knows nothing yet.
 		ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> SENT.remove(handler.getPlayer().getUUID()));
 	}

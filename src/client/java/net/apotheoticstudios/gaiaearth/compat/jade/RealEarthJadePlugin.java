@@ -5,7 +5,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.apotheoticstudios.gaiaearth.RealEarth;
@@ -30,8 +30,8 @@ import snownee.jade.api.config.IPluginConfig;
  * server too, where only {@link #register} and {@link Data} run.
  */
 public final class RealEarthJadePlugin implements IWailaPlugin {
-	static final Identifier PLACE = RealEarth.id("place");
-	static final Identifier COORDINATES = RealEarth.id("coordinates");
+	static final ResourceLocation PLACE = RealEarth.id("place");
+	static final ResourceLocation COORDINATES = RealEarth.id("coordinates");
 
 	@Override
 	public void register(IWailaCommonRegistration registration) {
@@ -73,7 +73,7 @@ public final class RealEarthJadePlugin implements IWailaPlugin {
 		}
 
 		@Override
-		public Identifier getUid() {
+		public ResourceLocation getUid() {
 			return PLACE;
 		}
 	}
@@ -84,14 +84,14 @@ public final class RealEarthJadePlugin implements IWailaPlugin {
 
 		@Override
 		public void appendTooltip(ITooltip tooltip, BlockAccessor accessor, IPluginConfig config) {
-			CompoundTag tag = accessor.getServerData().getCompoundOrEmpty(RealEarth.MOD_ID);
-			String building = tag.getStringOr("building", "");
+			CompoundTag tag = accessor.getServerData().getCompound(RealEarth.MOD_ID);
+			String building = tag.getString("building");
 			if (!building.isEmpty()) {
 				tooltip.add(Component.literal(building).withStyle(ChatFormatting.GRAY));
 			}
 			StringBuilder where = new StringBuilder();
 			for (String key : new String[] {"street", "district", "town"}) {
-				String s = tag.getStringOr(key, "");
+				String s = tag.getString(key);
 				if (!s.isEmpty() && where.indexOf(s) < 0) {
 					where.append(where.isEmpty() ? "" : ", ").append(s);
 				}
@@ -102,7 +102,7 @@ public final class RealEarthJadePlugin implements IWailaPlugin {
 		}
 
 		@Override
-		public Identifier getUid() {
+		public ResourceLocation getUid() {
 			return PLACE;
 		}
 	}
@@ -113,19 +113,19 @@ public final class RealEarthJadePlugin implements IWailaPlugin {
 
 		@Override
 		public void appendTooltip(ITooltip tooltip, BlockAccessor accessor, IPluginConfig config) {
-			CompoundTag tag = accessor.getServerData().getCompoundOrEmpty(RealEarth.MOD_ID);
+			CompoundTag tag = accessor.getServerData().getCompound(RealEarth.MOD_ID);
 			if (!tag.contains("lat")) {
 				return;
 			}
-			String line = ClientHere.latLon(tag.getDoubleOr("lat", 0), tag.getDoubleOr("lon", 0));
+			String line = ClientHere.latLon(tag.getDouble("lat"), tag.getDouble("lon"));
 			if (tag.contains("meters")) {
-				line += String.format(Locale.ROOT, ", %d m", Math.round(tag.getDoubleOr("meters", 0)));
+				line += String.format(Locale.ROOT, ", %d m", Math.round(tag.getDouble("meters")));
 			}
 			tooltip.add(Component.literal(line).withStyle(ChatFormatting.DARK_GRAY));
 		}
 
 		@Override
-		public Identifier getUid() {
+		public ResourceLocation getUid() {
 			return COORDINATES;
 		}
 

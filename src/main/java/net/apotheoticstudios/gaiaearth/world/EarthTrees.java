@@ -21,7 +21,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.data.worldgen.features.TreeFeatures;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.WorldGenRegion;
@@ -107,7 +107,7 @@ public final class EarthTrees {
 
 	private static final Map<String, LongAdder> PLACED = new ConcurrentHashMap<>();
 	private static final Map<String, LongAdder> HEIGHTS = new ConcurrentHashMap<>();
-	private static final Map<Identifier, Shape> SHAPES = new ConcurrentHashMap<>();
+	private static final Map<ResourceLocation, Shape> SHAPES = new ConcurrentHashMap<>();
 	/** Set while Earth grows a vanilla tree itself, so it isn't turned away as one of vanilla's own. */
 	private static final ThreadLocal<Boolean> GROWING = new ThreadLocal<>();
 	private static volatile Index index;
@@ -116,7 +116,7 @@ public final class EarthTrees {
 	}
 
 	/** One converted tree: its template, where its trunk meets the ground inside it, and how far its crown reaches. */
-	private record Tree(Identifier id, BlockPos base, int height, int reach) {
+	private record Tree(ResourceLocation id, BlockPos base, int height, int reach) {
 	}
 
 	/**
@@ -166,7 +166,7 @@ public final class EarthTrees {
 	public static Boolean grow(FeaturePlaceContext<TreeConfiguration> context) {
 		if (GROWING.get() != null || !(context.level() instanceof WorldGenRegion) || !(context.chunkGenerator() instanceof EarthChunkGenerator)
 			|| RealEarth.terrain() == null
-			|| context.config().foliageProvider.getState(context.level(), context.random(), context.origin()).is(Blocks.AZALEA_LEAVES)) {
+			|| context.config().foliageProvider.getState(context.random(), context.origin()).is(Blocks.AZALEA_LEAVES)) {
 			return null;
 		}
 		return false;
@@ -185,7 +185,7 @@ public final class EarthTrees {
 	public static void fill(WorldGenLevel level, ChunkGenerator generator, ChunkAccess chunk) {
 		TerrainField field = RealEarth.terrain();
 		ChunkPos pos = chunk.getPos();
-		ChunkTerrain t = field == null ? null : field.chunkIfReady(pos.x(), pos.z());
+		ChunkTerrain t = field == null ? null : field.chunkIfReady(pos.x, pos.z);
 		if (t == null || !(level instanceof WorldGenRegion region)) {
 			return;
 		}
@@ -243,7 +243,7 @@ public final class EarthTrees {
 		BlockPos pos = new BlockPos(x, t.topSolidY[k] + 1, z);
 		BlockState ground = region.getBlockState(pos.below());
 		boolean pit = false;
-		if (!ground.is(BlockTags.SUBSTRATE_OVERWORLD) && !ground.is(BlockTags.SAND)) {
+		if (!ground.is(BlockTags.DIRT) && !ground.is(BlockTags.SAND)) {
 			// Paving part of a block high (Saro's, where a street climbs) takes a pit too: it fills the block.
 			boolean paving = ground.isCollisionShapeFullBlock(region, pos.below()) || RoadBlocks.high(ground, 16) != ground;
 			if (!mapped || !paving || ground.is(BlockTags.LOGS) || ground.is(BlockTags.LEAVES)) {
@@ -546,7 +546,7 @@ public final class EarthTrees {
 	private static void set(WorldGenRegion region, BlockPos at, StructureTemplate.StructureBlockInfo info, Tree tree, Mirror mirror,
 		Rotation rotation) {
 		ChunkPos centre = region.getCenter();
-		if (Math.abs((at.getX() >> 4) - centre.x()) > 1 || Math.abs((at.getZ() >> 4) - centre.z()) > 1) {
+		if (Math.abs((at.getX() >> 4) - centre.x) > 1 || Math.abs((at.getZ() >> 4) - centre.z) > 1) {
 			count("clipped");
 			return;
 		}
@@ -580,7 +580,7 @@ public final class EarthTrees {
 	}
 
 	private static boolean natural(BlockState state) {
-		return state.isAir() || state.is(BlockTags.SUBSTRATE_OVERWORLD) || state.is(BlockTags.BASE_STONE_OVERWORLD) || state.is(BlockTags.SAND)
+		return state.isAir() || state.is(BlockTags.DIRT) || state.is(BlockTags.BASE_STONE_OVERWORLD) || state.is(BlockTags.SAND)
 			|| state.is(Blocks.GRAVEL) || state.is(Blocks.CLAY) || state.is(BlockTags.REPLACEABLE_BY_TREES);
 	}
 
@@ -637,14 +637,14 @@ public final class EarthTrees {
 		Map<String, List<Tree>> trees = new HashMap<>();
 		var packs = server.getResourceManager().listResources("structure/tree", id -> id.getPath().endsWith("/trees.json"));
 		for (var entry : packs.entrySet()) {
-			Identifier json = entry.getKey();
+			ResourceLocation json = entry.getKey();
 			String folder = json.getPath().substring("structure/".length(), json.getPath().length() - "trees.json".length());
 			try (BufferedReader in = entry.getValue().openAsReader()) {
 				for (JsonElement e : JsonParser.parseReader(in).getAsJsonObject().getAsJsonArray("trees")) {
 					JsonObject t = e.getAsJsonObject();
 					String file = t.get("file").getAsString();
 					JsonArray base = t.getAsJsonArray("base");
-					Identifier id = Identifier.fromNamespaceAndPath(json.getNamespace(), folder + file.substring(0, file.length() - ".nbt".length()));
+					ResourceLocation id = ResourceLocation.fromNamespaceAndPath(json.getNamespace(), folder + file.substring(0, file.length() - ".nbt".length()));
 					trees.computeIfAbsent(species(file), k -> new ArrayList<>()).add(new Tree(id,
 						new BlockPos(base.get(0).getAsInt(), base.get(1).getAsInt(), base.get(2).getAsInt()), t.get("height").getAsInt(),
 						t.get("reach").getAsInt()));

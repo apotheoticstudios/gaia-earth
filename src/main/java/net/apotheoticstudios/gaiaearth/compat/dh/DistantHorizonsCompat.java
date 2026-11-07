@@ -31,9 +31,9 @@ public final class DistantHorizonsCompat {
 					&& server.getChunkSource().getGenerator() instanceof EarthChunkGenerator) {
 					DhApiResult<Void> result = DhApi.worldGenOverrides.registerWorldGeneratorOverride(level, new EarthLodGenerator(level));
 					if (result.success) {
-						RealEarth.LOGGER.info("Distant Horizons: distant terrain for {} comes straight from Project Gaia: Earth's data", server.dimension().identifier());
+						RealEarth.LOGGER.info("Distant Horizons: distant terrain for {} comes straight from Project Gaia: Earth's data", server.dimension().location());
 					} else {
-						RealEarth.LOGGER.warn("Distant Horizons refused the Project Gaia: Earth generator for {}: {}", server.dimension().identifier(), result.message);
+						RealEarth.LOGGER.warn("Distant Horizons refused the Project Gaia: Earth generator for {}: {}", server.dimension().location(), result.message);
 					}
 				}
 			}

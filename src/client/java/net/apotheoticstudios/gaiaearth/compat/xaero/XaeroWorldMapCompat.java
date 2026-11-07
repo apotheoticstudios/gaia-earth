@@ -28,7 +28,7 @@ import net.apotheoticstudios.gaiaearth.world.ClimateLink;
 import net.apotheoticstudios.gaiaearth.world.MapWaypoints;
 import xaero.lib.XaeroLib;
 import xaero.map.WorldMap;
-import xaero.map.element.MapElementGraphics;
+import net.minecraft.client.gui.GuiGraphics;
 import xaero.map.element.render.ElementReader;
 import xaero.map.element.render.ElementRenderInfo;
 import xaero.map.element.render.ElementRenderLocation;
@@ -185,24 +185,24 @@ public final class XaeroWorldMapCompat {
 
 		@Override
 		public void preRender(ElementRenderInfo info, BufferSource vanilla, MultiTextureRenderTypeRendererProvider provider, boolean shadow) {
-			fill = XaeroLib.INSTANCE.getClient().getBufferProvider().getBuffer(CustomRenderTypes.MAP_ELEMENT_TEXT_BG);
+			fill = xaero.map.WorldMap.worldMapClientOnly.customVertexConsumers.getRenderTypeBuffers().getBuffer(CustomRenderTypes.MAP_ELEMENT_TEXT_BG);
 			Minecraft mc = Minecraft.getInstance();
 			here = mc.level != null && info.mapDimension == mc.level.dimension();
 		}
 
 		@Override
 		public void postRender(ElementRenderInfo info, BufferSource vanilla, MultiTextureRenderTypeRendererProvider provider, boolean shadow) {
-			XaeroLib.INSTANCE.getClient().getBufferProvider().endBatch();
+			xaero.map.WorldMap.worldMapClientOnly.customVertexConsumers.getRenderTypeBuffers().endBatch();
 		}
 
 		@Override
 		public void renderElementShadow(MapWaypoints.Mark m, boolean hovered, float scale, double partialX, double partialY, ElementRenderInfo info,
-			MapElementGraphics graphics, BufferSource vanilla, MultiTextureRenderTypeRendererProvider provider) {
+			GuiGraphics graphics, BufferSource vanilla, MultiTextureRenderTypeRendererProvider provider) {
 		}
 
 		@Override
 		public boolean renderElement(MapWaypoints.Mark m, boolean hovered, double depth, float scale, double partialX, double partialY,
-			ElementRenderInfo info, MapElementGraphics graphics, BufferSource vanilla, MultiTextureRenderTypeRendererProvider provider) {
+			ElementRenderInfo info, GuiGraphics graphics, BufferSource vanilla, MultiTextureRenderTypeRendererProvider provider) {
 			PoseStack pose = graphics.pose();
 			pose.translate(partialX, partialY, 0.0);
 			pose.scale(scale * UNIT, scale * UNIT, 1.0F);

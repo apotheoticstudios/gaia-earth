@@ -481,8 +481,8 @@ final class StreetLife {
 	}
 
 	private static void boats(net.minecraft.server.level.WorldGenRegion region, ChunkTerrain t, int baseX, int baseZ, int x, int z, int count) {
-		var types = java.util.List.of(net.minecraft.world.entity.EntityType.OAK_BOAT, net.minecraft.world.entity.EntityType.SPRUCE_BOAT,
-			net.minecraft.world.entity.EntityType.BIRCH_BOAT);
+		var types = java.util.List.of(net.minecraft.world.entity.vehicle.Boat.Type.OAK, net.minecraft.world.entity.vehicle.Boat.Type.SPRUCE,
+			net.minecraft.world.entity.vehicle.Boat.Type.BIRCH);
 		int placed = 0;
 		for (int r = 1; r <= 10 && placed < count; r++) {
 			for (int dz = -r; dz <= r && placed < count; dz++) {
@@ -496,12 +496,12 @@ final class StreetLife {
 					if (water == Integer.MIN_VALUE || t.deckY[ChunkTerrain.index(bx, bz)] != Integer.MIN_VALUE) {
 						continue;
 					}
-					var boat = types.get((int) (GeoNoise.hash(baseX + bx, 102, baseZ + bz) * types.size())).create(region.getLevel(),
-						net.minecraft.world.entity.EntitySpawnReason.STRUCTURE);
+					var boat = net.minecraft.world.entity.EntityType.BOAT.create(region.getLevel());
 					if (boat == null) {
 						return;
 					}
-					boat.snapTo(baseX + bx + 0.5, water + 1, baseZ + bz + 0.5, (float) (GeoNoise.hash(baseX + bx, 103, baseZ + bz) * 360), 0);
+					boat.setVariant(types.get((int) (GeoNoise.hash(baseX + bx, 102, baseZ + bz) * types.size())));
+					boat.moveTo(baseX + bx + 0.5, water + 1, baseZ + bz + 0.5, (float) (GeoNoise.hash(baseX + bx, 103, baseZ + bz) * 360), 0);
 					region.addFreshEntity(boat);
 					placed++;
 				}
@@ -518,9 +518,9 @@ final class StreetLife {
 		if (t.building[k] != 0 || t.waterTopY[k] != Integer.MIN_VALUE) {
 			return;
 		}
-		var trader = net.minecraft.world.entity.EntityType.WANDERING_TRADER.create(region.getLevel(), net.minecraft.world.entity.EntitySpawnReason.STRUCTURE);
+		var trader = net.minecraft.world.entity.EntityType.WANDERING_TRADER.create(region.getLevel());
 		if (trader != null) {
-			trader.snapTo(baseX + x + 0.5, t.topSolidY[k] + 1, baseZ + z + 0.5, 0, 0);
+			trader.moveTo(baseX + x + 0.5, t.topSolidY[k] + 1, baseZ + z + 0.5, 0, 0);
 			trader.setPersistenceRequired();
 			region.addFreshEntity(trader);
 		}
@@ -540,9 +540,9 @@ final class StreetLife {
 					for (int y = ground; y <= ground + 3; y++) {
 						BlockPos at = new BlockPos(baseX + bx, y, baseZ + bz);
 						if (region.getBlockState(at).is(net.minecraft.tags.BlockTags.RAILS)) {
-							var cart = net.minecraft.world.entity.EntityType.MINECART.create(region.getLevel(), net.minecraft.world.entity.EntitySpawnReason.STRUCTURE);
+							var cart = net.minecraft.world.entity.EntityType.MINECART.create(region.getLevel());
 							if (cart != null) {
-								cart.snapTo(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, 0, 0);
+								cart.moveTo(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, 0, 0);
 								region.addFreshEntity(cart);
 							}
 							return;
@@ -554,10 +554,10 @@ final class StreetLife {
 	}
 
 	private static net.minecraft.world.level.block.entity.BlockEntity set(ChunkAccess chunk, BlockPos.MutableBlockPos pos, int x, int y, int z, BlockState s) {
-		if (y <= chunk.getMinY() || y >= chunk.getMaxY() || x < 0 || x > 15 || z < 0 || z > 15) {
+		if (y <= chunk.getMinBuildHeight() || y >= (chunk.getMaxBuildHeight() - 1) || x < 0 || x > 15 || z < 0 || z > 15) {
 			return null;
 		}
-		chunk.setBlockState(pos.set(x, y, z), s, 0);
+		chunk.setBlockState(pos.set(x, y, z), s, false);
 		if (s.hasBlockEntity() && s.getBlock() instanceof net.minecraft.world.level.block.EntityBlock entityBlock) {
 			BlockPos at = new BlockPos(chunk.getPos().getMinBlockX() + x, y, chunk.getPos().getMinBlockZ() + z);
 			var entity = entityBlock.newBlockEntity(at, s);

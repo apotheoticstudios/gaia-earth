@@ -8,7 +8,7 @@ Where each biome is, and which trees grow in it, is `world/EarthBiomes.java`; th
 the "Earth's biomes" self-test checks they do.
 
 ```bash
-python3 build_biomes.py ~/.gradle/caches/fabric-loom/26.1/minecraft-common.jar ../../src/main/resources
+python3 build_biomes.py ~/.gradle/caches/fabric-loom/minecraftMaven/net/minecraft/minecraft-common/1.21.1-*/minecraft-common-1.21.1-*-v2.jar ../../src/main/resources
 ```
 
 Run it again after changing `BIOMES` or updating Minecraft (it copies the parent biomes from the game's jar).

@@ -14,9 +14,9 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
  */
 @Mixin(targets = "xaero.map.region.texture.BranchTextureRenderer")
 public abstract class BranchTextureRendererMixin {
-	@ModifyArg(method = {"ensureRenderTarget", "render"}, at = @At(value = "INVOKE",
-		target = "Lxaero/lib/client/graphics/util/TextureUtils;clearRenderTarget(Lcom/mojang/blaze3d/pipeline/RenderTarget;I)V"), index = 1)
-	private int realearth$transparent(int colour) {
-		return 0;
+	@ModifyArg(method = "render", at = @At(value = "INVOKE",
+		target = "Lcom/mojang/blaze3d/platform/GlStateManager;_clearColor(FFFF)V"), index = 3)
+	private float realearth$transparent(float alpha) {
+		return 0.0F;
 	}
 }

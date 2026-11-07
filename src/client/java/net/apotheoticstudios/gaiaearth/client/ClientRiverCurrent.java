@@ -1,6 +1,6 @@
 package net.apotheoticstudios.gaiaearth.client;
 
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLevelEvents;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientWorldEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -25,6 +25,9 @@ final class ClientRiverCurrent {
 	private static final int MAX_SAMPLES = 32;
 	private static int soundTicks;
 	private static CurrentDemoPayload latest;
+	/** Each loaded chunk's mapped current as last seen, to re-mesh its water when the server's arrives or changes. */
+	private static final java.util.Map<net.minecraft.world.level.chunk.LevelChunk, MappedCurrents.Field> SEEN = new java.util.WeakHashMap<>();
+	private static int watchTicks;
 
 	private ClientRiverCurrent() {
 	}
@@ -32,24 +35,35 @@ final class ClientRiverCurrent {
 	static void install() {
 		ClientTickEvents.END_CLIENT_TICK.register(ClientRiverCurrent::effects);
 		ClientPlayNetworking.registerGlobalReceiver(CurrentSettings.TYPE, (payload, context) -> CurrentSettings.receive(payload));
-		ClientChunkEvents.CHUNK_LOAD.register((level, chunk) -> chunk.onAttachedSet(MappedCurrents.TYPE).register((oldField, field) -> {
-			var minecraft = Minecraft.getInstance();
-			if (minecraft.level != level) return;
-			var pos = chunk.getPos();
-			if (oldField != null && !oldField.isEmpty()) dirty(minecraft.levelRenderer, pos.x(), pos.z(), oldField);
-			if (field != null && !field.isEmpty()) dirty(minecraft.levelRenderer, pos.x(), pos.z(), field);
-		}));
+		// 1.21.1's Fabric API has no event for a synced attachment arriving: each loaded chunk's current is checked every 10 ticks.
+		ClientChunkEvents.CHUNK_LOAD.register((level, chunk) -> SEEN.put(chunk, chunk.getAttached(MappedCurrents.TYPE)));
+		ClientChunkEvents.CHUNK_UNLOAD.register((level, chunk) -> SEEN.remove(chunk));
+		ClientTickEvents.END_CLIENT_TICK.register(ClientRiverCurrent::watchCurrents);
 		ClientPlayNetworking.registerGlobalReceiver(CurrentDemoPayload.TYPE, (payload, context) -> {
 			latest = payload.enabled() ? payload : null;
 			update(context.client(), context.client().level);
 		});
-		ClientLevelEvents.AFTER_CLIENT_LEVEL_CHANGE.register(ClientRiverCurrent::update);
+		ClientWorldEvents.AFTER_CLIENT_WORLD_CHANGE.register(ClientRiverCurrent::update);
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, minecraft) -> {
 			latest = null;
 			soundTicks = 0;
+			SEEN.clear();
 			RiverCurrentDemo.receive(null, null);
 			CurrentSettings.receive(null);
 		});
+	}
+
+	private static void watchCurrents(Minecraft minecraft) {
+		if (minecraft.level == null || ++watchTicks % 10 != 0) return;
+		for (var e : SEEN.entrySet()) {
+			var chunk = e.getKey();
+			MappedCurrents.Field field = chunk.getAttached(MappedCurrents.TYPE), old = e.getValue();
+			if (field == old || chunk.getLevel() != minecraft.level) continue;
+			e.setValue(field);
+			var pos = chunk.getPos();
+			if (old != null && !old.isEmpty()) dirty(minecraft.levelRenderer, pos.x, pos.z, old);
+			if (field != null && !field.isEmpty()) dirty(minecraft.levelRenderer, pos.x, pos.z, field);
+		}
 	}
 
 	private static void effects(Minecraft minecraft) {
@@ -60,7 +74,7 @@ final class ClientRiverCurrent {
 		boolean sound = config.riverSounds && config.riverSoundVolume > 0 && ++soundTicks % 40 == 0;
 		if (remaining == 0 && !sound) return;
 
-		Vec3 camera = minecraft.gameRenderer.getMainCamera().position();
+		Vec3 camera = minecraft.gameRenderer.getMainCamera().getPosition();
 		int centreX = Mth.floor(camera.x), centreZ = Mth.floor(camera.z);
 		var random = level.getRandom();
 		int radius = config.riverEffectRadius;
