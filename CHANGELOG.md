@@ -5,6 +5,8 @@
 - **Renamed**: Real Earth, by itssimple, continues as its own mod, **Project Gaia: Earth** (mod id `gaia-earth`).
   Its blocks, dimension, world type, loot tables and advancements are now under `gaia-earth:`, so worlds made with
   Real Earth do not carry over.
+- **Code moved to `net.apotheoticstudios.gaiaearth`** (was `se.itssimple.realearth`): mods using the API
+  (`net.apotheoticstudios.gaiaearth.api`) import it from the new package.
 - **No Minecraft structures on Earth**: no villages, outposts, temples, monuments, mineshafts, strongholds,
   ancient cities or any other structure, vanilla's or another mod's, nor the decoration Minecraft files under
   structures (dungeons, fossils, desert wells). `/locate`, eyes of ender and explorer maps find nothing there.

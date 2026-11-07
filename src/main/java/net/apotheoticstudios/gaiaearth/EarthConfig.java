@@ -1,0 +1,260 @@
+package net.apotheoticstudios.gaiaearth;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+/**
+ * Global settings, read from config/realearth.json and written back with defaults filled in.
+ *
+ * The origin is only the default for NEW worlds: once a world has been opened, its origin is pinned
+ * in the world folder (see {@link WorldSettings}), because moving it would tear every chunk generated
+ * so far away from every chunk generated afterwards.
+ */
+public final class EarthConfig {
+	/**
+	 * Where new players start on Earth, and what Overworld portals lead relative to: a portal at
+	 * Overworld X, Z opens this far from the start point. Default: Stockholm. Read when a world is
+	 * created; each world keeps its own copy (see WorldSettings).
+	 */
+	public Double startLatitude;
+	public Double startLongitude;
+
+	/**
+	 * "mercator" (default): north is up and shapes are true everywhere, scale varies with latitude.
+	 * "sinusoidal": one block per metre everywhere, but the map leans far from the start.
+	 */
+	public String projection = "mercator";
+
+	/**
+	 * Mercator: the latitude where one block is exactly one metre. Leave unset to use the start
+	 * latitude, so the area around the start is true to scale.
+	 */
+	public Double scaleLatitude;
+
+	/** Older name of the start point, when it was also the map's centre. Read for compatibility. */
+	public Double originLatitude;
+	public Double originLongitude;
+
+	/** Terrarium tile template. Zoom 15 is the highest the bucket serves (z16 answers 404). */
+	public String tileUrl = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png";
+
+	/**
+	 * Lidar elevation for new worlds: Mapterhorn's Terrarium WebP tiles, 512 px, whose zoom 14 exists
+	 * only where it has national lidar (most of Europe, the USA, Japan, parts of Canada, Australia and New
+	 * Zealand). There it replaces {@link #tileUrl}; elsewhere that stays. Empty turns it off. Each world
+	 * keeps the value it was made with (see WorldSettings), so existing worlds stay on {@link #tileUrl}.
+	 */
+	public String lidarUrl = "https://tiles.mapterhorn.com/{z}/{x}/{y}.webp";
+
+	/** Folder under the game directory where downloaded tiles are kept. Shared by every world. */
+	public String cacheDirectory = "realearth-cache";
+
+	/** Concurrent tile downloads. */
+	public int downloadThreads = 8;
+
+	/**
+	 * Largest the download cache may grow, in megabytes; the files used longest ago are deleted
+	 * beyond it. 0 means no limit. Everything in the cache can be downloaded again.
+	 */
+	public long cacheLimitMegabytes = 8192;
+
+	/**
+	 * Gaussian smoothing of the elevation grid, as a standard deviation in metres. Rounds off the
+	 * creases left where coarse source data was bilinearly upsampled into the tile set, and the
+	 * one-metre terraces of integer-valued sources, without flattening real relief.
+	 */
+	public double smoothingMeters = 5.0;
+
+	/** A sample further than this from the median of its 3x3 neighbourhood is treated as a spike. */
+	public double despikeMeters = 25.0;
+
+	/**
+	 * Take water from OpenStreetMap (via OpenFreeMap vector tiles): seas, lakes, rivers, canals and
+	 * streams exactly where they are, and land below sea level stays dry unless the map says sea.
+	 * Without it -- or where the map cannot be fetched -- water is inferred from elevation alone.
+	 */
+	public boolean useMapWater = true;
+	/** Apply mapped river currents and send their data to clients. Read on the server. */
+	public boolean mappedRiverCurrents = true;
+	/** Mapped river push as a percentage of vanilla's current force. Read on the server. */
+	public int riverCurrentStrength = 100;
+	/** Number of blocks below the mapped surface affected by the current. Read on the server. */
+	public int riverCurrentDepth = 8;
+	/** Orient the water surface texture along the current. Read on the client. */
+	public boolean riverVisualFlow = true;
+	/** Maximum river wake particles emitted locally per tick. 0 turns them off. */
+	public int riverParticlesPerTick = 3;
+	/** Horizontal distance in blocks for local river effects. */
+	public int riverEffectRadius = 12;
+	/** Wake drift speed as a percentage of the default. */
+	public int riverWakeSpeed = 100;
+	/** Play quiet water ambience near moving waterways. Read on the client. */
+	public boolean riverSounds = false;
+	public int riverSoundVolume = 18;
+	/** TileJSON of the OpenMapTiles-schema vector tiles to read water from. */
+	public String mapTileJson = "https://tiles.openfreemap.org/planet";
+
+	/** Take forests, fields, grassland, wetlands, bare ground and glaciers from ESA WorldCover (10 m). */
+	public boolean useLandCover = true;
+
+	/** Draw roads, tracks and paths from OpenStreetMap (needs useMapWater's map tiles). */
+	public boolean useRoads = true;
+	/** Draw railways and tram lines from OpenStreetMap, with real rails. */
+	public boolean useRailways = true;
+
+	/**
+	 * Build OpenStreetMap's buildings as furnished village-style houses, with wells, farms and lamps
+	 * between them. Where buildings are mapped, no villages are generated.
+	 */
+	public boolean useBuildings = true;
+	/**
+	 * Roof shapes, roof and facade colours, and the parts landmarks are mapped in (towers, spires,
+	 * domes): OpenStreetMap's 3D building tags, from the Overture Maps buildings tiles. Read a map tile
+	 * at a time and kept on disk.
+	 */
+	public boolean useBuildingDetail = true;
+	/** The Overture buildings archive (PMTiles), with {release} for the release. */
+	public String buildingDetailUrl = "https://overturemaps-extras-us-west-2.s3.us-west-2.amazonaws.com/tiles/{release}/buildings.pmtiles";
+	/** Which Overture release: "latest" for the newest in the catalogue, or one like "2026-10-21.0". */
+	public String buildingDetailRelease = "latest";
+	/** Overture's release catalogue, for "latest". */
+	public String buildingDetailCatalog = "https://stac.overturemaps.org/catalog.json";
+	/**
+	 * Gaia overlays of measured buildings (PMTiles made by tools/overlay, http(s): or file: URLs, comma-separated): their
+	 * heights and roof heights win over OpenStreetMap's and Overture's wherever a footprint matches. Empty for none.
+	 */
+	public String buildingOverlays = "";
+	/**
+	 * Real-species trees where OpenStreetMap maps single trees (street trees, park trees) and the land cover shows
+	 * no forest: from the Overture Maps base tiles, in the building detail's release. Needs building detail on.
+	 */
+	public boolean useMappedTrees = true;
+	/** The Overture base archive (PMTiles), with {release} for the release. */
+	public String mappedTreesUrl = "https://overturemaps-extras-us-west-2.s3.us-west-2.amazonaws.com/tiles/{release}/base.pmtiles";
+	/**
+	 * Roads and paths paved as mapped where the map says more than paved or unpaved (paving stones, gravel, dirt): from
+	 * the Overture Maps transportation tiles, in the building detail's release. Needs building detail on.
+	 */
+	public boolean useRoadDetail = true;
+	/** The Overture transportation archive (PMTiles), with {release} for the release. */
+	public String roadDetailUrl = "https://overturemaps-extras-us-west-2.s3.us-west-2.amazonaws.com/tiles/{release}/transportation.pmtiles";
+	/** Show the town's name as a title on walking into it, and the district's above the hotbar, from the map's place names. */
+	public boolean placeTitles = true;
+	/** Towns and railway stations near you as waypoints in Xaero's Minimap, when it is installed (read on the client). */
+	public boolean mapWaypoints = true;
+	/**
+	 * In Xaero's World Map on the Earth, the real map (from mapTileJson) where you haven't been yet, downloaded by
+	 * the client as the map is looked at (read on the client).
+	 */
+	public boolean mapBackground = true;
+	/**
+	 * Every this many seconds, a few lines in logs/realearth-perf.log on how chunk generation is keeping up: where
+	 * each player is and how fast they move, chunks still missing round them, generation and arrival
+	 * times, downloads and waits. 0 is off. Also /earth perf log &lt;seconds&gt;.
+	 */
+	public int perfLogSeconds = 0;
+	/** Height of each storey, in metres (at least 5 blocks). Storeys are counted from the real height at 3 m each. */
+	public double storeyMeters = 4.5;
+	/** Most storeys a building gets. */
+	public int maxFloors = 10;
+	/**
+	 * Chance that a chunk with beds in it gets a villager (one). Villagers are costly to simulate, and a
+	 * city has thousands of chunks of houses: about one chunk of town in twenty ends up with one.
+	 */
+	public double villagerChance = 0.2;
+	/**
+	 * Most villagers kept in the town round each player (about 50 blocks each way). Within that, one for
+	 * every forty beds there, so villages stay quiet and city centres are busy. They come home to beds
+	 * out of sight and go again once everyone is far away, unless traded with. 0 turns it off.
+	 */
+	public int townsfolk = 24;
+	public String landCoverUrl = "https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/map/ESA_WorldCover_10m_2021_v200_{tile}_Map.tif";
+
+	/** Lakes are perfectly flat in the source data; this finds them and fills them with water. Used where map water is not. */
+	public boolean detectLakes = true;
+	/** Window, in samples, that must be flat for its centre to count as water. ~40-80 m at z15. */
+	public int lakeWindowSamples = 17;
+	/** How flat is flat, in metres. Real lake surfaces are exactly constant; farmland is not. */
+	public double lakeFlatnessMeters = 0.02;
+	/** Deepest a carved lake bed goes below the water surface, in metres. */
+	public double maxLakeDepthMeters = 12.0;
+
+	/**
+	 * Worlds made before mountains were scaled to fit by region (WorldSettings.verticalLayout 0) only: real
+	 * elevation above which mountains are compressed to fit under the build limit. Below this, one block is
+	 * exactly one metre; above it the scale eases off smoothly so Everest still fits. Newer worlds keep land
+	 * true to scale and scale a range too tall to fit down whole (terrain/VerticalScale).
+	 */
+	public double compressAboveMeters = 2800.0;
+
+	/** Those worlds only: ocean depth below which the seabed is compressed to fit above the bottom of the world. */
+	public double compressBelowMeters = -600.0;
+
+	/** Permission level needed for /earth tp. 0 lets everyone use it. */
+	public int teleportPermissionLevel = 2;
+
+	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+
+	public static EarthConfig read(Path file) throws IOException {
+		EarthConfig read = Files.exists(file) ? GSON.fromJson(Files.readString(file), EarthConfig.class) : null;
+		EarthConfig config = read == null ? new EarthConfig() : read;
+		config.clampRiverSettings();
+		return config;
+	}
+
+	private void clampRiverSettings() {
+		riverCurrentStrength = Math.clamp(riverCurrentStrength, 0, 200);
+		riverCurrentDepth = Math.clamp(riverCurrentDepth, 1, 16);
+		riverParticlesPerTick = Math.clamp(riverParticlesPerTick, 0, 12);
+		riverEffectRadius = Math.clamp(riverEffectRadius, 4, 32);
+		riverWakeSpeed = Math.clamp(riverWakeSpeed, 0, 200);
+		riverSoundVolume = Math.clamp(riverSoundVolume, 0, 100);
+	}
+
+	/** Merge the screen's river settings into the latest config on disk. */
+	public void saveRiverSettings(Path file) throws IOException {
+		clampRiverSettings();
+		JsonObject json = Files.exists(file) ? GSON.fromJson(Files.readString(file), JsonObject.class) : new JsonObject();
+		if (json == null) json = new JsonObject();
+		json.addProperty("mappedRiverCurrents", mappedRiverCurrents);
+		json.addProperty("riverCurrentStrength", riverCurrentStrength);
+		json.addProperty("riverCurrentDepth", riverCurrentDepth);
+		json.addProperty("riverVisualFlow", riverVisualFlow);
+		json.addProperty("riverParticlesPerTick", riverParticlesPerTick);
+		json.addProperty("riverEffectRadius", riverEffectRadius);
+		json.addProperty("riverWakeSpeed", riverWakeSpeed);
+		json.addProperty("riverSounds", riverSounds);
+		json.addProperty("riverSoundVolume", riverSoundVolume);
+		Files.createDirectories(file.getParent());
+		Path temporary = Files.createTempFile(file.getParent(), "realearth-", ".json");
+		try {
+			Files.writeString(temporary, GSON.toJson(json));
+			Files.move(temporary, file, java.nio.file.StandardCopyOption.ATOMIC_MOVE, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+		} finally {
+			Files.deleteIfExists(temporary);
+		}
+	}
+
+	public static EarthConfig load(Path file) {
+		EarthConfig config = new EarthConfig();
+		try {
+			config = read(file);
+			if (config.startLatitude == null || config.startLongitude == null) {
+				boolean old = config.originLatitude != null && config.originLongitude != null;
+				config.startLatitude = old ? config.originLatitude : 59.3293;
+				config.startLongitude = old ? config.originLongitude : 18.0686;
+			}
+			config.originLatitude = null;
+			config.originLongitude = null;
+			Files.createDirectories(file.getParent());
+			Files.writeString(file, GSON.toJson(config));
+		} catch (IOException | RuntimeException e) {
+			RealEarth.LOGGER.error("Could not read {}; using defaults", file, e);
+		}
+		return config;
+	}
+}

@@ -479,7 +479,7 @@ Planned features and known issues: see [ROADMAP.md](ROADMAP.md).
   same way as `/earth go`, but by your own game, so it works on any server and needs no permission.
 - **Lootr** and **Distant Horizons**: see above.
 
-**For mod authors.** `se.itssimple.realearth.api` (compile against the Project Gaia: Earth jar, `modCompileOnly`):
+**For mod authors.** `net.apotheoticstudios.gaiaearth.api` (compile against the Project Gaia: Earth jar, `modCompileOnly`):
 - `RealEarthApi`: `isEarth(level)`, `latLon(level, x, z)` and `toBlock(level, lat, lon)`, `elevationMeters` and
   `yOf`, `groundMeters`, `place(level, x, z)` (town, district, capital), `street(level, x, z)` and
   `building(level, pos)` (use, hall kind, name, storeys, the storey and room at the block). Server side only;

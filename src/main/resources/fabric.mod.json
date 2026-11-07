@@ -5,23 +5,26 @@
   "name": "Project Gaia: Earth",
   "description": "The real Earth at one block per metre: real elevation, water, roads, railways, towns with their buildings, land cover and climate, as a dimension (a lapis frame lit with a Globe Banner Pattern) or a world type. Map data (c) OpenStreetMap contributors (ODbL); building detail (c) Overture Maps Foundation (ODbL); Terrain Tiles (USGS and others); (c) ESA WorldCover 2021 (CC BY 4.0); Koppen-Geiger, Beck et al. 2023 (CC BY 4.0). Full credits: CREDITS.md in the jar, or /earth credits.",
   "authors": [
-    "itssimple"
+    "apotheoticstudios"
+  ],
+  "contributors": [
+    "itssimple (Real Earth, the mod this continues)"
   ],
   "license": ["MIT", "MPL-2.0"],
   "icon": "assets/gaia-earth/icon.png",
   "environment": "*",
   "entrypoints": {
     "main": [
-      "se.itssimple.realearth.RealEarth"
+      "net.apotheoticstudios.gaiaearth.RealEarth"
     ],
     "client": [
-      "se.itssimple.realearth.client.RealEarthClient"
+      "net.apotheoticstudios.gaiaearth.client.RealEarthClient"
     ],
     "modmenu": [
-      "se.itssimple.realearth.client.GaiaModMenu"
+      "net.apotheoticstudios.gaiaearth.client.GaiaModMenu"
     ],
     "jade": [
-      "se.itssimple.realearth.compat.jade.RealEarthJadePlugin"
+      "net.apotheoticstudios.gaiaearth.compat.jade.RealEarthJadePlugin"
     ]
   },
   "mixins": [

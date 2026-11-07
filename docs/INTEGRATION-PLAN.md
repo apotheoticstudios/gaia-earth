@@ -26,7 +26,7 @@ Mods and modpacks can already change loot (`gaia-earth:chests/*`). The same appr
   someone made by hand.
 - **Shop stock and job blocks** per shop kind, as data.
 
-### 2. A small Java API (`se.itssimple.realearth.api`)
+### 2. A small Java API (`net.apotheoticstudios.gaiaearth.api`)
 
 A stable, versioned interface that other mods compile against with `modCompileOnly`. Project Gaia: Earth then works with
 them when it is present and nothing breaks when it isn't.

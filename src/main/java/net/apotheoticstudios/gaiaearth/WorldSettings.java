@@ -1,0 +1,122 @@
+package net.apotheoticstudios.gaiaearth;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import net.apotheoticstudios.gaiaearth.geo.Projection;
+
+/**
+ * The per-world part of the configuration: how this world is laid onto the globe, and where players
+ * start.
+ *
+ * Written to realearth.json in the world folder the first time a world is opened with the mod,
+ * copied from the global config. From then on the global config no longer changes this world, so
+ * editing it cannot tear terrain that already exists.
+ *
+ * Worlds made before the Mercator projection existed have no {@code projection} here and stay
+ * sinusoidal around their origin, starting at it. Worlds made before lidar elevation have no
+ * {@code lidarUrl} and stay on the Terrarium tiles alone, so their new chunks meet their old ones.
+ */
+public final class WorldSettings {
+	/** "mercator" or "sinusoidal"; missing in worlds made before Mercator. */
+	public String projection;
+	/** Sinusoidal only: the projection's centre. Mercator is always centred on 0, 0. */
+	public double originLatitude;
+	public double originLongitude;
+	/** Where new players appear, and where Overworld portals lead relative to. */
+	public Double startLatitude;
+	public Double startLongitude;
+	/** Mercator only: the latitude where one block is exactly one metre. */
+	public Double scaleLatitude;
+	/** Lidar elevation tiles over the Terrarium ones (EarthConfig.lidarUrl); empty for none. */
+	public String lidarUrl;
+	/**
+	 * 0 is original terrain, 1 fits water surfaces, and 2 adds directed profiles and wrap fixes; 4 lets water a water
+	 * board holds at a fixed level stand at it, where an overlay gives the level (tools/overlay/water_levels_nl.py).
+	 */
+	public int waterSurfaceVersion;
+	/**
+	 * 0 is roads a fixed width by class; 1 widens them by region and paints their markings in Saro's asphalt; 2 adds
+	 * marked crossings and paves roads and paths as mapped (paved footways, steps, unpaved roads); 3 adds pavements
+	 * beside town streets, and kerbs; 4 adds the street furniture the map has (lamps, benches, bollards, hydrants,
+	 * bicycle stands) and puts street lamps on the pavement, Saro's; 5 lays roads level with the ground beside them, a kerb
+	 * below their pavements only (3 and 4 built every road on the ground most of a block low); 6 has roads, pavements and
+	 * road bridges climb in sixteenths of a block, in Saro's blocks of each height, rather than in whole blocks; 7 builds each
+	 * bridge a bridge overlay describes as it really is (docs/BRIDGES-PLAN.md): its outline, measured or cited deck heights,
+	 * piers, arches and girders in its material, and railings along every road bridge's sides; 8 gives a bridge that opens
+	 * its leaf, and a drawbridge its portal, balance beams, counterweight and rods; 9 builds a truss bridge's trusses where
+	 * measured, of the pattern the data names, panel by panel (BridgeTrusses); 10 joins a bridge the edge of a map tile
+	 * cuts into one run across it, so its deck, spans and structure go its whole length (Bridges.runs); 11 builds every
+	 * bridge the map outlines as one, with no overlay needed: its deck filling its outline, girders and piers under it, paved
+	 * paths, and railings along its edge only, from Macaw's Fences and Walls and joined diagonally by Diagonal Fences; 12
+	 * haunches a beam span over 76 m (deep at its piers, shallow at its middle) and clears it under its girder's middle.
+	 */
+	public int roadVersion;
+	/**
+	 * 0 has the sea at Y -1200 on 832 blocks of ground, and eases mountains off above EarthConfig.compressAboveMeters; 1 has
+	 * it at Y -1800 on 232, land true to scale, and ranges too tall to fit scaled down whole (terrain/VerticalScale).
+	 */
+	public int verticalLayout;
+
+	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+	/** Beyond this the rest of the world would come out very small. */
+	private static final double MAX_SCALE_LATITUDE = 70.0;
+
+	public static WorldSettings loadOrCreate(Path file, EarthConfig defaults) {
+		try {
+			if (Files.exists(file)) {
+				WorldSettings read = GSON.fromJson(Files.readString(file), WorldSettings.class);
+				if (read != null) {
+					if (read.projection == null) {
+						// Made before Mercator: sinusoidal around the origin, starting there.
+						read.projection = "sinusoidal";
+						read.startLatitude = read.originLatitude;
+						read.startLongitude = read.originLongitude;
+						read.save(file);
+					}
+					if (read.lidarUrl == null) {
+						read.lidarUrl = "";
+						read.save(file);
+					}
+					return read;
+				}
+			}
+		} catch (IOException | RuntimeException e) {
+			RealEarth.LOGGER.error("Could not read {}; falling back to the global configuration", file, e);
+		}
+
+		WorldSettings settings = new WorldSettings();
+		settings.projection = "sinusoidal".equalsIgnoreCase(defaults.projection) ? "sinusoidal" : "mercator";
+		settings.startLatitude = defaults.startLatitude;
+		settings.startLongitude = defaults.startLongitude;
+		settings.lidarUrl = defaults.lidarUrl == null ? "" : defaults.lidarUrl;
+		settings.waterSurfaceVersion = 4;
+		settings.roadVersion = 12;
+		settings.verticalLayout = 1;
+		if (settings.projection.equals("sinusoidal")) {
+			settings.originLatitude = defaults.startLatitude;
+			settings.originLongitude = defaults.startLongitude;
+		} else {
+			double scale = defaults.scaleLatitude != null ? defaults.scaleLatitude : defaults.startLatitude;
+			settings.scaleLatitude = Math.max(-MAX_SCALE_LATITUDE, Math.min(MAX_SCALE_LATITUDE, scale));
+		}
+		settings.save(file);
+		return settings;
+	}
+
+	private void save(Path file) {
+		try {
+			Files.writeString(file, GSON.toJson(this));
+		} catch (IOException e) {
+			RealEarth.LOGGER.error("Could not write {}", file, e);
+		}
+	}
+
+	public Projection toProjection() {
+		return "sinusoidal".equals(projection)
+			? new Projection.Sinusoidal(originLatitude, originLongitude)
+			: new Projection.WebMercator(scaleLatitude == null ? 0.0 : scaleLatitude);
+	}
+}

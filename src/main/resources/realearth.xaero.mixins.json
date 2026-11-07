@@ -1,7 +1,7 @@
 {
   "required": false,
-  "package": "se.itssimple.realearth.mixin",
-  "plugin": "se.itssimple.realearth.compat.xaero.XaeroMixins",
+  "package": "net.apotheoticstudios.gaiaearth.mixin",
+  "plugin": "net.apotheoticstudios.gaiaearth.compat.xaero.XaeroMixins",
   "compatibilityLevel": "JAVA_25",
   "mixins": [],
   "injectors": {
