@@ -1,0 +1,13 @@
+{
+  "variants": {
+    "type=bottom": {
+      "model": "gaia-earth:block/red_sand_slab"
+    },
+    "type=top": {
+      "model": "gaia-earth:block/red_sand_slab_top"
+    },
+    "type=double": {
+      "model": "minecraft:block/red_sand"
+    }
+  }
+}

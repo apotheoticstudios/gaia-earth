@@ -44,7 +44,8 @@ final class ShotTour {
 		new Shot("stockholm", 59.3190, 18.0500, 70, -120, 18),
 		new Shot("kebnekaise", 67.8800, 18.4500, 140, -150, 12),
 		new Shot("geiranger", 62.1000, 7.1300, 120, 90, 14),
-		new Shot("mont-blanc", 45.8800, 6.8900, 220, 170, 10)
+		new Shot("mont-blanc", 45.8800, 6.8900, 220, 170, 10),
+		new Shot("dales", 54.2000, -2.1000, 6, 135, 22)
 	);
 
 	/** Places around the world, from the ground and from high up, for checking the Mercator map. */

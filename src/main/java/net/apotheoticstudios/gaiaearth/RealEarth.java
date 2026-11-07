@@ -118,6 +118,7 @@ public class RealEarth implements ModInitializer {
 	public void onInitialize() {
 		config = EarthConfig.load(FabricLoader.getInstance().getConfigDir().resolve("realearth.json"));
 
+		net.apotheoticstudios.gaiaearth.world.TerrainSlabs.register();
 		Registry.register(BuiltInRegistries.CHUNK_GENERATOR, id("earth"), EarthChunkGenerator.CODEC);
 		Registry.register(BuiltInRegistries.BIOME_SOURCE, id("earth"), EarthBiomeSource.CODEC);
 		Registry.register(BuiltInRegistries.STRUCTURE_PLACEMENT, id("built_up"), net.apotheoticstudios.gaiaearth.world.BuiltUpPlacement.TYPE);

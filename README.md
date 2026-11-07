@@ -379,6 +379,7 @@ In `runClient` or `runPlaytest`, open **Mods → Project Gaia: Earth → Configu
 | `despikeMeters` | 25.0 | Spike threshold |
 | `useMapWater`, `mapTileJson` | true, OpenFreeMap | Water from OpenStreetMap |
 | `mappedRiverCurrents` | true | Apply downstream currents in mapped waterways. Set on the server or in single-player. |
+| `terrainSlabs` | true | Half slabs at the ground's one-block steps, where the real ground is nearer half a block: grass, dirt, sand, gravel and the like (Earth's own slabs), rock (vanilla's), snow (layers). New chunks only. |
 | `riverCurrentStrength` | 100 | Mapped river push as a percentage, from 0 to 200. Set on the server or in single-player. |
 | `riverCurrentDepth` | 8 | Number of blocks below the river surface affected by currents, from 1 to 16. Set on the server or in single-player. |
 | `riverVisualFlow` | true | Orient water textures downstream on this client. |

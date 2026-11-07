@@ -1,0 +1,8 @@
+{
+  "parent": "gaia-earth:block/terrain_slab",
+  "textures": {
+    "top": "minecraft:block/coarse_dirt",
+    "side": "minecraft:block/coarse_dirt",
+    "bottom": "minecraft:block/coarse_dirt"
+  }
+}

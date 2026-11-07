@@ -1,0 +1,13 @@
+{
+  "replace": false,
+  "values": [
+    "gaia-earth:grass_slab",
+    "gaia-earth:dirt_slab",
+    "gaia-earth:coarse_dirt_slab",
+    "gaia-earth:podzol_slab",
+    "gaia-earth:mud_slab",
+    "gaia-earth:sand_slab",
+    "gaia-earth:red_sand_slab",
+    "gaia-earth:gravel_slab"
+  ]
+}

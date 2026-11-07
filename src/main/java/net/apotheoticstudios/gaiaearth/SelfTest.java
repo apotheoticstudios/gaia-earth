@@ -1860,6 +1860,61 @@ final class SelfTest {
 			}
 		}));
 
+		phases.add(Map.entry("Terrain slabs", () -> {
+			// Half slabs beside the ground's one-block steps (TerrainSlabs), in the Yorkshire Dales' grassy hills: each brings
+			// the surface within a quarter block of the real ground, and none has a plant on it or water over it.
+			TerrainField field = RealEarth.terrain();
+			int cx0 = (int) field.projection().blockX(54.20, -2.10) >> 4;
+			int cz0 = (int) field.projection().blockZ(54.20) >> 4;
+			int columns = 0;
+			int slabs = 0;
+			int planted = 0;
+			int wet = 0;
+			int off = 0;
+			double worst = 0;
+			java.util.Map<String, Integer> kinds = new java.util.TreeMap<>();
+			BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+			for (int cx = -2; cx <= 2; cx++) {
+				for (int cz = -2; cz <= 2; cz++) {
+					LevelChunk c = earth.getChunk(cx0 + cx, cz0 + cz);
+					ChunkTerrain t = field.chunkIfReady(cx0 + cx, cz0 + cz);
+					if (t == null) {
+						continue;
+					}
+					for (int x = 0; x < 16; x++) {
+						for (int z = 0; z < 16; z++) {
+							int k = ChunkTerrain.index(x, z);
+							if (!net.apotheoticstudios.gaiaearth.world.TerrainSlabs.open(t, k)) {
+								continue;
+							}
+							columns++;
+							int y = c.getHeight(Heightmap.Types.OCEAN_FLOOR, x, z);
+							BlockState s = c.getBlockState(p.set(x, y, z));
+							boolean half = s.getBlock() instanceof net.minecraft.world.level.block.SlabBlock
+								&& s.getValue(net.minecraft.world.level.block.SlabBlock.TYPE) == net.minecraft.world.level.block.state.properties.SlabType.BOTTOM
+								|| s.is(Blocks.SNOW) && s.getValue(net.minecraft.world.level.block.SnowLayerBlock.LAYERS) == 4;
+							if (!half) {
+								continue;
+							}
+							slabs++;
+							kinds.merge(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(s.getBlock()).getPath(), 1, Integer::sum);
+							BlockState above = c.getBlockState(p.set(x, y + 1, z));
+							planted += above.getBlock() instanceof net.minecraft.world.level.block.BushBlock ? 1 : 0;
+							wet += above.getFluidState().isEmpty() ? 0 : 1;
+							double miss = Math.abs(field.toY(t.groundMeters[k], t.latitude[k], t.longitude[k]) - (y + 0.5));
+							worst = Math.max(worst, miss);
+							off += miss > 0.2501 ? 1 : 0;
+						}
+					}
+				}
+			}
+			log("terrain slabs in 5 x 5 chunks of the Yorkshire Dales: %d on %d columns of open ground %s", slabs, columns, kinds);
+			check(columns > 1000 && slabs > columns / 200 && slabs < columns * 2 / 5,
+				"the Dales' slopes get half slabs at their steps (%d of %d columns)", slabs, columns);
+			check(off == 0, "every half slab brings the ground within a quarter block of the real ground (%d not, worst %.2f)", off, worst);
+			check(planted == 0 && wet == 0, "nothing grows on a half slab, none is under water (%d, %d)", planted, wet);
+		}));
+
 		phases.add(Map.entry("Underground", () -> {
 			// Underground: caves, ravines, and vanilla's ores at vanilla depths below the real ground.
 			{
@@ -3689,7 +3744,9 @@ final class SelfTest {
 								|| t.building[k] != 0 || t.way[k] != net.apotheoticstudios.gaiaearth.osm.Ways.NONE) {
 								continue;
 							}
-							BlockState top = c.getBlockState(new BlockPos(cx * 16 + (k16 & 15), t.topSolidY[k], cz * 16 + (k16 >> 4)));
+							// A half slab at a step is of the ground it stands for (TerrainSlabs).
+							BlockState top = net.apotheoticstudios.gaiaearth.world.TerrainSlabs.groundOf(
+								c.getBlockState(new BlockPos(cx * 16 + (k16 & 15), t.topSolidY[k], cz * 16 + (k16 >> 4))));
 							// Rock as vanilla's ores and its stone and dirt blobs (shifted to depth below the ground) leave it where it lies bare.
 							String name = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(top.getBlock()).getPath();
 							boolean ok = land == net.apotheoticstudios.gaiaearth.osm.OsmWater.ROCK || land == net.apotheoticstudios.gaiaearth.osm.OsmWater.SCREE

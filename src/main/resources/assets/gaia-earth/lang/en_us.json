@@ -171,5 +171,14 @@
   "biome.gaia-earth.fog_woodland": "Fog Woodland",
   "biome.gaia-earth.dry_evergreen_forest": "Dry Evergreen Forest",
   "biome.gaia-earth.atlantic_oak_forest": "Atlantic Oak Forest",
-  "biome.gaia-earth.cork_oak_forest": "Cork Oak Forest"
+  "biome.gaia-earth.cork_oak_forest": "Cork Oak Forest",
+  "block.gaia-earth.grass_slab": "Grass Slab",
+  "block.gaia-earth.dirt_slab": "Dirt Slab",
+  "block.gaia-earth.coarse_dirt_slab": "Coarse Dirt Slab",
+  "block.gaia-earth.podzol_slab": "Podzol Slab",
+  "block.gaia-earth.mud_slab": "Mud Slab",
+  "block.gaia-earth.moss_slab": "Moss Slab",
+  "block.gaia-earth.sand_slab": "Sand Slab",
+  "block.gaia-earth.red_sand_slab": "Red Sand Slab",
+  "block.gaia-earth.gravel_slab": "Gravel Slab"
 }

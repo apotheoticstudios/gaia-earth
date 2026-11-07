@@ -1,0 +1,13 @@
+{
+  "variants": {
+    "type=bottom": {
+      "model": "gaia-earth:block/moss_slab"
+    },
+    "type=top": {
+      "model": "gaia-earth:block/moss_slab_top"
+    },
+    "type=double": {
+      "model": "minecraft:block/moss_block"
+    }
+  }
+}

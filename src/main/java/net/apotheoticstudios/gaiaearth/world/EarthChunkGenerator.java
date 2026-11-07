@@ -1170,6 +1170,7 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 		net.apotheoticstudios.gaiaearth.Perf.stop("trees", started);
 		super.applyBiomeDecoration(level, chunk, structureManager);
 		coolTownLava(level, chunk);
+		TerrainSlabs.smooth(chunk);
 		registerPointsOfInterest(level, chunk);
 		net.apotheoticstudios.gaiaearth.Perf.stop("features", started);
 	}

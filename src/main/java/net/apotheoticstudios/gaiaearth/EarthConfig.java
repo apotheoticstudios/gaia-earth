@@ -80,6 +80,8 @@ public final class EarthConfig {
 	public boolean useMapWater = true;
 	/** Apply mapped river currents and send their data to clients. Read on the server. */
 	public boolean mappedRiverCurrents = true;
+	/** Half slabs beside the ground's one-block steps, where the real ground is nearer half a block (TerrainSlabs). New chunks only. */
+	public boolean terrainSlabs = true;
 	/** Mapped river push as a percentage of vanilla's current force. Read on the server. */
 	public int riverCurrentStrength = 100;
 	/** Number of blocks below the mapped surface affected by the current. Read on the server. */
@@ -221,6 +223,7 @@ public final class EarthConfig {
 		JsonObject json = Files.exists(file) ? GSON.fromJson(Files.readString(file), JsonObject.class) : new JsonObject();
 		if (json == null) json = new JsonObject();
 		json.addProperty("mappedRiverCurrents", mappedRiverCurrents);
+		json.addProperty("terrainSlabs", terrainSlabs);
 		json.addProperty("riverCurrentStrength", riverCurrentStrength);
 		json.addProperty("riverCurrentDepth", riverCurrentDepth);
 		json.addProperty("riverVisualFlow", riverVisualFlow);

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **Smoother ground**: beside a one-block step in the ground, a half slab of the ground's own material where the real
+  ground is a quarter block or more off the block's face, so slopes rise in half steps where the land does. Earth's own
+  grass, dirt, coarse dirt, podzol, mud, moss, sand, red sand and gravel slabs (vanilla's textures, the grass tinted by
+  biome; grass and podzol slabs drop dirt slabs without silk touch); vanilla's slabs for rock, snow layers for snow.
+  Laid after trees and plants, only where nothing stands. Off with `terrainSlabs: false`.
 - **Minecraft 1.21.1**: the mod moved from 26.1 to 1.21.1 (Fabric, Java 21), with the 1.21.1 builds of Sodium,
   Distant Horizons, Jade, Xaero's maps, Saro's Road Blocks, Macaw's Fences and Diagonal Fences. Worlds made on 26.1
   don't open in 1.21.1. Trees that used blocks 1.21.1 doesn't have use its nearest ones: pale oak's grey bark is

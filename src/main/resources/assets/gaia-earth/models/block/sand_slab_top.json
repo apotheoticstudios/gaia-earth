@@ -1,0 +1,8 @@
+{
+  "parent": "gaia-earth:block/terrain_slab_top",
+  "textures": {
+    "top": "minecraft:block/sand",
+    "side": "minecraft:block/sand",
+    "bottom": "minecraft:block/sand"
+  }
+}
