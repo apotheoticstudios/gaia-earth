@@ -7,7 +7,10 @@ import net.apotheoticstudios.gaiaearth.RealEarth;
 public class RealEarthClient implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
-		// Earth's grass slab takes the grass colour of where it stands, as grass blocks do.
+		// Earth's grass slab takes the grass colour of where it stands, as grass blocks do, and is drawn as they are: its side
+		// is the dirt-and-grass side under a tinted fringe whose clear part shows through (cut out, not solid, or the side is all green).
+		net.fabricmc.fabric.api.blockrenderlayer.v1.BlockRenderLayerMap.INSTANCE.putBlock(net.apotheoticstudios.gaiaearth.world.TerrainSlabs.GRASS_SLAB,
+			net.minecraft.client.renderer.RenderType.cutoutMipped());
 		net.fabricmc.fabric.api.client.rendering.v1.ColorProviderRegistry.BLOCK.register((state, level, pos, tint) -> level != null && pos != null
 			? net.minecraft.client.renderer.BiomeColors.getAverageGrassColor(level, pos) : net.minecraft.world.level.GrassColor.get(0.5, 1.0),
 			net.apotheoticstudios.gaiaearth.world.TerrainSlabs.GRASS_SLAB);
