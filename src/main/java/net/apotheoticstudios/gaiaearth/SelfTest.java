@@ -3066,6 +3066,81 @@ final class SelfTest {
 			}
 		}));
 
+		phases.add(Map.entry("Bridges: Vääksy's footbridge", () -> {
+			// Road version 13: a footbridge the map draws 2.5 m wide (OSM way 533439039, over the stream at Honkaniemi, Vääksy) is
+			// laid at least four blocks wide, so its railings stand on its edges and its middle stays clear to walk: every deck
+			// column down its centreline open above, railings along it.
+			TerrainField field = RealEarth.terrain();
+			if (field.map() == null || field.map().roadVersion() < 13) {
+				log("road version under 13; Vääksy's footbridge not checked");
+				return;
+			}
+			try {
+				double sx0 = Mercator.sampleX(25.53275);
+				double sy0 = Mercator.sampleY(61.17349);
+				int tx = (int) Math.floor((sx0 + 0.5) / (Mercator.TILE_SIZE * 2));
+				int ty = (int) Math.floor((sy0 + 0.5) / (Mercator.TILE_SIZE * 2));
+				var way = field.map().tile(tx, ty).get(120, java.util.concurrent.TimeUnit.SECONDS).ways().stream()
+					.filter(w -> w.bridge() && w.kind() == net.apotheoticstudios.gaiaearth.osm.Ways.PATH && w.minX() <= sx0 + 3 && w.maxX() >= sx0 - 3
+						&& w.minY() <= sy0 + 3 && w.maxY() >= sy0 - 3).findFirst().orElse(null);
+				if (way == null) {
+					check(false, "the map has Vääksy's footbridge at 61.17349, 25.53275");
+					return;
+				}
+				double spacing = Mercator.sampleSpacingMeters(61.17349);
+				int deck = 0;
+				int blocked = 0;
+				java.util.Set<Long> seen = new java.util.HashSet<>();
+				double[] p = way.points();
+				for (int i = 0; i + 3 < p.length; i += 2) {
+					double len = Math.hypot(p[i + 2] - p[i], p[i + 3] - p[i + 1]);
+					for (double d = 0; d <= len; d += 0.25 / spacing) {
+						double sx = p[i] + (p[i + 2] - p[i]) * d / len;
+						double sy = p[i + 1] + (p[i + 3] - p[i + 1]) * d / len;
+						double lat = Mercator.latitudeOfSampleY(sy);
+						int bx = (int) Math.floor(field.projection().blockX(lat, (sx + 0.5) / Mercator.SAMPLES_PER_AXIS * 360.0 - 180.0));
+						int bz = (int) Math.floor(field.projection().blockZ(lat));
+						if (!seen.add(((long) bx << 32) ^ (bz & 0xFFFFFFFFL))) {
+							continue;
+						}
+						ChunkTerrain c = field.chunkBlocking(bx >> 4, bz >> 4, 120);
+						int k = ChunkTerrain.index(bx & 15, bz & 15);
+						if (!isDeck(c, k)) {
+							continue;
+						}
+						deck++;
+						Block above = earth.getChunk(bx >> 4, bz >> 4).getBlockState(new BlockPos(bx, c.deckY[k] + 1, bz)).getBlock();
+						blocked += above instanceof net.minecraft.world.level.block.FenceBlock || above instanceof net.minecraft.world.level.block.WallBlock
+							|| above instanceof net.minecraft.world.level.block.IronBarsBlock ? 1 : 0;
+					}
+				}
+				// Its railings: within three blocks of its middle, at its deck's height.
+				double mx = (way.minX() + way.maxX()) / 2;
+				double my = (way.minY() + way.maxY()) / 2;
+				double lat = Mercator.latitudeOfSampleY(my);
+				int cx = (int) Math.floor(field.projection().blockX(lat, (mx + 0.5) / Mercator.SAMPLES_PER_AXIS * 360.0 - 180.0));
+				int cz = (int) Math.floor(field.projection().blockZ(lat));
+				int railings = 0;
+				for (int dx = -3; dx <= 3; dx++) {
+					for (int dz = -3; dz <= 3; dz++) {
+						ChunkTerrain c = field.chunkBlocking((cx + dx) >> 4, (cz + dz) >> 4, 120);
+						int k = ChunkTerrain.index((cx + dx) & 15, (cz + dz) & 15);
+						if (isDeck(c, k)) {
+							Block above = earth.getChunk((cx + dx) >> 4, (cz + dz) >> 4).getBlockState(new BlockPos(cx + dx, c.deckY[k] + 1, cz + dz)).getBlock();
+							railings += above instanceof net.minecraft.world.level.block.FenceBlock || above instanceof net.minecraft.world.level.block.WallBlock
+								|| above instanceof net.minecraft.world.level.block.IronBarsBlock ? 1 : 0;
+						}
+					}
+				}
+				log("Vääksy's footbridge: %d deck columns down its centreline, %d of them railed over; %d railing columns within 3 blocks of its middle",
+					deck, blocked, railings);
+				check(deck >= 5 && blocked == 0 && railings >= 4, "Vääksy's footbridge is railed with a walkway between its railings (%d of %d centreline "
+					+ "columns railed over, %d railings by its middle)", blocked, deck, railings);
+			} catch (Exception e) {
+				check(false, "Vääksy's footbridge: %s", e);
+			}
+		}));
+
 		phases.add(Map.entry("Roads: Paris's crossings and paving", () -> {
 			// Chatelet, where Rivoli meets Sebastopol (34 marked crossings within 160 m): zebra crossings at the map's
 			// marked crossings, paving stones where mapped.

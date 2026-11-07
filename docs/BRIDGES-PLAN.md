@@ -155,6 +155,11 @@ forty-fifth at its middle (ASPIRE, Winter 2025: span/depth 18-22 at piers, 35-50
 which pay off beyond 250 ft), and the cited clearance holds under that middle. Checked: 146 m between the piers either
 side of its main span, 7 blocks clear at its middle (12.2 m at the test world's scale), 5 by its pier.
 
+Narrow bridges (road version 13): a railing stands on every deck column with an open side, so a deck two or three blocks
+wide (a footway the map draws 2.5 m wide) was all railing, nothing to walk on. A bridge's deck (not a railway's) is now at
+least four blocks wide: railings on its edges, two blocks or more clear between them. Checked (`SelfTest` "Bridges:
+Vääksy's footbridge", OSM way 533439039): none of its 14 centreline deck columns railed over (all 14 at road version 12).
+
 Not yet:
 - The side spans' real lengths, and the two short spans the run's last 15 m past the cited 313 m make by the south bank.
 - Lamps on bridges (Saro's street lamps), and footbridges from Macaw's Bridges.

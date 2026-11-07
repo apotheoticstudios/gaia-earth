@@ -51,7 +51,8 @@ public final class WorldSettings {
 	 * cuts into one run across it, so its deck, spans and structure go its whole length (Bridges.runs); 11 builds every
 	 * bridge the map outlines as one, with no overlay needed: its deck filling its outline, girders and piers under it, paved
 	 * paths, and railings along its edge only, from Macaw's Fences and Walls and joined diagonally by Diagonal Fences; 12
-	 * haunches a beam span over 76 m (deep at its piers, shallow at its middle) and clears it under its girder's middle.
+	 * haunches a beam span over 76 m (deep at its piers, shallow at its middle) and clears it under its girder's middle; 13
+	 * lays a bridge's deck at least four blocks wide, so railings on its edges leave a walkway between them.
 	 */
 	public int roadVersion;
 	/**
@@ -93,7 +94,7 @@ public final class WorldSettings {
 		settings.startLongitude = defaults.startLongitude;
 		settings.lidarUrl = defaults.lidarUrl == null ? "" : defaults.lidarUrl;
 		settings.waterSurfaceVersion = 4;
-		settings.roadVersion = 12;
+		settings.roadVersion = 13;
 		settings.verticalLayout = 1;
 		if (settings.projection.equals("sinusoidal")) {
 			settings.originLatitude = defaults.startLatitude;

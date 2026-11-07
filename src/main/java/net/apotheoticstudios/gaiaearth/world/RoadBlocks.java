@@ -33,7 +33,7 @@ final class RoadBlocks {
 	 * furniture, from 5 roads level with the ground, from 6 roads climbing in sixteenths, from 7 bridges as they really are,
 	 * from 8 opening bridges' leaves and drawbridges' lifting gear, from 9 truss bridges' trusses, from 10 bridges whole
 	 * across map tiles, from 11 every bridge the map outlines built whole, with Macaw's railings, from 12 long beam spans
-	 * haunched.
+	 * haunched, from 13 bridge decks wide enough to walk between their railings.
 	 */
 	static int roadVersion() {
 		TerrainField field = RealEarth.terrain();

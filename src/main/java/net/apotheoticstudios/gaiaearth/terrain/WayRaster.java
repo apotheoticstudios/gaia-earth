@@ -101,6 +101,9 @@ final class WayRaster {
 				continue;
 			}
 			double half = half(way, perMeter);
+			if (way.bridge() && !rail && field.map() != null && field.map().roadVersion() >= 13) {
+				half = Math.max(half, RAILED_DECK_HALF_BLOCKS / perMeter);
+			}
 			if (!reaches(way, half / spacing + 1, minSX, minSY, maxSX, maxSY)) {
 				continue;
 			}
@@ -390,6 +393,12 @@ final class WayRaster {
 	private static boolean isRail(OsmWater.Way way) {
 		return way.kind() == Ways.RAIL || way.kind() == Ways.TRAM;
 	}
+
+	/**
+	 * Road version 13: a bridge's deck (not a railway's) reaches at least this many blocks either side of its way, so the
+	 * railings on its edges leave two blocks clear between them (a footbridge the map draws 2.5 m wide was all railing).
+	 */
+	private static final double RAILED_DECK_HALF_BLOCKS = 2;
 
 	/** Half a way's width in metres: at least a block wide, wherever the map is shrunk. */
 	private static double half(OsmWater.Way way, double perMeter) {
