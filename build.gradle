@@ -91,9 +91,8 @@ configurations {
 		transitive = false
 	}
 	modRuntimeOnly.extendsFrom bundles
-	// On the compile classpath only, which is how Loom remaps them; the runs below add them as mods (clientRunMods).
 	modCompileOnly.extendsFrom xaero
-	modClientCompileOnly.extendsFrom clientMenu, clientPerformance
+	modClientCompileOnly.extendsFrom clientMenu
 }
 
 
@@ -141,16 +140,13 @@ dependencies {
 	configurations.bundles.each { modRuntimeOnly files(zipTree(it).matching { include "META-INF/jars/*.jar" }) }
 }
 
-// Keep the clean client free of optional mods. After Loom has remapped them.
-afterEvaluate {
-	def remapped = configurations.clientCompileClasspath.files
-	def jars = { String... names -> remapped.findAll { f -> names.any { f.name.contains(it) } }.toList() }
-	def performanceMods = providers.gradleProperty("noPerformanceMods").isPresent() ? [] : jars("lithium", "ferrite-core")
-	def playtestMods = jars("modmenu") + performanceMods
-	def clientMods = jars("xaeros-minimap", "xaeros-world-map") + playtestMods
-	loom.runs.client.vmArg "-Dfabric.addMods=${clientMods.join(File.pathSeparator)}"
-	loom.runs.playtest.vmArg "-Dfabric.addMods=${playtestMods.join(File.pathSeparator)}"
-}
+// Keep the clean client free of optional mods. Their jars as published: Fabric Loader remaps mods added this way itself
+// (Loom's remapped copies make it fail, "Namespace (named) does not match current runtime namespace").
+def performanceMods = providers.gradleProperty("noPerformanceMods").isPresent() ? [] : configurations.clientPerformance.files.toList()
+def playtestMods = configurations.clientMenu.files.toList() + performanceMods
+def clientMods = configurations.xaero.files.toList() + playtestMods
+loom.runs.client.vmArg "-Dfabric.addMods=${clientMods.join(File.pathSeparator)}"
+loom.runs.playtest.vmArg "-Dfabric.addMods=${playtestMods.join(File.pathSeparator)}"
 
 processResources {
 	def version = project.version

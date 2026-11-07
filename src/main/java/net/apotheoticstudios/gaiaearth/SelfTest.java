@@ -1897,7 +1897,8 @@ final class SelfTest {
 				double caveShare = 100.0 * air / (columns * 140.0);
 				log("underground of %d columns, 1-140 m down: %.1f%% cave, %d lava", columns, caveShare, lava);
 				ores.forEach((name, stat) -> log("  %-14s %5d blocks, mean depth %3d m", name, stat[0], stat[1] / stat[0]));
-				check(caveShare > 1.0 && caveShare < 25.0, "caves exist underground (%.1f%% of the band)", caveShare);
+				// The share swings with the world's seed: 2.9-25.8% seen on 1.21.1 and 26.1 alike (on one seed both make the same caves).
+				check(caveShare > 1.0 && caveShare < 40.0, "caves exist underground (%.1f%% of the band)", caveShare);
 				check(ores.containsKey("coal_ore") && ores.containsKey("iron_ore"), "vanilla coal and iron generate");
 				int[] diamonds = ores.get("diamond_ore");
 				check(diamonds != null && diamonds[1] / diamonds[0] > 90, "diamonds generate deep: %s", diamonds == null ? "none" : diamonds[1] / diamonds[0] + " m mean depth");
