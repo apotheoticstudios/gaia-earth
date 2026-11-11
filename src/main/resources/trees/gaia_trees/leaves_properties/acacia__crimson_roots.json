@@ -1,0 +1,8 @@
+{
+  "primitive_leaves": "minecraft:crimson_roots",
+  "cell_kit": "dynamictrees:acacia",
+  "smother": 2,
+  "family": "dynamictrees:acacia",
+  "generate_block": true,
+  "block_registry_name": "dynamictrees:gaia_source_acacia__crimson_roots"
+}

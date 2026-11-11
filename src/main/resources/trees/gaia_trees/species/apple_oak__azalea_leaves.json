@@ -1,0 +1,31 @@
+{
+  "family": "dynamictrees:oak",
+  "generate_seed": false,
+  "generate_sapling": false,
+  "tapering": 0.4,
+  "signal_energy": 10.0,
+  "up_probability": 1,
+  "lowest_branch_height": 4,
+  "growth_rate": 0.7,
+  "leaves_properties": "gaia_trees:oak__azalea_leaves",
+  "preferred_climate": "temperate",
+  "climate_tolerance": 0.4,
+  "primitive_sapling": {
+    "sapling_item": "apple",
+    "can_craft_seed_to_sapling": false
+  },
+  "fruits": [
+    "apple"
+  ],
+  "features": [
+    {
+      "name": "fruit",
+      "properties": {
+        "fruit": "apple"
+      }
+    }
+  ],
+  "lang_overrides": {
+    "seed": "Apple Pip"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "type": "scruffy",
+  "primitive_leaves": "minecraft:acacia_leaves",
+  "smother": 6,
+  "family": "gaia_trees:wide_mangrove",
+  "generate_block": true,
+  "block_registry_name": "dynamictrees:gaia_source_wide_mangrove__acacia_leaves"
+}

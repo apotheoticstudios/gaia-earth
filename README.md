@@ -3,6 +3,8 @@
 A Minecraft **1.21.1** (Fabric) mod that adds an **Earth dimension**, generated from real-world elevation data at
 **one block per metre** (true to scale where you start) instead of Perlin noise.
 
+Dynamic Trees 1.7.2 for Fabric 1.21.1 is required on clients and servers. Gaia uses 3,847 offline-converted Dynamic Trees templates across 596 Gaia species for its forests and mapped trees; existing saved terrain is unchanged. See [tree library](tools/trees/README.md#dynamic-trees-runtime-library).
+
 Minecraft clients require Sodium 0.8.9 or a later 0.8 release for terrain rendering. Dedicated servers can run without Sodium.
 Clients and servers both need [Saro's Road Blocks](https://modrinth.com/mod/saros-road-blocks) 5.11+ for its asphalt and road markings,
 [Macaw's Fences and Walls](https://modrinth.com/mod/macaws-fences-and-walls) 1.2.1+ for bridges' railings, and
@@ -352,7 +354,7 @@ birch, oak or dark oak). The ground follows suit:
 - **Deserts:** hot deserts are sand, cold deserts are gravel.
 - **Tundra** is moss with moss carpets.
 
-Vanilla trees, plants, snow and ice decorate on top. Deepslate starts 64 m below the ground. Vanilla's
+Baked Dynamic Trees, plants, snow and ice decorate on top. Deepslate starts 64 m below the ground. Vanilla's
 height-based cooling is cut to a quarter on Earth (about the real 6.5 °C/km), so ordinary forests don't get snow
 at a few hundred metres.
 

@@ -1,0 +1,35 @@
+{
+  "family": "dynamictrees:jungle",
+  "tapering": 0.2,
+  "signal_energy": 24.0,
+  "up_probability": 3,
+  "lowest_branch_height": 2,
+  "growth_rate": 1.0,
+  "growth_logic_kit": "jungle",
+  "leaves_properties": "gaia_trees:jungle__oak_leaves",
+  "preferred_climate": "tropical",
+  "climate_tolerance": 0.3,
+  "primitive_sapling": "jungle_sapling",
+  "mega_species": "mega_jungle",
+  "features": [
+    {
+      "name": "vines",
+      "properties": {
+        "quantity": 16,
+        "max_length": 16
+      }
+    },
+    {
+      "name": "undergrowth",
+      "properties": {
+        "undergrowth_species": "dynamictrees:oak_undergrowth",
+        "secondary_undergrowth_species": "dynamictrees:jungle_undergrowth"
+      }
+    }
+  ],
+  "lang_overrides": {
+    "seed": "Jungle Pod"
+  },
+  "generate_seed": false,
+  "generate_sapling": false
+}

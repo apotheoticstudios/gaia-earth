@@ -1,0 +1,28 @@
+{
+  "family": "gaia_trees:wide_spruce",
+  "tapering": 0.25,
+  "signal_energy": 16.0,
+  "up_probability": 3,
+  "lowest_branch_height": 3,
+  "growth_rate": 0.9,
+  "growth_logic_kit": "conifer",
+  "leaves_properties": "gaia_trees:wide_spruce__flowering_azalea_leaves",
+  "preferred_climate": "cold",
+  "climate_tolerance": 0.5,
+  "primitive_sapling": "spruce_sapling",
+  "acceptable_soils": [
+    "dirt_like"
+  ],
+  "world_gen_acceptable_soils": [
+    "snow_like"
+  ],
+  "mega_species": "mega_spruce",
+  "features": [
+    "conifer_topper"
+  ],
+  "lang_overrides": {
+    "seed": "Spruce Cone"
+  },
+  "generate_seed": false,
+  "generate_sapling": false
+}

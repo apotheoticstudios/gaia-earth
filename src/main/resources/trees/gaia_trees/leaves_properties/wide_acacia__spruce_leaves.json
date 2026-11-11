@@ -1,0 +1,8 @@
+{
+  "primitive_leaves": "minecraft:spruce_leaves",
+  "cell_kit": "dynamictrees:acacia",
+  "smother": 2,
+  "family": "gaia_trees:wide_acacia",
+  "generate_block": true,
+  "block_registry_name": "dynamictrees:gaia_source_wide_acacia__spruce_leaves"
+}

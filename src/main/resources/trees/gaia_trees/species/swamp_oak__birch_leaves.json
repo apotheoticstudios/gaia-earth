@@ -1,0 +1,41 @@
+{
+  "type": "swamp",
+  "family": "dynamictrees:oak",
+  "tapering": 0.3,
+  "signal_energy": 12.0,
+  "growth_rate": 0.8,
+  "leaves_properties": "gaia_trees:oak__birch_leaves",
+  "preferred_climate": "temperate",
+  "climate_tolerance": 0.4,
+  "common_override": {
+    "name": "minecraft:swamp"
+  },
+  "generate_sapling": false,
+  "model_overrides": {
+    "sapling": "dynamictrees:block/smartmodel/water_sapling"
+  },
+  "acceptable_soils": [
+    "dirt_like",
+    "water_like"
+  ],
+  "plantable_on_fluid": true,
+  "features": [
+    {
+      "name": "vines",
+      "properties": {
+        "max_length": 7,
+        "vertical_spread": 30,
+        "ray_distance": 6,
+        "quantity": 24
+      }
+    },
+    {
+      "name": "rot_soil",
+      "properties": {
+        "block": "podzol"
+      }
+    },
+    "mushroom_rot"
+  ],
+  "generate_seed": false
+}

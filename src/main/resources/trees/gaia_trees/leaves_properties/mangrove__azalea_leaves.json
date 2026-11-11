@@ -1,0 +1,8 @@
+{
+  "type": "scruffy",
+  "primitive_leaves": "minecraft:azalea_leaves",
+  "smother": 6,
+  "family": "dynamictrees:mangrove",
+  "generate_block": true,
+  "block_registry_name": "dynamictrees:gaia_source_mangrove__azalea_leaves"
+}

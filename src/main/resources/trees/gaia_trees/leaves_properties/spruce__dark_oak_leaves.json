@@ -1,0 +1,8 @@
+{
+  "primitive_leaves": "minecraft:dark_oak_leaves",
+  "smother": 3,
+  "cell_kit": "dynamictrees:conifer",
+  "family": "dynamictrees:spruce",
+  "generate_block": true,
+  "block_registry_name": "dynamictrees:gaia_source_spruce__dark_oak_leaves"
+}

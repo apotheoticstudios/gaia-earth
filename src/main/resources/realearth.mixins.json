@@ -21,7 +21,9 @@
     "TreeFeatureMixin",
     "RiverWaterFlowMixin",
     "RiverEntityPushMixin",
-    "WaterAnimalSpawnMixin"
+    "WaterAnimalSpawnMixin",
+    "TallTreeDestructionMixin",
+    "LeafPrimitiveStateAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

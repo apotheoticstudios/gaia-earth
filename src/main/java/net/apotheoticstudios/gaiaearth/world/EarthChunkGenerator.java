@@ -117,7 +117,10 @@ public final class EarthChunkGenerator extends ChunkGenerator {
 			for (Holder<PlacedFeature> feature : steps.get(step)) {
 				String key = feature.unwrapKey().map(k -> k.location().toString()).orElse("");
 				boolean madeUp = vegetation && (MADE_UP_VEGETATION.contains(key) || key.startsWith("minecraft:trees_"));
-				if ((!structures || NATURAL_IN_STRUCTURE_STEPS.contains(key)) && !madeUp) {
+				// Gaia's baked assets already follow its plant map; avoid a second independent tree population.
+				boolean separateTrees = feature.value().feature().value().feature()
+					instanceof com.dtteam.dynamictrees.worldgen.feature.DynamicTreeFeature;
+				if ((!structures || NATURAL_IN_STRUCTURE_STEPS.contains(key)) && !madeUp && !separateTrees) {
 					kept.addFeature(step, feature);
 				}
 			}

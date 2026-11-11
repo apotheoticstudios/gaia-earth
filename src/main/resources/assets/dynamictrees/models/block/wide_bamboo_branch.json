@@ -1,0 +1,7 @@
+{
+  "loader": "dynamictrees:branch",
+  "textures": {
+    "bark": "minecraft:block/bamboo_block",
+    "rings": "minecraft:block/bamboo_block_top"
+  }
+}

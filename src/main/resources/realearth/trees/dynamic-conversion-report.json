@@ -1,0 +1,46 @@
+{
+  "source_count": 4456,
+  "converted_count": 4454,
+  "excluded_count": 2,
+  "source_snapshot": "gaia-library/originals (offline converter workspace)",
+  "dynamic_only": true,
+  "complete": false,
+  "excluded": [
+    {
+      "file": "malkazaryt-100-trees/burntforest.nbt",
+      "reason": "Source contains neither a tree trunk nor a foliage shape"
+    },
+    {
+      "file": "paleozoey-tropical-asia/rafflesia_arnoldii1.nbt",
+      "reason": "Source contains neither a tree trunk nor a foliage shape"
+    }
+  ],
+  "converted_by_pack": {
+    "cpt_broombeard-grandidiers-baobab": 5,
+    "cpt_broombeard-knobthorn": 20,
+    "cpt_broombeard-maripa-palm": 19,
+    "cpt_broombeard-red-bushwillow": 20,
+    "cpt_broombeard-white-oak": 2,
+    "cpt_broombeard-white-willow": 4,
+    "gaia-generated": 1512,
+    "lojo4426-tree-a-day": 1,
+    "malkazaryt-100-trees": 104,
+    "paleozoey-africa": 219,
+    "paleozoey-australia-oceania": 343,
+    "paleozoey-eastern-north-america": 282,
+    "paleozoey-europe": 186,
+    "paleozoey-florida": 145,
+    "paleozoey-mangroves": 8,
+    "paleozoey-northern-asia": 244,
+    "paleozoey-south-america": 296,
+    "paleozoey-tropical-asia": 269,
+    "paleozoey-western-north-america": 184,
+    "smop95-southwest-us-mexico": 64,
+    "socotran-desert-roses": 10,
+    "wet-treepository": 443,
+    "xdlillexd-italian": 74
+  },
+  "adapted_wood_tree_count": 1014,
+  "trunk_quality_upgrades": 95,
+  "converted_species": 750
+}

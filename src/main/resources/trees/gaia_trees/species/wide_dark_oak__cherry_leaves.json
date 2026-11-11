@@ -1,0 +1,74 @@
+{
+  "family": "gaia_trees:wide_dark_oak",
+  "tapering": 0.3,
+  "signal_energy": 18.0,
+  "up_probability": 4,
+  "lowest_branch_height": 6,
+  "growth_rate": 0.8,
+  "soil_longevity": 14,
+  "max_branch_radius": 24,
+  "growth_logic_kit": "dark_oak",
+  "leaves_properties": "gaia_trees:wide_dark_oak__cherry_leaves",
+  "preferred_climate": "temperate",
+  "climate_tolerance": 0.6,
+  "primitive_sapling": "dark_oak_sapling",
+  "features": [
+    {
+      "name": "clear_volume",
+      "properties": {
+        "height": 6
+      }
+    },
+    {
+      "name": "rot_soil",
+      "properties": {
+        "rotten_soil": "podzol"
+      }
+    },
+    {
+      "name": "mushroom_rot",
+      "properties": {
+        "_comment": "An alternate mushroom chance of -1 means that a red mushroom will always be generated.",
+        "alternate_mushroom_chance": -1
+      }
+    },
+    "bottom_flare",
+    "mound",
+    "roots",
+    {
+      "name": "biome_predicate",
+      "properties": {
+        "_comment": "Smaller giant mushrooms under the canopy",
+        "_comment2": "This feature gets disabled when Dynamic Trees + is installed",
+        "gen_feature": {
+          "name": "random_predicate",
+          "properties": {
+            "gen_feature": "huge_mushroom_undergrowth",
+            "place_chance": 0.2
+          }
+        },
+        "biome_predicate": "minecraft:dark_forest"
+      }
+    },
+    {
+      "name": "random_predicate",
+      "properties": {
+        "_comment": "Fully replace the tree with a giant mushroom",
+        "_comment2": "This feature gets disabled when Dynamic Trees + is installed",
+        "gen_feature": {
+          "name": "biome_predicate",
+          "properties": {
+            "gen_feature": "huge_mushroom",
+            "biome_predicate": "minecraft:dark_forest"
+          }
+        },
+        "place_chance": 0.1
+      }
+    }
+  ],
+  "lang_overrides": {
+    "seed": "Dark Oak Acorn"
+  },
+  "generate_seed": false,
+  "generate_sapling": false
+}

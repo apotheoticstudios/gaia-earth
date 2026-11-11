@@ -238,3 +238,5 @@ and the forest it is known for (`ecoregions.bin`, `ecoregions.tsv`; `tools/ecore
 
 - Distant Horizons (optional, by James Seibel and contributors) is used through its public API only; it is not
   bundled.
+
+- Dynamic Trees by Ferreusveritas and the Dynamic Trees contributors is a required, separately installed dependency ([source](https://github.com/DynamicTreesTeam/DynamicTrees), MIT). The offline tree exports use its native branch, foliage, soil and species systems. Included family definitions derive from its 1.7.2 defaults with a longer supported analysis depth; original leaf profiles reference vanilla Minecraft models.

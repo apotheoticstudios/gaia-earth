@@ -1,0 +1,8 @@
+{
+  "primitive_leaves": "minecraft:mangrove_leaves",
+  "cell_kit": "dynamictrees:dark_oak",
+  "smother": 3,
+  "family": "dynamictrees:dark_oak",
+  "generate_block": true,
+  "block_registry_name": "dynamictrees:gaia_source_dark_oak__mangrove_leaves"
+}

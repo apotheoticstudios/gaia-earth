@@ -1,0 +1,9 @@
+{
+  "primitive_leaves": "minecraft:jungle_leaves",
+  "smother": 5,
+  "light_requirement": 14,
+  "has_tick_particles": true,
+  "family": "dynamictrees:cherry",
+  "generate_block": true,
+  "block_registry_name": "dynamictrees:gaia_source_cherry__jungle_leaves"
+}

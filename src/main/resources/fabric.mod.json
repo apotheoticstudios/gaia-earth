@@ -44,6 +44,7 @@
     "minecraft": "~1.21.1",
     "java": ">=21",
     "fabric-api": "*",
+    "dynamictrees": ">=1.7.2",
     "gaia-earth-client": "*",
     "saros_road_blocks_mod": ">=5.11",
     "mcwfences": ">=1.2.1",

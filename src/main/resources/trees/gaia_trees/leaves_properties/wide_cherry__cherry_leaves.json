@@ -1,0 +1,9 @@
+{
+  "primitive_leaves": "minecraft:cherry_leaves",
+  "smother": 5,
+  "light_requirement": 14,
+  "has_tick_particles": true,
+  "family": "gaia_trees:wide_cherry",
+  "generate_block": true,
+  "block_registry_name": "dynamictrees:gaia_source_wide_cherry__cherry_leaves"
+}

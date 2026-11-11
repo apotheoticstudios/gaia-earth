@@ -1,0 +1,7 @@
+{
+  "primitive_leaves": "minecraft:dark_oak_leaves",
+  "light_requirement": 12,
+  "family": "dynamictrees:jungle",
+  "generate_block": true,
+  "block_registry_name": "dynamictrees:gaia_source_jungle__dark_oak_leaves"
+}

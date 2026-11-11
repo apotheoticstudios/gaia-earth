@@ -1,0 +1,13 @@
+{
+  "type": "nether_fungus",
+  "common_leaves": "gaia_trees:wide_warped__warped_wart_block",
+  "common_species": "gaia_trees:wide_warped",
+  "primitive_log": "warped_stem",
+  "primitive_stripped_log": "stripped_warped_stem",
+  "max_branch_radius": 24,
+  "branch_properties": {
+    "map_color": "WARPED_STEM",
+    "sound": "STEM"
+  },
+  "max_signal_depth": 512
+}

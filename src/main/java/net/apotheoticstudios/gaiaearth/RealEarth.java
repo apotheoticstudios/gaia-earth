@@ -116,6 +116,9 @@ public class RealEarth implements ModInitializer {
 
 	@Override
 	public void onInitialize() {
+		if (Boolean.getBoolean("realearth.dynamicTreesTest")) {
+			ServerLifecycleEvents.SERVER_STARTED.register(net.apotheoticstudios.gaiaearth.world.DynamicTreeAssetTest::run);
+		}
 		config = EarthConfig.load(FabricLoader.getInstance().getConfigDir().resolve("realearth.json"));
 
 		net.apotheoticstudios.gaiaearth.world.TerrainSlabs.register();
@@ -130,7 +133,13 @@ public class RealEarth implements ModInitializer {
 		net.apotheoticstudios.gaiaearth.hydrology.RiverCurrentDemo.register();
 		net.apotheoticstudios.gaiaearth.hydrology.MappedCurrents.register();
 
-		ServerLifecycleEvents.SERVER_STARTING.register(RealEarth::start);
+		ServerLifecycleEvents.SERVER_STARTING.register(server -> {
+			net.apotheoticstudios.gaiaearth.world.DynamicTreeSupport.configure();
+			start(server);
+		});
+		ServerLifecycleEvents.END_DATA_PACK_RELOAD.register((server,resources,success) -> {
+			if (success) net.apotheoticstudios.gaiaearth.world.DynamicTreeSupport.configure();
+		});
 		ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
 			stop();
 			net.apotheoticstudios.gaiaearth.world.Places.clear();

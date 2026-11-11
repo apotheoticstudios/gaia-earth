@@ -13,6 +13,19 @@ loom {
 	}
 
 	runs {
+		treeColours {
+			client()
+			name "Tree leaf colour check"
+			vmArg "-Drealearth.treeColoursTest=true"
+			runDir "run-tree-colour-check"
+		}
+		dynamicTreeAssets {
+			server()
+			name "Dynamic tree asset integration check"
+			vmArg "-Drealearth.dynamicTreesTest=true"
+			vmArg "-Drealearth.dynamicWorldgenTest=${project.findProperty('worldgen') ?: 'false'}"
+			runDir "run-dynamic-tree-check"
+		}
 		selftest {
 			server()
 			name "Self-test Server"
@@ -61,6 +74,10 @@ loom {
 }
 
 repositories {
+	maven {
+		url = "https://cursemaven.com"
+		content { includeGroup "curse.maven" }
+	}
 	exclusiveContent {
 		forRepository {
 			maven {
@@ -108,6 +125,7 @@ dependencies {
 	mappings loom.officialMojangMappings()
 	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+	modImplementation "curse.maven:dynamictrees-252818:8227325" // Dynamic Trees 1.7.2 for Fabric 1.21.1
 	compileOnly "org.jspecify:jspecify:1.0.0" // @Nullable, which 1.21.1 doesn't ship
 
 	// Optional mods, compiled against and never shipped, from Modrinth: Distant Horizons for level-of-detail
@@ -172,4 +190,36 @@ jar {
 	from(clientRequirements) {
 		into("META-INF/jars")
 	}
+}
+
+// Reject unbaked schematic manifests before they can enter a playable Gaia build.
+tasks.register('verifyDynamicTreeLibrary') {
+	group = 'verification'
+	def manifests = fileTree('src/main/resources/data/gaia-earth/structure/tree') { include '**/trees.json' }
+	inputs.files(manifests)
+	inputs.files(fileTree('src/main/resources/data/gaia-earth/structure/tree') { include '**/*.nbt' })
+	doLast {
+		int count = 0
+		manifests.each { source ->
+			def manifest = new groovy.json.JsonSlurper().parse(source)
+			manifest.trees.each { tree ->
+				if (!tree.dynamic_species || !tree.felling_verified || tree.verified_orientations != 8
+					|| !tree.leaf_preservation?.leaf_types_verified || !tree.branch_taper?.verified) {
+					throw new GradleException("Unverified dynamic tree in ${source}: ${tree.file}. Bake the source library offline first.")
+				}
+				if (!new File(source.parentFile, tree.file).isFile()) {
+					throw new GradleException("Missing converted tree: ${source.parent}/${tree.file}")
+				}
+				count++
+			}
+		}
+		if (count == 0) throw new GradleException('No verified dynamic tree library is installed. See tools/trees/README.md.')
+		logger.lifecycle("Verified ${count} baked Dynamic Trees assets")
+	}
+}
+processResources.dependsOn tasks.named('verifyDynamicTreeLibrary')
+
+// Copy tasks retain unrelated old destination files; clear just the generated tree output on a resource rebuild.
+processResources.doFirst { task ->
+	new File(task.destinationDir, 'data/gaia-earth/structure/tree').deleteDir()
 }

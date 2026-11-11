@@ -1,0 +1,6 @@
+{
+  "primitive_leaves": "minecraft:mangrove_leaves",
+  "family": "dynamictrees:birch",
+  "generate_block": true,
+  "block_registry_name": "dynamictrees:gaia_source_birch__mangrove_leaves"
+}

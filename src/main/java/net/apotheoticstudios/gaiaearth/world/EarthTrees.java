@@ -19,10 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.LongAdder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.data.worldgen.features.TreeFeatures;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.tags.BiomeTags;
@@ -38,16 +35,13 @@ import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ChunkGenerator;
-import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
 import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
-import net.minecraft.world.level.levelgen.feature.TreeFeature;
 import net.minecraft.world.level.levelgen.feature.configurations.TreeConfiguration;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.apotheoticstudios.gaiaearth.RealEarth;
 import net.apotheoticstudios.gaiaearth.climate.Koppen;
 import net.apotheoticstudios.gaiaearth.landcover.TreeDensity;
 import net.apotheoticstudios.gaiaearth.landcover.WorldCover;
-import net.apotheoticstudios.gaiaearth.mixin.StructureTemplateAccessor;
 import net.apotheoticstudios.gaiaearth.osm.OsmTrees;
 import net.apotheoticstudios.gaiaearth.terrain.ChunkTerrain;
 import net.apotheoticstudios.gaiaearth.terrain.TerrainField;
@@ -64,9 +58,8 @@ import net.apotheoticstudios.gaiaearth.terrain.TerrainField;
  * Which: the biome (picked from real land cover and climate, see {@link BiomePicker}) gives the kind of tree
  * vanilla would grow there -- spruce, birch, oak ... -- and realearth/trees/species.tsv the species of that kind
  * that really grows there, by climate (Köppen codes, by prefix), height against the treeline and place, built from
- * a builder's schematic (converted by tools/trees into gaia-earth:tree/...). Most trees in a stand about 32 m across
- * are one species, as real forests mostly are. Where no species fits, or the trees aren't installed, a vanilla tree
- * of that kind grows instead.
+ * a builder's schematic baked offline into gaia-earth:tree/.... Most trees in a stand about 32 m across
+ * are one species, as real forests mostly are. Where no species fits, or the trees aren't installed, a verified dynamic tree of that kind grows instead.
  *
  * Only during world generation: saplings players plant grow vanilla trees.
  */
@@ -88,42 +81,16 @@ public final class EarthTrees {
 	private static final double TREELINE_BAND = 200.0;
 	/** At the treeline trees grow stunted: this share of their usual height. */
 	private static final double TREELINE_HEIGHT = 0.6;
-	/** A tree grown taller gets bare trunk up to this share of its height: the map's trees, grown in the open. */
-	private static final double MAX_BOLE = 0.55;
-	/** And a forest's, grown close: shaded, they shed their low branches, as a kauri or a beech stands clear for half its height and more. */
-	private static final double FOREST_BOLE = 0.65;
-	/** A tree grown shorter keeps at least this much bare trunk under its crown. */
-	private static final int MIN_BOLE = 2;
-	private static final Map<String, List<ResourceKey<ConfiguredFeature<?, ?>>>> VANILLA = Map.of(
-		"spruce", List.of(TreeFeatures.SPRUCE, TreeFeatures.PINE),
-		"birch", List.of(TreeFeatures.BIRCH),
-		"oak", List.of(TreeFeatures.OAK, TreeFeatures.FANCY_OAK),
-		"dark_oak", List.of(TreeFeatures.DARK_OAK),
-		"acacia", List.of(TreeFeatures.ACACIA),
-		"jungle", List.of(TreeFeatures.JUNGLE_TREE),
-		"swamp", List.of(TreeFeatures.SWAMP_OAK),
-		"mangrove", List.of(TreeFeatures.MANGROVE),
-		"cherry", List.of(TreeFeatures.CHERRY));
 
 	private static final Map<String, LongAdder> PLACED = new ConcurrentHashMap<>();
 	private static final Map<String, LongAdder> HEIGHTS = new ConcurrentHashMap<>();
-	private static final Map<ResourceLocation, Shape> SHAPES = new ConcurrentHashMap<>();
-	/** Set while Earth grows a vanilla tree itself, so it isn't turned away as one of vanilla's own. */
-	private static final ThreadLocal<Boolean> GROWING = new ThreadLocal<>();
 	private static volatile Index index;
 
 	private EarthTrees() {
 	}
 
 	/** One converted tree: its template, where its trunk meets the ground inside it, and how far its crown reaches. */
-	private record Tree(ResourceLocation id, BlockPos base, int height, int reach) {
-	}
-
-	/**
-	 * Where a tree's crown starts -- its lowest leaves above the ground, in the template -- and the trunk blocks just
-	 * under it, which a tree grown taller repeats to lift its crown.
-	 */
-	private record Shape(int crownBase, List<StructureTemplate.StructureBlockInfo> trunk) {
+	private record Tree(ResourceLocation id, BlockPos base, int height, int reach, String kind) {
 	}
 
 	/** One line of species.tsv; heights in metres, the species' usual height when grown. */
@@ -138,11 +105,11 @@ public final class EarthTrees {
 		}
 	}
 
-	private record Index(MinecraftServer server, Map<String, List<Tree>> trees, List<Row> rows) {
+	private record Index(MinecraftServer server, Map<String, List<Tree>> trees, List<Row> rows, Map<String, List<Tree>> fallbacks) {
 	}
 
 	/**
-	 * How many trees world generation has grown: of each species, "vanilla <kind>" where no species fits; "no room"
+	 * How many trees world generation has grown: of each species, "dynamic <kind>" where no species fits; "no room"
 	 * for trees without room for their trunk, and "clipped" for blocks out of world generation's reach. "spot" counts
 	 * the grid's spots, and "spot: ..." those turned away, and why.
 	 */
@@ -161,12 +128,10 @@ public final class EarthTrees {
 
 	/**
 	 * Vanilla's own trees on Earth: false to leave the spot empty, as Earth grows its trees itself ({@link #fill}),
-	 * or null to let it grow -- the vanilla trees Earth grows, saplings, and azaleas over lush caves.
+	 * or null to let it grow outside Earth generation (including player saplings).
 	 */
 	public static Boolean grow(FeaturePlaceContext<TreeConfiguration> context) {
-		if (GROWING.get() != null || !(context.level() instanceof WorldGenRegion) || !(context.chunkGenerator() instanceof EarthChunkGenerator)
-			|| RealEarth.terrain() == null
-			|| context.config().foliageProvider.getState(context.random(), context.origin()).is(Blocks.AZALEA_LEAVES)) {
+		if (!(context.level() instanceof WorldGenRegion) || !(context.chunkGenerator() instanceof EarthChunkGenerator)) {
 			return null;
 		}
 		return false;
@@ -290,7 +255,7 @@ public final class EarthTrees {
 				rows.add(r);
 			}
 		}
-		// No species here stands in for the biome's kind of tree: any that grows here, before a vanilla tree; mangroves stay mangroves.
+		// No species here stands in for the biome's kind of tree: any that grows here, before a dynamic fallback; mangroves stay mangroves.
 		if (species == null && rows.isEmpty() && !kind.equals("mangrove")) {
 			for (Row r : trees.rows) {
 				if (r.matches(null, climate, zone, lat, lon)) {
@@ -311,7 +276,7 @@ public final class EarthTrees {
 		}
 		if (species != null) {
 			List<Tree> versions = trees.trees.get(species);
-			// A tree measured keeps its height; one of a species with neither a measure nor a row, its versions' middling height.
+			// Choose a bake near the measured height; use the median when neither a measurement nor a row is available.
 			if (Double.isNaN(metres)) {
 				metres = versions.stream().mapToInt(Tree::height).sorted().toArray()[versions.size() / 2];
 			}
@@ -325,10 +290,7 @@ public final class EarthTrees {
 				return;
 			}
 			if (template != null) {
-				int grown = place(region, template, tree, pos, height, mapped ? MAX_BOLE : FOREST_BOLE, random);
-				if (pit && grown > 0) {
-					region.setBlock(pos.below(), net.minecraft.world.level.block.Blocks.COARSE_DIRT.defaultBlockState(), 2);
-				}
+				int grown = place(region, template, tree, pos, pit, random);
 				count(grown > 0 ? species : "no room");
 				if (mapped && grown > 0) {
 					count("spot mapped: grown");
@@ -337,12 +299,18 @@ public final class EarthTrees {
 				return;
 			}
 		}
-		if (pit) {
-			region.setBlock(pos.below(), net.minecraft.world.level.block.Blocks.COARSE_DIRT.defaultBlockState(), 2);
+		// A biome with no geographically matched species still uses a verified baked dynamic tree.
+		List<Tree> fallback = trees.fallbacks.getOrDefault(kind.equals("swamp") ? "oak" : kind, List.of());
+		Tree tree = variant(fallback, spacing, 12, 16 + Math.min(Math.min(lx,15-lx),Math.min(lz,15-lz)),random);
+		if (tree != null) {
+			StructureTemplate template = region.getServer().getStructureManager().get(tree.id).orElse(null);
+			if (template != null) {
+				int grown = place(region,template,tree,pos,pit,random);
+				count(grown > 0 ? "dynamic " + kind : "no room");
+				return;
+			}
 		}
-		if (!growVanilla(region, generator, kind, pos, random) && pit) {
-			region.setBlock(pos.below(), ground, 2); // no room after all: the paving stays whole
-		}
+		count("no dynamic tree " + kind);
 	}
 
 	/**
@@ -484,104 +452,13 @@ public final class EarthTrees {
 		return fit.get(random.nextInt(near));
 	}
 
-	/** A vanilla tree of the kind, where no species fits or none is installed; whether it grew. */
-	private static boolean growVanilla(WorldGenRegion region, ChunkGenerator generator, String kind, BlockPos pos, RandomSource random) {
-		List<ResourceKey<ConfiguredFeature<?, ?>>> keys = VANILLA.get(kind);
-		var feature = region.registryAccess().lookupOrThrow(Registries.CONFIGURED_FEATURE).get(keys.get(random.nextInt(keys.size())));
-		if (feature.isEmpty()) {
-			return false;
-		}
-		GROWING.set(Boolean.TRUE);
-		try {
-			boolean grown = feature.get().value().place(region, generator, random, pos);
-			count(grown ? "vanilla " + kind : "no room");
-			return grown;
-		} finally {
-			GROWING.remove();
-		}
-	}
-
-	/**
-	 * Builds the tree with its trunk's foot at {@code pos}, turned and mirrored at random, and grown towards
-	 * {@code height} blocks: a tree shorter than that gets a longer trunk under its crown, bare for at most
-	 * {@code maxBole} of its height; a taller one loses trunk under its crown, down to {@link #MIN_BOLE} -- a stunted
-	 * tree at the treeline. Like a vanilla
-	 * tree it needs room for its trunk, and
-	 * only fills air, plants, and leaves where it has wood; its roots only go into natural ground. Returns its
-	 * height, or 0 when it had no room.
-	 */
-	private static int place(WorldGenRegion region, StructureTemplate template, Tree tree, BlockPos pos, int height, double maxBole,
+	/** Place the verified bake intact: stretching its trunk would invalidate branch taper and hydration. */
+	private static int place(WorldGenRegion region, StructureTemplate template, Tree tree, BlockPos pos, boolean paved,
 		RandomSource random) {
-		List<StructureTemplate.StructureBlockInfo> blocks = ((StructureTemplateAccessor) template).realearth$palettes().get(0).blocks();
-		Shape shape = SHAPES.computeIfAbsent(tree.id, id -> shape(blocks, tree.base.getY()));
-		int bole = shape.crownBase - tree.base.getY();
-		int extra = height < tree.height ? -Math.min(tree.height - height, Math.max(0, bole - MIN_BOLE))
-			: shape.trunk.isEmpty() ? 0 : (int) Math.clamp((maxBole * tree.height - bole) / (1 - maxBole), 0, height - tree.height);
-		for (int dy = 0; dy < Math.min(tree.height + extra, 6); dy++) {
-			if (!TreeFeature.validTreePos(region, pos.above(dy))) {
-				return 0;
-			}
-		}
-		Rotation rotation = Rotation.getRandom(random);
-		Mirror mirror = random.nextBoolean() ? Mirror.NONE : Mirror.LEFT_RIGHT;
-		// The game mirrors about 0, not the pivot, so turn both and keep the trunk's foot where it was.
-		BlockPos foot = StructureTemplate.transform(tree.base, mirror, rotation, BlockPos.ZERO);
-		for (StructureTemplate.StructureBlockInfo info : blocks) {
-			int y = info.pos().getY();
-			if (y < shape.crownBase && y >= shape.crownBase + extra) {
-				continue; // the trunk a shortened tree loses
-			}
-			BlockPos at = pos.offset(StructureTemplate.transform(info.pos(), mirror, rotation, BlockPos.ZERO).subtract(foot));
-			set(region, at.above(y >= shape.crownBase ? extra : 0), info, tree, mirror, rotation);
-		}
-		for (StructureTemplate.StructureBlockInfo info : shape.trunk) {
-			BlockPos at = pos.offset(StructureTemplate.transform(info.pos(), mirror, rotation, BlockPos.ZERO).subtract(foot));
-			for (int dy = 1; dy <= extra; dy++) {
-				set(region, at.above(dy), info, tree, mirror, rotation);
-			}
-		}
-		return tree.height + extra;
-	}
-
-	private static void set(WorldGenRegion region, BlockPos at, StructureTemplate.StructureBlockInfo info, Tree tree, Mirror mirror,
-		Rotation rotation) {
 		ChunkPos centre = region.getCenter();
-		if (Math.abs((at.getX() >> 4) - centre.x) > 1 || Math.abs((at.getZ() >> 4) - centre.z) > 1) {
-			count("clipped");
-			return;
-		}
-		BlockState there = region.getBlockState(at);
-		boolean fits = info.pos().getY() < tree.base.getY() ? natural(there)
-			: there.isAir() || there.is(BlockTags.REPLACEABLE_BY_TREES) || there.is(BlockTags.LEAVES) && !info.state().is(BlockTags.LEAVES);
-		if (fits) {
-			// Known shape: leaves keep the distances tools/trees worked out, so they decay like a sapling's tree.
-			region.setBlock(at, info.state().mirror(mirror).rotate(rotation), 19);
-		}
-	}
-
-	/** The crown's lowest leaves above the ground, and the trunk under them: blocks that carry more wood straight above. */
-	private static Shape shape(List<StructureTemplate.StructureBlockInfo> blocks, int ground) {
-		Map<BlockPos, BlockState> at = new HashMap<>();
-		int crown = Integer.MAX_VALUE;
-		for (StructureTemplate.StructureBlockInfo info : blocks) {
-			at.put(info.pos(), info.state());
-			if (info.state().is(BlockTags.LEAVES) && info.pos().getY() > ground) {
-				crown = Math.min(crown, info.pos().getY());
-			}
-		}
-		List<StructureTemplate.StructureBlockInfo> trunk = new ArrayList<>();
-		for (StructureTemplate.StructureBlockInfo info : blocks) {
-			BlockState above = at.get(info.pos().above());
-			if (info.pos().getY() == crown - 1 && !info.state().is(BlockTags.LEAVES) && above != null && !above.is(BlockTags.LEAVES)) {
-				trunk.add(info);
-			}
-		}
-		return new Shape(crown, trunk);
-	}
-
-	private static boolean natural(BlockState state) {
-		return state.isAir() || state.is(BlockTags.DIRT) || state.is(BlockTags.BASE_STONE_OVERWORLD) || state.is(BlockTags.SAND)
-			|| state.is(Blocks.GRAVEL) || state.is(Blocks.CLAY) || state.is(BlockTags.REPLACEABLE_BY_TREES);
+		return DynamicTreePlacement.place(region,template,tree.base,pos,
+			random.nextBoolean() ? Mirror.NONE : Mirror.LEFT_RIGHT,Rotation.getRandom(random),
+			centre.x-1,centre.x+1,centre.z-1,centre.z+1,paved) ? tree.height : 0;
 	}
 
 	private static void count(String what) {
@@ -591,7 +468,7 @@ public final class EarthTrees {
 	// shortcut: read once per server, so a /reload doesn't pick up new trees; reload them on data reload if that's needed.
 	/**
 	 * The species a biome grows at a place, each with its share of the trees, as world generation picks them (stands
-	 * aside): through the biome's kinds of tree, else any that grows there, else vanilla's ("vanilla &lt;kind&gt;"). For the
+	 * aside): through the biome's kinds of tree, else any that grows there, else a dynamic fallback ("dynamic &lt;kind&gt;"). For the
 	 * self-test's look at every biome's trees.
 	 */
 	public static Map<String, Double> speciesAt(MinecraftServer server, Holder<Biome> biome, int climate, double lat, double lon, double meters) {
@@ -609,7 +486,7 @@ public final class EarthTrees {
 				rows = trees.rows.stream().filter(r -> r.matches(null, code, zone, lat, lon)).toList();
 			}
 			if (rows.isEmpty()) {
-				out.merge("vanilla " + kind, 1.0 / steps, Double::sum);
+				out.merge("dynamic " + kind, 1.0 / steps, Double::sum);
 				continue;
 			}
 			double total = rows.stream().mapToDouble(Row::weight).sum();
@@ -642,12 +519,15 @@ public final class EarthTrees {
 			try (BufferedReader in = entry.getValue().openAsReader()) {
 				for (JsonElement e : JsonParser.parseReader(in).getAsJsonObject().getAsJsonArray("trees")) {
 					JsonObject t = e.getAsJsonObject();
+					// Old schematic packs cannot re-enable static trees through a data pack override.
+					if (!t.has("dynamic_species") || !t.has("felling_verified") || !t.get("felling_verified").getAsBoolean()
+						|| !t.has("verified_orientations") || t.get("verified_orientations").getAsInt() != 8) continue;
 					String file = t.get("file").getAsString();
 					JsonArray base = t.getAsJsonArray("base");
 					ResourceLocation id = ResourceLocation.fromNamespaceAndPath(json.getNamespace(), folder + file.substring(0, file.length() - ".nbt".length()));
 					trees.computeIfAbsent(species(file), k -> new ArrayList<>()).add(new Tree(id,
 						new BlockPos(base.get(0).getAsInt(), base.get(1).getAsInt(), base.get(2).getAsInt()), t.get("height").getAsInt(),
-						t.get("reach").getAsInt()));
+						t.get("reach").getAsInt(), fallbackKind(t)));
 				}
 			} catch (IOException | RuntimeException e) {
 				RealEarth.LOGGER.warn("Could not read the tree list {}: {}", json, e.toString());
@@ -683,7 +563,22 @@ public final class EarthTrees {
 		}
 		RealEarth.LOGGER.info("Real trees: {} trees of {} species installed, {} species placed by the table", trees.values().stream()
 			.mapToInt(List::size).sum(), trees.size(), rows.stream().map(Row::species).distinct().count());
-		return new Index(server, trees, rows);
+		Map<String,List<Tree>> fallbacks = new HashMap<>();
+		trees.values().stream().flatMap(List::stream).distinct().sorted(java.util.Comparator.comparing(tree -> tree.id.toString()))
+			.forEach(tree -> fallbacks.computeIfAbsent(tree.kind,k -> new ArrayList<>()).add(tree));
+		return new Index(server, trees, rows, fallbacks);
+	}
+
+	private static String fallbackKind(JsonObject tree) {
+		String leaf = tree.get("leaves").getAsString();
+		if (tree.has("leaf_preservation")) {
+			var materials = tree.getAsJsonObject("leaf_preservation").getAsJsonObject("source_materials");
+			leaf = materials.entrySet().stream().max(java.util.Comparator.comparingInt(e -> e.getValue().getAsInt()))
+				.map(Map.Entry::getKey).orElse(leaf);
+		}
+		for (String kind : List.of("mangrove","cherry","spruce","birch","jungle","acacia","dark_oak"))
+			if (leaf.contains(kind)) return kind;
+		return "oak";
 	}
 
 	/** A tree's species from its file: "paleozoey-europe/quercus_robur3.nbt" and "quercus_alba__3_.nbt" by their names. */

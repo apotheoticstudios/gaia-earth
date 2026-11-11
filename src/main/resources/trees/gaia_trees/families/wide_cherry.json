@@ -1,0 +1,8 @@
+{
+  "common_leaves": "gaia_trees:wide_cherry__cherry_leaves",
+  "common_species": "gaia_trees:wide_cherry",
+  "primitive_log": "cherry_log",
+  "primitive_stripped_log": "stripped_cherry_log",
+  "max_branch_radius": 24,
+  "max_signal_depth": 512
+}

@@ -1,0 +1,58 @@
+{
+  "type": "nether_fungus",
+  "family": "dynamictrees:crimson",
+  "tapering": 0,
+  "signal_energy": 30.0,
+  "up_probability": 8,
+  "lowest_branch_height": 10,
+  "growth_rate": 0.9,
+  "soil_longevity": 8,
+  "max_branch_radius": 20,
+  "growth_logic_kit": {
+    "name": "nether_fungus",
+    "properties": {
+      "min_cap_height": 6
+    }
+  },
+  "leaves_properties": "gaia_trees:crimson__nether_wart_block",
+  "generate_seed": false,
+  "generate_sapling": false,
+  "preferred_climate": "arid",
+  "climate_tolerance": 0.3,
+  "acceptable_soils": [
+    "nether_soil_like",
+    "fungus_like",
+    "dirt_like"
+  ],
+  "acceptable_growth_blocks": [
+    "crimson_nylium"
+  ],
+  "features": [
+    {
+      "name": "mound",
+      "properties": {
+        "mound_cutoff_radius": 999
+      }
+    },
+    "clear_volume",
+    "shroomlight",
+    "bottom_flare",
+    {
+      "name": "vines",
+      "properties": {
+        "vine_type": "ceiling",
+        "block": "weeping_vines_plant",
+        "tip_block": "weeping_vines",
+        "max_length": 5,
+        "quantity": 7
+      }
+    }
+  ],
+  "sapling_shape": "fat_round_mushroom_rim",
+  "model_overrides": {
+    "sapling": "dynamictrees:block/smartmodel/large_mushroom_round"
+  },
+  "lang_overrides": {
+    "seed": "Mega Crimson Cap"
+  }
+}

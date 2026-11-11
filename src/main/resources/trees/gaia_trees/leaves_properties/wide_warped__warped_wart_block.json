@@ -1,0 +1,13 @@
+{
+  "type": "dynamictrees:wart",
+  "primitive_leaves": "minecraft:warped_wart_block",
+  "cell_kit": "dynamictrees:nether_fungus",
+  "smother": 7,
+  "light_requirement": 0,
+  "fire_spread": 0,
+  "flammability": 0,
+  "map_color": "WARPED_WART_BLOCK",
+  "family": "gaia_trees:wide_warped",
+  "generate_block": true,
+  "block_registry_name": "dynamictrees:gaia_source_wide_warped__warped_wart_block"
+}
